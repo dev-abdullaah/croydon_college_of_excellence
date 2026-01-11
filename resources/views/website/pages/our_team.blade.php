@@ -40,7 +40,7 @@
                             <h4>Md Sajib Miah</h2>
                                 <h6 class="subtitle theme-gradient">Director & SEN Lead</h6>
                                 <span class="team-form">
-                                    <span class="location">(EdD & QTLS On-going), MA, BA, DET & CPD Courses</span>
+                                    <span class="location">(EdD ongoing) QTLS, MA, BA, DET & CPD Courses</span>
                                 </span>
                         </div>
                     </div>
@@ -88,13 +88,13 @@
             <div class="col-lg-4 col-md-6 col-12">
                 <div class="rbt-team team-style-default style-three rbt-hover">
                     <div class="inner">
-                        <div class="thumbnail"><img src="{{ asset('assets/images/team/shahidullah.jpg') }}">
+                        <div class="thumbnail"><img src="{{ asset('assets/images/team/sharif.jpeg') }}">
                         </div>
                         <div class="content">
-                            <h4>Mohammad Shahidullah</h4>
-                            <h6 class="subtitle theme-gradient">Humanities Lead</h6>
+                            <h4>MD Sharif Hossain</h4>
+                            <h6 class="subtitle theme-gradient">Math Tutor</h6>
                             <span class="team-form">
-                                <span class="location">MEd (On-going), MA, BA & CPD Courses</span>
+                                <span class="location">MA, BA & CPD Courses</span>
                             </span>
                         </div>
                     </div>
@@ -106,13 +106,13 @@
             <div class="col-lg-4 col-md-6 col-12">
                 <div class="rbt-team team-style-default style-three rbt-hover">
                     <div class="inner">
-                        <div class="thumbnail"><img src="{{ asset('assets/images/team/sahra.jpg') }}">
+                        <div class="thumbnail"><img src="{{ asset('assets/images/team/rakib.jpeg') }}">
                         </div>
                         <div class="content">
-                            <h4>Sahra Ibrahim</h4>
-                            <h6 class="subtitle theme-gradient">Maths Tutor</h6>
+                            <h4>Md Rakib Hossain</h4>
+                            <h6 class="subtitle theme-gradient">Holiday Activity Coordinator</h6>
                             <span class="team-form">
-                                <span class="location">BA in Mathmatics, A Level, GCSE & CPD Courses</span>
+                                <span class="location">BA, A Level, GCSE & CPD Courses</span>
                             </span>
                         </div>
                     </div>
@@ -139,7 +139,7 @@
             <!-- End Single Team  -->
 
             <!-- Start Single Team  -->
-            <div class="col-lg-4 col-md-6 col-12">
+            <!-- <div class="col-lg-4 col-md-6 col-12">
                 <div class="rbt-team team-style-default style-three rbt-hover">
                     <div class="inner">
                         <div class="thumbnail"><img src="{{ asset('assets/images/team/rashedul.jpg') }}">
@@ -153,7 +153,7 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </div> -->
             <!-- End Single Team  -->
 
         </div>
