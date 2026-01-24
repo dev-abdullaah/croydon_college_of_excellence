@@ -92,7 +92,7 @@
                         </div>
                         <div class="content">
                             <h4>MD Sharif Hossain</h4>
-                            <h6 class="subtitle theme-gradient">Math Tutor</h6>
+                            <h6 class="subtitle theme-gradient">Mentor Lead</h6>
                             <span class="team-form">
                                 <span class="location">MA, BA & CPD Courses</span>
                             </span>
@@ -139,7 +139,25 @@
             <!-- End Single Team  -->
 
             <!-- Start Single Team  -->
-            <!-- <div class="col-lg-4 col-md-6 col-12">
+            <div class="col-lg-4 col-md-6 col-12">
+                <div class="rbt-team team-style-default style-three rbt-hover">
+                    <div class="inner">
+                        <div class="thumbnail"><img src="{{ asset('assets/images/team/sahra.jpg') }}">
+                        </div>
+                        <div class="content">
+                            <h4>Sahra Ibrahim</h4>
+                            <h6 class="subtitle theme-gradient">Math Tutor</h6>
+                            <span class="team-form">
+                                <span class="location">BA in Mathmatics, A Level, GCSE & CPD Courses</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- End Single Team  -->
+
+            <!-- Start Single Team  -->
+            <div class="col-lg-4 col-md-6 col-12">
                 <div class="rbt-team team-style-default style-three rbt-hover">
                     <div class="inner">
                         <div class="thumbnail"><img src="{{ asset('assets/images/team/rashedul.jpg') }}">
@@ -153,7 +171,7 @@
                         </div>
                     </div>
                 </div>
-            </div> -->
+            </div>
             <!-- End Single Team  -->
 
         </div>
