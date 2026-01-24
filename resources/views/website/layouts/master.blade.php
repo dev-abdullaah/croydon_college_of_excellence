@@ -5,9 +5,29 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <title>Croydon College of Excellence</title>
-    <meta name="robots" content="noindex, follow" />
-    <meta name="description" content="">
+
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="A leading educational institution in Croydon, London, committed to academic excellence, personal growth, and future success.">
+
+    <link rel="canonical" href="{{ url()->current() }}">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Croydon College of Excellence" />
+    <meta property="og:description" content="A leading educational institution in Croydon, London, committed to academic excellence, personal growth, and future success." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="{{ url()->current() }}" />
+    <meta property="og:image" content="{{ asset('assets/images/logo/og-image.jpg') }}" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Croydon College of Excellence campus and students" />
+    <meta property="og:site_name" content="Croydon College of Excellence" />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Croydon College of Excellence" />
+    <meta name="twitter:description" content="Empowering students in Croydon, London through quality education and lifelong learning." />
+    <meta name="twitter:image" content="{{ asset('assets/images/logo/og-image.jpg') }}" />
 
     <!-- Favicon -->
     <link rel="shortcut icon" type="image/x-icon" href="{{ asset('assets/images/favicon.png') }}">
