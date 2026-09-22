@@ -22,7 +22,7 @@
                     </div>
                     <div class="inner">
                         <h4 class="title">Phone Number</h4>
-                        <p><a href="tel:+447404797808">+44 7404 797808</a></p>
+                        <p><a href="tel:+447405073764">+44 7405 073764</a></p>
                     </div>
                 </div>
             </div>

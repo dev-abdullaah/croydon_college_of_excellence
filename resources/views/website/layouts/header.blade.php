@@ -3,63 +3,54 @@
     <div class="rbt-sticky-placeholder"></div>
 
     <!-- Start Header Top -->
-    <div
-        class="rbt-header-top rbt-header-top-1 header-space-betwween bg-not-transparent bg-color-darker top-expended-activation">
+    <div class="rbt-header-top rbt-header-top-1 header-space-betwween bg-not-transparent">
         <div class="container-fluid">
-            <div class="row align-items-center justify-content-center text-center">
+            <div class="top-header-wrapper">
                 <!-- Left Section: Email and Phone Start -->
-                <div class="col-12 col-md-auto d-flex flex-wrap gap-3 justify-content-center">
-                    <div class="rbt-header-content">
-                        <div class="header-info">
-                            <ul class="rbt-information-list text-center text-md-start">
-                                <li>
-                                    <a href="mailto:info@croydoncollegeofexcellence.co.uk" class="top_header_font">
-                                        <i class="fa-solid fa-envelope"></i>
-                                        info@croydoncollegeofexcellence.co.uk
-                                    </a>
-                                </li>
-                                <li>
-                                    <a href="tel:+447404797808" class="top_header_font">
-                                        <i class="fa-solid fa-phone"></i>
-                                        +44 7404 797808
-                                        <br>
-                                        +44 7405 073764
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
+                <div class="top-header-left">
+                    <ul class="top-header-list">
+                        <li>
+                            <a href="mailto:info@croydoncollegeofexcellence.co.uk" class="top_header_font">
+                                <i class="fa-solid fa-envelope"></i>
+                                <span>info@croydoncollegeofexcellence.co.uk</span>
+                            </a>
+                        </li>
+                        <li class="top-header-divider" aria-hidden="true"></li>
+                        <li>
+                            <a href="tel:+447405073764" class="top_header_font">
+                                <i class="fa-solid fa-phone"></i>
+                                <span>+44 7405 073764</span>
+                            </a>
+                        </li>
+                    </ul>
                 </div>
                 <!-- Left Section: Email and Phone End -->
 
                 <!-- Center Section: Address Start -->
-                <div class="col-12 col-md text-center d-flex justify-content-center center-address">
-                    <div class="w-100 w-md-auto text-nowrap">
-                        <span class="news-text d-flex align-items-center justify-content-center top_header_font">
-                            <i class="fa-solid fa-location-dot"></i>
-                            &nbsp;
-                            47 Old Town, Croydon, London, CR0 1AU
-                        </span>
-                    </div>
+                <div class="top-header-center">
+                    <span class="top-header-address top_header_font">
+                        <i class="fa-solid fa-location-dot"></i>
+                        <span>47 Old Town, Croydon, London, CR0 1AU</span>
+                    </span>
                 </div>
                 <!-- Center Section: Address End -->
 
                 <!-- Right Section: Social Media Links Start -->
-                <div class="col-12 col-md-auto text-center social-icons">
-                    <ul class="social-share-transparent list-inline d-flex justify-content-center gap-2 m-0">
+                <div class="top-header-right">
+                    <ul class="social-share-transparent list-inline d-flex align-items-center justify-content-center gap-2 m-0">
                         <li class="list-inline-item">
-                            <a href="https://www.facebook.com/people/Croydon-College-of-Excellence/61572423543580/">
-                                <img src="{{ asset('assets/images/icons/facebook.png') }}" width="18" height="18">
+                            <a href="https://www.facebook.com/people/Croydon-College-of-Excellence/61572423543580/" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                                <img src="{{ asset('assets/images/icons/facebook.png') }}" width="18" height="18" alt="Facebook">
                             </a>
                         </li>
                         <li class="list-inline-item">
-                            <a href="https://www.instagram.com/ccollegeofexcellence/profilecard/">
-                                <img src="{{ asset('assets/images/icons/instagram.png') }}" width="18" height="18">
+                            <a href="https://www.instagram.com/ccollegeofexcellence/profilecard/" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                                <img src="{{ asset('assets/images/icons/instagram.png') }}" width="18" height="18" alt="Instagram">
                             </a>
                         </li>
                         <li class="list-inline-item">
-                            <a href="https://www.linkedin.com/company/croydon-college-of-excellence/">
-                                <img src="{{ asset('assets/images/icons/linkedIn.png') }}" width="18" height="18">
+                            <a href="https://www.linkedin.com/company/croydon-college-of-excellence/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+                                <img src="{{ asset('assets/images/icons/linkedIn.png') }}" width="18" height="18" alt="LinkedIn">
                             </a>
                         </li>
                     </ul>

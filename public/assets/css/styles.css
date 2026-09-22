@@ -37692,37 +37692,195 @@ Course Sidebar
 
 
 
-.top_header_font{
-  font-size: 1.5rem !important;
+/* Top Header Redesign */
+.rbt-header-top.rbt-header-top-1 {
+  background-color: #0a418f !important;
 }
 
-@media only screen and (max-width: 560px){
-  .top_header_font{
-    font-size: 1.2rem !important;
+.top_header_font {
+  font-size: 1.4rem !important;
+}
+
+.top-header-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.top-header-left {
+  flex: 1 1 0%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.top-header-center {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.top-header-right {
+  flex: 1 1 0%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.top-header-list {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.top-header-list li {
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.top-header-list li a,
+.top-header-address {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffffff !important;
+  font-size: 1.4rem;
+  line-height: 1.4;
+  text-decoration: none;
+  transition: color 0.25s ease, opacity 0.25s ease;
+}
+
+.top-header-list li a:hover {
+  color: #ffd043 !important;
+}
+
+.top-header-list li a:hover i {
+  color: #ffd043 !important;
+}
+
+.top-header-list li a i,
+.top-header-address i {
+  font-size: 1.4rem;
+  color: #ffffff !important;
+  margin: 0;
+  display: inline-block;
+  transition: color 0.25s ease;
+}
+
+.top-header-divider {
+  width: 1px !important;
+  min-width: 1px !important;
+  height: 14px;
+  background-color: rgba(255, 255, 255, 0.35);
+  flex-shrink: 0;
+  display: inline-block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.top-header-right .social-share-transparent img {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  vertical-align: middle;
+  display: inline-block;
+}
+
+.top-header-right .social-share-transparent a:hover img {
+  transform: scale(1.15);
+  opacity: 0.9;
+}
+
+/* Medium screens (992px to 1199px) */
+@media (min-width: 992px) and (max-width: 1199px) {
+  .top-header-left {
+    flex: 0 0 auto;
+  }
+  .top-header-center {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding: 0 15px;
+  }
+  .top-header-right {
+    flex: 0 0 auto;
   }
 }
 
-@media only screen and (max-width: 767px) {
+/* Tablet screens (768px to 991px) */
+@media (min-width: 768px) and (max-width: 991px) {
+  .top-header-wrapper {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 30px;
+    padding: 4px 0;
+  }
+  .top-header-left {
+    flex: 0 0 100%;
+    justify-content: center;
+  }
+  .top-header-center {
+    flex: 0 0 auto;
+    justify-content: center;
+  }
+  .top-header-right {
+    flex: 0 0 auto;
+    justify-content: center;
+  }
+}
+
+/* Mobile screens (< 768px) */
+@media (max-width: 767px) {
   body {
     font-size: 16px;
     line-height: 1.5;
   }
-}
-
-
-@media (max-width: 768px) { /* Mobile screens */
-  .hide-on-mobile { 
-      display: none !important; /* Hide email, phone number, and address text */
+  .rbt-header-top.rbt-header-top-1 {
+    min-height: auto;
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
-  
-  .rbt-information-list li {
-      display: flex;
-      justify-content: center;
+  .top-header-wrapper {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    text-align: center;
   }
-
-  .center-address {
-      display: flex;
-      justify-content: center;
+  .top-header-left {
+    flex: 0 0 auto;
+    width: 100%;
+    justify-content: center;
+  }
+  .top-header-list {
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+  }
+  .top-header-divider {
+    display: none !important;
+  }
+  .top-header-center {
+    flex: 0 0 auto;
+    width: 100%;
+    justify-content: center;
+  }
+  .top-header-right {
+    flex: 0 0 auto;
+    width: 100%;
+    justify-content: center;
+    margin-top: 2px;
+  }
+  .top_header_font,
+  .top-header-list li a,
+  .top-header-address {
+    font-size: 1.3rem !important;
   }
 }
  

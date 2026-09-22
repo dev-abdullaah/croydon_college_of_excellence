@@ -102,7 +102,7 @@
                     <div class="footer-widget">
                         <h5 class="ft-title">Contact Us</h5>
                         <ul class="ft-link">
-                            <li><span></span> <a href="tel:+447404797808">+44 7404 797808</a></li>
+                            <li><span></span> <a href="tel:+447405073764">+44 7405 073764</a></li>
                             <li><span></span> <a
                                     href="mailto:info@croydoncollegeofexcellence.co.uk">info@croydoncollegeofexcellence.co.uk</a>
                             </li>
