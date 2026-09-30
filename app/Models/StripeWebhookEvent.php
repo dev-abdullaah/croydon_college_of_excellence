@@ -24,8 +24,16 @@ class StripeWebhookEvent extends Model
         'processed_at',
     ];
 
-    protected $casts = [
-        'livemode' => 'boolean',
-        'processed_at' => 'datetime',
-    ];
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'livemode' => 'boolean',
+            'processed_at' => 'datetime',
+        ];
+    }
 }

@@ -103,7 +103,7 @@ Edit copy and prices in `config/catalog.php`, then re-run the seeder.
 
 ## 2. Requirements
 
-* PHP 8.1+ with the extensions Laravel 10 needs, plus `pdo_mysql` (or
+* PHP 8.3+ with the extensions Laravel 13 needs, plus `pdo_mysql` (or
   `pdo_sqlite` if you want to run the test suite with the default settings)
 * Composer 2
 * MySQL 5.7+ / MariaDB 10.3+ / PostgreSQL 10+ (the project already ships a
@@ -904,9 +904,10 @@ Everything added or changed for this feature:
 * `app/Http/Controllers/Auth/LoginController.php`, `Auth/RegisterController.php`
 * `app/Http/Middleware/EnsureCoursePurchased.php` — the `purchased` middleware
 * `app/Policies/CoursePolicy.php`
-* `routes/web.php`, `app/Http/Kernel.php`, `app/Http/Middleware/VerifyCsrfToken.php`,
-  `app/Providers/AuthServiceProvider.php`, `app/Providers/AppServiceProvider.php`,
-  `app/Providers/RouteServiceProvider.php` (`HOME` is now `/my-account`)
+* `routes/web.php`, `bootstrap/app.php` (middleware, routing and the CSRF
+  exemption for the webhook), `app/Providers/AppServiceProvider.php` (the
+  `purchased` alias, the API rate limit, the lesson/paper route bindings, and
+  `/my-account` as the post-sign-in destination)
 
 **Views** (all reuse the existing "rbt" theme and Bootstrap 5)
 * `resources/views/website/partials/paid_courses.blade.php` — homepage promo

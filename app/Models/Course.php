@@ -27,12 +27,20 @@ class Course extends Model
         'sort_order',
     ];
 
-    protected $casts = [
-        'price' => 'integer',
-        'features' => 'array',
-        'is_active' => 'boolean',
-        'sort_order' => 'integer',
-    ];
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'price' => 'integer',
+            'features' => 'array',
+            'is_active' => 'boolean',
+            'sort_order' => 'integer',
+        ];
+    }
 
     /**
      * Courses are addressed by their slug everywhere in the URL space.

@@ -211,4 +211,25 @@ return [
 
     'partitioned' => false,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Session Serialization
+    |--------------------------------------------------------------------------
+    |
+    | This value controls how session data is serialized before it is stored.
+    | JSON is the safer default: it cannot reconstruct arbitrary PHP objects,
+    | which is what "gadget chain" deserialization attacks rely on if the
+    | APP_KEY ever leaks.
+    |
+    | The only thing this application keeps in the session is a course slug,
+    | so JSON loses nothing. Switching away from "php" invalidates sessions
+    | that were written before the change, so anyone signed in at the moment
+    | of the deploy is asked to sign in again.
+    |
+    | Supported: "json", "php"
+    |
+    */
+
+    'serialization' => 'json',
+
 ];

@@ -1,55 +1,60 @@
 <?php
 
-/*
-|--------------------------------------------------------------------------
-| Create The Application
-|--------------------------------------------------------------------------
-|
-| The first thing we will do is create a new Laravel application instance
-| which serves as the "glue" for all the components of Laravel, and is
-| the IoC container for the system binding all of the various parts.
-|
-*/
+use App\Http\Middleware\EnsureCoursePurchased;
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 
-$app = new Illuminate\Foundation\Application(
-    $_ENV['APP_BASE_PATH'] ?? dirname(__DIR__)
-);
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
+        commands: __DIR__.'/../routes/console.php',
+    )
+    ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->alias([
+            'purchased' => EnsureCoursePurchased::class,
+        ]);
 
-/*
-|--------------------------------------------------------------------------
-| Bind Important Interfaces
-|--------------------------------------------------------------------------
-|
-| Next, we need to bind some important interfaces into the container so
-| we will be able to resolve them when needed. The kernels serve the
-| incoming requests to this application from both the web and CLI.
-|
-*/
+        /*
+         | Rate limit the API. This used to be part of the "api" middleware
+         | group in the HTTP kernel; from Laravel 11 on it is opt-in, so it
+         | is asked for explicitly here or the group arrives unthrottled.
+         */
+        $middleware->throttleApi();
 
-$app->singleton(
-    Illuminate\Contracts\Http\Kernel::class,
-    App\Http\Kernel::class
-);
+        /*
+         | Stripe cannot send a CSRF token. Requests to the webhook path are
+         | authenticated instead by verifying Stripe's `Stripe-Signature`
+         | header against the endpoint's signing secret, which is strictly
+         | stronger, so it is exempt here.
+         */
+        $middleware->preventRequestForgery(except: [
+            'stripe/webhook',
+        ]);
 
-$app->singleton(
-    Illuminate\Contracts\Console\Kernel::class,
-    App\Console\Kernel::class
-);
+        /*
+         | A password is stored exactly as it was typed. Trimming these would
+         | silently change a password the learner believes they chose, so
+         | leading and trailing spaces are left alone.
+         */
+        $middleware->trimStrings(except: [
+            'current_password',
+            'password',
+            'password_confirmation',
+        ]);
 
-$app->singleton(
-    Illuminate\Contracts\Debug\ExceptionHandler::class,
-    App\Exceptions\Handler::class
-);
-
-/*
-|--------------------------------------------------------------------------
-| Return The Application
-|--------------------------------------------------------------------------
-|
-| This script returns the application instance. The instance is given to
-| the calling script so we can separate the building of the instances
-| from the actual running of the application and sending responses.
-|
-*/
-
-return $app;
+        /*
+         | Guests are sent to sign in and returned to the URL they wanted
+         | afterwards; an already signed-in visitor who reaches /login or
+         | /register is sent to their account instead.
+         */
+        $middleware->redirectGuestsTo(fn () => route('login'));
+        $middleware->redirectUsersTo('/my-account');
+    })
+    ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->shouldRenderJsonWhen(
+            fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
+        );
+    })->create();

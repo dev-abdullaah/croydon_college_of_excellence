@@ -47,17 +47,25 @@ class QuizAttempt extends Model
         'submitted_at',
     ];
 
-    protected $casts = [
-        'answers' => 'array',
-        'current_position' => 'integer',
-        'score' => 'integer',
-        'total' => 'integer',
-        'percentage' => 'decimal:2',
-        'passed' => 'boolean',
-        'time_taken_seconds' => 'integer',
-        'started_at' => 'datetime',
-        'submitted_at' => 'datetime',
-    ];
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'answers' => 'array',
+            'current_position' => 'integer',
+            'score' => 'integer',
+            'total' => 'integer',
+            'percentage' => 'decimal:2',
+            'passed' => 'boolean',
+            'time_taken_seconds' => 'integer',
+            'started_at' => 'datetime',
+            'submitted_at' => 'datetime',
+        ];
+    }
 
     public function user(): BelongsTo
     {

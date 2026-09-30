@@ -47,12 +47,20 @@ class Purchase extends Model
         'failure_reason',
     ];
 
-    protected $casts = [
-        'amount' => 'integer',
-        'metadata' => 'array',
-        'paid_at' => 'datetime',
-        'refunded_at' => 'datetime',
-    ];
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'amount' => 'integer',
+            'metadata' => 'array',
+            'paid_at' => 'datetime',
+            'refunded_at' => 'datetime',
+        ];
+    }
 
     public function user(): BelongsTo
     {

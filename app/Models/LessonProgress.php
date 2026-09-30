@@ -30,9 +30,17 @@ class LessonProgress extends Model
         'completed_at',
     ];
 
-    protected $casts = [
-        'completed_at' => 'datetime',
-    ];
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'completed_at' => 'datetime',
+        ];
+    }
 
     public function user(): BelongsTo
     {

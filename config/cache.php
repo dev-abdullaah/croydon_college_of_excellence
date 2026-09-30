@@ -108,4 +108,20 @@ return [
 
     'prefix' => env('CACHE_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_cache_'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Serializable Classes
+    |--------------------------------------------------------------------------
+    |
+    | This value determines the classes that can be unserialized from cache
+    | storage. By default, no PHP classes will be unserialized from your
+    | cache, which prevents gadget chain attacks if your APP_KEY is leaked.
+    |
+    | Nothing in this application stores PHP objects in the cache, so this
+    | stays false. Add fully qualified class names here if that changes.
+    |
+    */
+
+    'serializable_classes' => false,
+
 ];

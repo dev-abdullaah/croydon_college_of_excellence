@@ -113,7 +113,7 @@ Route::middleware('auth')->group(function () {
      |
      | A lesson and a paper are read from the JSON content files rather than
      | from database tables, so `{lesson}` and `{quiz}` are turned back into
-     | objects by the bindings in RouteServiceProvider rather than by Laravel's
+     | objects by the bindings in AppServiceProvider rather than by Laravel's
      | model binding. Those bindings scope the lookup to the course in the URL,
      | which is what stops a buyer of the £99 course reaching the £49 pack's
      | papers by putting their slug in the URL.
@@ -147,7 +147,7 @@ Route::middleware('auth')->group(function () {
 |--------------------------------------------------------------------------
 |
 | Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
+| routes are loaded from bootstrap/app.php and all of them will
 | be assigned to the "web" middleware group. Make something great!
 |
 */

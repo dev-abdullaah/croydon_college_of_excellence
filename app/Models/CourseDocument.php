@@ -19,9 +19,17 @@ class CourseDocument extends Model
         'sort_order',
     ];
 
-    protected $casts = [
-        'sort_order' => 'integer',
-    ];
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'sort_order' => 'integer',
+        ];
+    }
 
     public function course(): BelongsTo
     {
