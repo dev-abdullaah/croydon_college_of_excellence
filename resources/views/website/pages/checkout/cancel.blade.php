@@ -40,12 +40,12 @@
                                 </button>
                             </form>
 
-                            <a href="{{ route('home') }}#paid-courses"
+                            <a href="{{ route('courses.index') }}"
                                 class="rbt-btn btn-border-gradient radius-round btn-sm justify-content-center text-center">
                                 <span>Back To The Courses</span>
                             </a>
                         @else
-                            <a href="{{ route('home') }}#paid-courses"
+                            <a href="{{ route('courses.index') }}"
                                 class="rbt-btn btn-border-gradient radius-round btn-sm justify-content-center text-center">
                                 <span>Back To The Courses</span>
                             </a>

@@ -31,7 +31,13 @@
                     <div class="col-md-4 text-md-end mt-3 mt-md-0">
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
-                            <button type="submit" class="btn btn-sm btn-outline-secondary">Sign Out</button>
+                            {{--
+                                Red, and full size. Signing out is the one thing
+                                on this page that undoes something, so it should
+                                not look like the neutral "Course details" link
+                                sitting four inches below it.
+                            --}}
+                            <button type="submit" class="btn btn-lg btn-danger">Sign Out</button>
                         </form>
                     </div>
                 </div>
@@ -62,7 +68,7 @@
                                     @else
                                         <p class="mb-2 small">Go to your papers and start practising.</p>
                                     @endif
-                                    <span class="rbt-btn btn-gradient btn-sm mt--20">
+                                    <span class="btn btn-lg btn-primary mt--20">
                                         <span>Open the course</span>
                                     </span>
                                 </a>
@@ -87,7 +93,7 @@
                             </div>
                             <div class="col-lg-4">
                                 <a href="{{ route('courses.show', $purchase->course) }}"
-                                    class="btn btn-sm btn-outline-secondary w-100">Course details</a>
+                                    class="btn btn-lg btn-outline-secondary w-100">Course details</a>
                             </div>
                         </div>
 
@@ -99,7 +105,7 @@
                                 This course is read and tested on the website. Nothing is downloaded.
                             </p>
                             <a href="{{ route('learn.index', $purchase->course) }}"
-                                class="rbt-btn btn-gradient btn-sm">
+                                class="btn btn-lg btn-primary">
                                 <span>Open the course</span>
                             </a>
                         @else
@@ -114,10 +120,43 @@
                             Choose the Life in the UK Course or the 24 Mock Tests package and your course will
                             appear here the moment Stripe confirms your payment.
                         </p>
-                        <a href="{{ route('home') }}#paid-courses"
-                            class="rbt-btn btn-border-gradient radius-round btn-sm">
-                            <span>Browse the courses</span>
-                        </a>
+                        {{-- Centred, and sized to its own label.
+
+                             .rbt-btn is display:flex, which fills whatever block
+                             box it is put in. The card is 875px wide, so left
+                             alone this renders as a full-width bar with a
+                             caption on it rather than as a button.
+                             d-inline-flex is the one class that overrides it,
+                             shrinking the button to the label; the wrapper
+                             around it then does the centring. --}}
+                        <div class="text-center mt--20">
+                            <a href="{{ route('courses.index') }}"
+                                class="rbt-btn hover-icon-reverse btn-border-gradient radius-round d-inline-flex">
+                                <div class="icon-reverse-wrapper">
+                                    <span class="btn-text">Browse the courses</span>
+                                    {{-- Two icons: the first shows, the second slides
+                                         in on hover and the first slides away. --}}
+                                    <span class="btn-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="feather feather-arrow-right">
+                                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                                            <polyline points="12 5 19 12 12 19"></polyline>
+                                        </svg>
+                                    </span>
+                                    <span class="btn-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="feather feather-arrow-right">
+                                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                                            <polyline points="12 5 19 12 12 19"></polyline>
+                                        </svg>
+                                    </span>
+                                </div>
+                            </a>
+                        </div>
                     </div>
                 @endforelse
 
@@ -134,7 +173,7 @@
                                     </span>
                                     @if ($purchase->course)
                                         <a href="{{ route('courses.show', $purchase->course) }}"
-                                            class="btn btn-sm btn-outline-primary">Try again</a>
+                                            class="btn btn-lg btn-primary">Try again</a>
                                     @endif
                                 </li>
                             @endforeach

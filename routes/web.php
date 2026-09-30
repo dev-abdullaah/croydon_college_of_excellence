@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\ContactMailController;
+use App\Http\Controllers\CourseCatalogController;
 use App\Http\Controllers\CourseLearnController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EnrollMailController;
@@ -63,21 +64,39 @@ Route::middleware('guest')->group(function () {
 |
 | Deliberately outside the `guest` middleware group. A correct password on an
 | unverified account does not sign anybody in, and registration does not
-| either, so somebody following the link out of their inbox is a guest until
-| that link proves the address is theirs.
+| either, so somebody who has only a mailed code is a guest until they redeem
+| it.
 |
-| The verify route is `signed` rather than `auth`: possession of the mailed
-| URL is the credential. `throttle` on top of that, because the URL is a
-| bearer token and should not be cheap to replay.
+| Verification is by code, so there is no signed URL and nothing to put behind
+| `signed`. What replaces it is the throttle below plus the attempt counter in
+| the controller: a code is guessable in a way a signature is not, so the
+| defence moves from "cannot be forged" to "cannot be guessed quickly".
+|
+| The redeem form is throttled per IP, and the resend form even harder, since
+| each hit costs a real email.
+|
+| Each page asks for one thing. The code page asks for a code and takes the
+| address from the session; the resend page asks for an address. They are
+| linked rather than stacked, which is the shape Laravel's own password reset
+| uses.
 |
 */
 
 Route::get('/email/verify', [EmailVerificationController::class, 'notice'])
     ->name('verification.notice');
 
-Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
-    ->middleware(['signed', 'throttle:6,1'])
+Route::post('/email/verify', [EmailVerificationController::class, 'confirm'])
+    ->middleware('throttle:10,1')
     ->name('verification.verify');
+
+/*
+| The resend page is a page of its own, not a second form under the code
+| form. Two email boxes on one screen reads as two competing forms; here the
+| code page asks for a code and this one asks for an address.
+*/
+
+Route::get('/email/resend', [EmailVerificationController::class, 'resendForm'])
+    ->name('verification.resend.form');
 
 Route::post('/email/resend', [EmailVerificationController::class, 'resend'])
     ->middleware('throttle:2,1')
@@ -97,6 +116,16 @@ Route::post('/logout', [LoginController::class, 'destroy'])
 | value posted by the browser.
 |
 */
+
+/*
+| The catalogue has a page of its own. Linking to the homepage and asking a
+| visitor to scroll to an anchor buried under the hero, the gallery and the
+| testimonials made them hunt for the thing they were sent to buy. `/courses`
+| is a short list and nothing else.
+|
+| Registered before `/courses/{course}` so the literal segment always wins.
+*/
+Route::get('/courses', [CourseCatalogController::class, 'index'])->name('courses.index');
 
 Route::get('/courses/{course}', [CheckoutController::class, 'show'])->name('courses.show');
 

@@ -86,6 +86,168 @@ class PaidCoursesTest extends TestCase
         $this->assertSame('price_test_mock_tests', $mocks->stripePriceId());
     }
 
+    /* -----------------------------------------------------------------
+     | The catalogue page
+
+     | The account page and the checkout cancel page both send a visitor to
+     | somewhere to buy. Both used to link to the homepage with an anchor on
+     | the paid-courses section, which meant landing at the top of a long page
+     | and having to scroll past the hero, the gallery and the testimonials to
+     | reach the thing they were sent to buy. So they get a page of their own,
+     | and the anchor is gone.
+     * ----------------------------------------------------------------- */
+
+    public function test_the_catalogue_page_lists_both_courses_with_prices(): void
+    {
+        $this->requirePurchase();
+
+        $this->get('/courses')
+            ->assertOk()
+            ->assertSee('Choose The Course You Need')
+            ->assertSee('Buy Life in the UK Course')
+            ->assertSee('Buy 24 Mock Tests Package')
+            ->assertSee('£99')
+            ->assertSee('£49');
+    }
+
+    public function test_the_catalogue_page_is_public(): void
+    {
+        // It is a selling page. Requiring an account to look at what is for
+        // sale would be the wrong way round.
+        $this->get('/courses')->assertOk();
+
+        $this->get(route('courses.index'))
+            ->assertOk()
+            ->assertSee('Choose The Course You Need');
+    }
+
+    public function test_the_catalogue_page_still_links_to_each_course(): void
+    {
+        $this->get('/courses')
+            ->assertOk()
+            ->assertSee(route('courses.show', 'life-in-the-uk-course'), false)
+            ->assertSee(route('courses.show', '24-mock-tests'), false);
+    }
+
+    public function test_the_catalogue_page_says_so_when_there_is_nothing_to_sell(): void
+    {
+        // An empty list with no explanation reads as a broken site.
+        Course::query()->update(['is_active' => false]);
+        config(['catalog.courses' => []]);
+
+        $this->get('/courses')
+            ->assertOk()
+            ->assertSee('Courses are not available right now')
+            ->assertSee('+44 7405 073764');
+    }
+
+    public function test_nothing_links_to_the_homepage_anchor_any_more(): void
+    {
+        // The old target. While this anchor is still linked from anywhere, the
+        // scroll-through-the-whole-homepage problem is still live.
+        $dead = [];
+
+        foreach ($this->allBladeViews() as $path) {
+            if (str_contains((string) file_get_contents($path), '#paid-courses')) {
+                $dead[] = $path;
+            }
+        }
+
+        $this->assertSame([], $dead, 'views still link to home#paid-courses');
+    }
+
+    /**
+     * Every blade view under resources/views, whatever the shell handed back.
+     *
+     * @return array<int, string>
+     */
+    private function allBladeViews(): array
+    {
+        $found = [];
+
+        $directory = new \RecursiveDirectoryIterator(resource_path('views'));
+        $directory->setFlags(\FilesystemIterator::SKIP_DOTS);
+
+        foreach (new \RecursiveIteratorIterator($directory) as $file) {
+            if (str_ends_with($file->getFilename(), '.blade.php')) {
+                $found[] = $file->getPathname();
+            }
+        }
+
+        return $found;
+    }
+
+    public function test_the_account_page_sends_an_empty_visitor_to_the_catalogue(): void
+    {
+        $html = $this->actingAs(User::factory()->create())
+            ->get('/my-account')
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString(
+            'href="'.route('courses.index').'"',
+            $html,
+            'the account page does not link to the catalogue page'
+        );
+        $this->assertStringNotContainsString(
+            '#paid-courses',
+            $html,
+            'the account page still links to the homepage anchor'
+        );
+    }
+
+    public function test_the_catalogue_button_uses_the_theme_button_and_is_centred(): void
+    {
+        // It is the theme's own button (rbt-btn), not a Bootstrap .btn, and it
+        // is the one thing to do on that card, so it sits in a centred block.
+        $html = $this->actingAs(User::factory()->create())
+            ->get('/my-account')
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/<a href="'.preg_quote(route('courses.index'), '/').'"\s+class="rbt-btn hover-icon-reverse btn-border-gradient radius-round d-inline-flex"/',
+            $html,
+            'the browse button is not the expected theme button'
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/<div class="text-center[^"]*">\s*<a href="'.preg_quote(route('courses.index'), '/').'"/',
+            $html,
+            'the browse button is not centred'
+        );
+
+        // hover-icon-reverse animates .btn-text and two .btn-icon spans, so a
+        // class with none of that markup inside would animate nothing.
+        //
+        // Matched on the button's own classes, not on its href: the layout's
+        // menu also links to the catalogue page, and reading the first href
+        // would pick that plain link up instead of this one.
+        preg_match(
+            '/<a[^>]*class="rbt-btn hover-icon-reverse btn-border-gradient radius-round d-inline-flex"[^>]*>(.*?)<\/a>/s',
+            $html,
+            $button
+        );
+
+        $this->assertNotEmpty($button, 'the browse button was not found on the page');
+        $this->assertStringContainsString(route('courses.index'), $button[0]);
+        $this->assertStringContainsString('icon-reverse-wrapper', $button[1]);
+        $this->assertStringContainsString('class="btn-text"', $button[1]);
+        $this->assertSame(2, substr_count($button[1], 'class="btn-icon"'));
+    }
+
+    public function test_the_cancel_page_sends_a_visitor_to_the_catalogue(): void
+    {
+        $html = $this->actingAs(User::factory()->create())
+            ->withSession(['checkout.course' => 'life-in-the-uk-course'])
+            ->get('/checkout/cancel')
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString(route('courses.index'), $html);
+        $this->assertStringNotContainsString('#paid-courses', $html);
+    }
+
     /**
      * Nothing is sold as a file, so the catalogue must not point at one.
      *
@@ -182,6 +344,61 @@ class PaidCoursesTest extends TestCase
             ->assertSee('class="site-toasts" role="region"', false);
     }
 
+    /* -----------------------------------------------------------------
+     | The buttons on the account page
+
+     | Signing out is the one thing here that undoes something, so it is red
+     | and the same size as the buttons around it. It was a .btn-sm, which at
+     | this theme's root font size came out about 20px tall with 8.75px type -
+     | smaller than the body text next to it.
+     * ----------------------------------------------------------------- */
+
+    public function test_signing_out_is_a_large_red_button(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->get('/my-account')
+            ->assertOk()
+            ->assertSee('class="btn btn-lg btn-danger"', false);
+    }
+
+    public function test_the_account_page_buttons_are_all_the_same_size(): void
+    {
+        // One page, one button size. A mixture is what makes a page look
+        // unfinished, and this page had 20px, 31px and 45px buttons on it.
+        $html = $this->actingAs(User::factory()->create())
+            ->get('/my-account')
+            ->assertOk()
+            ->getContent();
+
+        preg_match_all('/class="(btn btn-[^"]*)"/', $html, $matches);
+
+        $this->assertNotEmpty($matches[1]);
+
+        foreach ($matches[1] as $class) {
+            $this->assertStringContainsString('btn-lg', $class, "a small button: {$class}");
+        }
+    }
+
+    public function test_bootstrap_button_sizes_are_left_to_bootstrap(): void
+    {
+        // styles.css must not redefine .btn, .btn-sm or .btn-lg.
+        //
+        // It briefly did. Having read bootstrap.min.css and seen the sizes in
+        // rem, the sizes were restated in px in the theme's stylesheet to
+        // compensate for `html { font-size: 10px }` - which made every one of
+        // them far too big, because it was answering a question nobody had
+        // asked. `btn-lg` is a Bootstrap class; what it looks like is
+        // Bootstrap's business.
+        //
+        // Anchored so `.rbt-btn.btn-lg`, which is the theme's own separate
+        // button and legitimately stays, is not what this reads.
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        preg_match_all('/(?<![\w.-])(\.btn|\.btn-sm|\.btn-lg)\s*\{([^}]*)\}/', $css, $matches, PREG_SET_ORDER);
+
+        $this->assertSame([], $matches, 'styles.css is overriding Bootstrap button sizing');
+    }
+
     public function test_a_message_carries_a_dismiss_control(): void
     {
         $this->actingAs(User::factory()->create())
@@ -190,6 +407,103 @@ class PaidCoursesTest extends TestCase
             ->assertOk()
             ->assertSee('data-site-toast-dismiss', false)
             ->assertSee('Dismiss this message', false);
+    }
+
+    /* -----------------------------------------------------------------
+     | Which messages leave on their own
+
+     | The close button being there and nothing else is what left people
+     | clicking the x on every confirmation. Confirmations now take themselves
+     | off the screen.
+     |
+     | The ones that must NOT are the half that matters just as much. A list of
+     | validation errors that disappears before it is read is worse than no
+     | list, and there is no timeout short enough to be safe and long enough to
+     | finish reading. So the opt-in is on the message, not a timer that
+     | applies to all of them - which is what makes it possible to leave errors
+     | alone without special-casing them in the script.
+     * ----------------------------------------------------------------- */
+
+    public function test_a_confirmation_leaves_the_screen_by_itself(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->withSession(['success' => 'Your email address is verified'])
+            ->get('/my-account')
+            ->assertOk()
+            ->assertSee('data-site-toast-autoclose="6000"', false);
+    }
+
+    public function test_a_longer_message_is_given_longer_before_it_goes(): void
+    {
+        // Six seconds is a reading time, not a sentence.
+        $this->actingAs(User::factory()->create())
+            ->withSession(['info' => 'Something worth reading at length'])
+            ->get('/my-account')
+            ->assertOk()
+            ->assertSee('data-site-toast-autoclose="9000"', false);
+    }
+
+    public function test_a_validation_summary_never_leaves_the_screen_by_itself(): void
+    {
+        $html = $this->followingRedirects()
+            ->post('/register', [
+                'name' => '',
+                'email' => 'not-an-email',
+                'password' => 'short',
+                'password_confirmation' => 'different',
+            ])
+            ->assertOk()
+            ->assertSee('Please check the form')
+            ->getContent();
+
+        $this->assertStringNotContainsString('data-site-toast-autoclose', $html);
+    }
+
+    public function test_a_warning_or_an_error_stays_put_too(): void
+    {
+        // Same reasoning as the validation summary: these are instructions, not
+        // news. Only confirmations are safe to lose.
+        foreach (['warning' => 'Careful', 'error' => 'That did not work'] as $level => $text) {
+            $html = $this->actingAs(User::factory()->create())
+                ->withSession([$level => $text])
+                ->get('/my-account')
+                ->assertOk()
+                ->assertSee($text)
+                ->getContent();
+
+            $this->assertStringNotContainsString(
+                'data-site-toast-autoclose',
+                $html,
+                "a {$level} message must not dismiss itself",
+            );
+        }
+    }
+
+    public function test_the_script_is_what_acts_on_the_opt_in(): void
+    {
+        // Read the script rather than trusting the markup. An attribute nothing
+        // reads would render perfectly in every test above and leave a
+        // confirmation sitting there forever, which is the bug this replaces.
+        $js = (string) file_get_contents(public_path('assets/js/custom.js'));
+
+        $this->assertStringContainsString('.site-toast[data-site-toast-autoclose]', $js);
+        $this->assertStringContainsString('getAttribute("data-site-toast-autoclose")', $js);
+    }
+
+    public function test_a_message_being_read_is_not_timed_out(): void
+    {
+        // WCAG 2.2.1: a message that sets its own timer has to be adjustable.
+        // Hover or tab into it and the countdown stops, and starts again on the
+        // way out, so nobody is halfway through a sentence when it goes.
+        $js = (string) file_get_contents(public_path('assets/js/custom.js'));
+
+        foreach (['mouseenter', 'focusin', 'mouseleave', 'focusout'] as $event) {
+            $this->assertStringContainsString(
+                '"'.$event.'"',
+                $js,
+                "reading a message should pause on {$event}",
+            );
+        }
     }
 
     public function test_nothing_is_rendered_on_a_page_without_a_message(): void
