@@ -53,16 +53,21 @@
     </div>
 
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb--20">
-        <a href="{{ route('learn.index', $course) }}" class="rbt-btn btn-white">
+        <a href="{{ route('learn.index', $course) }}" class="btn btn-lg btn-outline-secondary">
             &larr; Back to the course
         </a>
 
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2">
             @if ($lesson)
                 <a href="{{ route('learn.lessons.show', [$course, $lesson->slug]) }}"
-                    class="rbt-btn btn-white">Back to the lesson</a>
+                    class="btn btn-lg btn-outline-secondary">Back to the lesson</a>
             @endif
-            <a href="{{ route('learn.quizzes.play', [$course, $quiz->slug]) }}" class="rbt-btn btn-gradient">
+            {{--
+                Offered whether the paper was passed or not, so it stays the
+                primary colour. Turning it amber or green here would be reading
+                the mark back to them, which the score above already says.
+            --}}
+            <a href="{{ route('learn.quizzes.play', [$course, $quiz->slug]) }}" class="btn btn-lg btn-primary">
                 Sit this paper again
             </a>
         </div>
@@ -75,7 +80,11 @@
         @foreach ($marked as $row)
             <div class="pb-4 mb-4 border-bottom">
                 <div class="d-flex gap-3">
-                    <span class="lz-num">{{ $row['question']->position }}</span>
+                    {{-- align-self-start overrides .lz-num's own centring: this
+                         number heads the prompt and all four options, so
+                         centred it would sit beside the last option instead of
+                         beside the question it belongs to. --}}
+                    <span class="lz-num align-self-start">{{ $row['question']->position }}</span>
                     <div class="flex-grow-1">
                         <p class="fw-semibold mb-3">{!! nl2br(e($row['question']->prompt)) !!}</p>
 
@@ -137,8 +146,15 @@
                                 {{ $past->passed ? 'Pass' : 'Not passed' }}
                             </span>
                             @if ($past->id !== $attempt->id)
-                                <a href="{{ route('learn.quizzes.result', [$course, $quiz->slug, $past->id]) }}"
-                                    class="rbt-btn btn-white">View</a>
+                                {{--
+                                        Left small on purpose. This is one row of
+                                        a list of past sittings, not an action
+                                        that matters as much as the buttons
+                                        above; at full size the list stops being
+                                        a list.
+                                    --}}
+                                    <a href="{{ route('learn.quizzes.result', [$course, $quiz->slug, $past->id]) }}"
+                                        class="btn btn-sm btn-outline-secondary">View</a>
                             @else
                                 <span class="small text-muted">This one</span>
                             @endif

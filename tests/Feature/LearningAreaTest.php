@@ -898,6 +898,302 @@ class LearningAreaTest extends TestCase
     }
 
     /* -----------------------------------------------------------------
+     | Which buttons are which
+
+     | Colour here is not decoration. These pages are used one-handed on a
+     | phone, and the colour is the fastest way to say what a button does:
+     | blue for the thing you came here to do, green for the thing that
+     | finishes something, grey for the way back.
+     |
+     | They also all have to be the same size. They were a mix - some at 45px,
+     | some at 31px - which is what made the sign-out button on the account
+     | page look like a stray label.
+     * ----------------------------------------------------------------- */
+
+    public function test_the_learning_buttons_are_large_and_coloured_by_what_they_do(): void
+    {
+        $course = $this->course();
+        $buyer = $this->buyer($course);
+
+        $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 2);
+        [$lesson] = $this->makeLessons($course, 1);
+
+        $this->submitPaper($buyer, $course, $quiz, $this->correctAnswers($course, $quiz, 2));
+        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+
+        // Blue: the action the page exists for. Green: finishing something.
+        // Outlined grey: getting somewhere else.
+        $expected = [
+            route('learn.index', $course) => ['btn-outline-secondary', 'btn-primary'],
+            route('learn.lessons.show', [$course, $lesson]) => ['btn-outline-secondary', 'btn-primary', 'btn-success'],
+            route('learn.quizzes.play', [$course, $quiz]) => ['btn-outline-secondary', 'btn-primary', 'btn-success'],
+            route('learn.quizzes.result', [$course, $quiz, $attempt->id]) => ['btn-outline-secondary', 'btn-primary'],
+        ];
+
+        foreach ($expected as $url => $colours) {
+            $html = $this->actingAs($buyer)->get($url)->assertOk()->getContent();
+
+            preg_match_all('/class="(btn btn-[^"]*)"/', $html, $matches);
+
+            $found = $matches[1];
+
+            $this->assertNotEmpty($found, "no bootstrap buttons on {$url}");
+
+            foreach ($found as $class) {
+                $this->assertStringContainsString(
+                    'btn-lg',
+                    $class,
+                    "a small button on {$url}: {$class}",
+                );
+
+                $this->assertNotEmpty(
+                    array_filter($colours, fn ($c) => str_contains($class, $c)),
+                    "unexpected colour on {$url}: {$class}",
+                );
+            }
+        }
+    }
+
+    public function test_no_learning_button_is_left_on_the_old_theme_button(): void
+    {
+        // .rbt-btn and .btn-lg mean two different things in this stylesheet -
+        // the theme's own button, which is 45px, and Bootstrap's large one.
+        // Mixing them on the same page is how the sizes ended up different.
+        //
+        // Read from the views rather than from a rendered page, because the
+        // shared header and footer are full of .rbt-btn and are not what is
+        // under test; the learning pages' own buttons are.
+        $views = [
+            'index', 'lesson', 'play', 'result',
+        ];
+
+        foreach ($views as $view) {
+            $source = (string) file_get_contents(
+                resource_path("views/website/pages/learn/{$view}.blade.php")
+            );
+
+            $this->assertStringNotContainsString(
+                'rbt-btn',
+                $source,
+                "the {$view} page still has a theme button on it",
+            );
+        }
+    }
+
+    public function test_the_question_jump_buttons_are_big_enough_to_hit(): void
+    {
+        // These are reached for one-handed, mid-paper, without necessarily
+        // looking straight at them. They were 23px squares with 8px type -
+        // smaller than the buttons on the same page.
+        //
+        // Read from the stylesheet, because a rendered button carries no size
+        // of its own; there is nothing in the markup to assert on.
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        preg_match('/\.lz-jump button\s*\{([^}]*)\}/', $css, $block);
+        $rules = $block[1] ?? '';
+
+        $this->assertNotSame('', $rules, 'no rule found for the jump buttons');
+
+        // `html { font-size: 10px }` in this theme, so 1rem is 10px.
+        preg_match('/width:\s*([\d.]+)rem/', $rules, $width);
+        preg_match('/height:\s*([\d.]+)rem/', $rules, $height);
+        preg_match('/font-size:\s*([\d.]+)rem/', $rules, $font);
+
+        $this->assertGreaterThanOrEqual(40, (float) ($width[1] ?? 0) * 10, 'jump button too narrow');
+        $this->assertGreaterThanOrEqual(40, (float) ($height[1] ?? 0) * 10, 'jump button too short');
+
+        // A two digit question number has to be legible in it, not a smudge.
+        $this->assertGreaterThanOrEqual(12, (float) ($font[1] ?? 0) * 10, 'jump number too small');
+    }
+
+    public function test_the_navigator_keeps_its_flex_layout_while_a_paper_is_playing(): void
+    {
+        // `gap` does nothing at all to a block box.
+        //
+        // The navigator was switched to `display: block` by the very rule that
+        // reveals it - three classes there against one class on `.lz-jump` - so
+        // the gap was silently inert and the buttons fell back to wrapping as
+        // text, one row butting up against the next. Nothing in the markup was
+        // wrong; only the cascade was.
+        //
+        // So the rule is that nothing may put the navigator on anything but
+        // `flex`, or on `none` while it is meant to be hidden.
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        // Comments first. This stylesheet explains itself at length, and the
+        // explanation of this very bug contains the words "display: block" and
+        // ".lz-jump" - which a naive scan happily reports as a rule.
+        $css = (string) preg_replace('!/\*.*?\*/!s', '', $css);
+
+        preg_match_all('/([^{}]+)\{([^}]*)\}/', $css, $rules, PREG_SET_ORDER);
+
+        $displays = [];
+        $base = null;
+
+        foreach ($rules as [, $selector, $body]) {
+            foreach (explode(',', $selector) as $one) {
+                $one = trim($one);
+
+                if (! str_contains($one, 'lz-jump')) {
+                    continue;
+                }
+
+                // The bare `.lz-jump` block is the one that carries the layout.
+                // Found by exact selector, not by a regex, because `.lz-jump {`
+                // also matches the tail of `.lz-aside .lz-jump {` and that rule
+                // is the hide, not the layout.
+                if ($one === '.lz-jump') {
+                    $base = $body;
+                }
+
+                if (preg_match('/display:\s*(\w+)/', $body, $found)) {
+                    $displays[] = $one.' => '.$found[1];
+                }
+            }
+        }
+
+        $this->assertNotEmpty($displays, 'no display rules found for the navigator');
+
+        foreach ($displays as $rule) {
+            $this->assertMatchesRegularExpression(
+                '/=> (flex|none)$/',
+                $rule,
+                "the navigator must not be display:block, which would switch its gap off: {$rule}",
+            );
+        }
+
+        // And the gap has to actually be a gap, on the rule that also sets flex.
+        $this->assertNotNull($base, 'no bare .lz-jump rule found');
+
+        $this->assertMatchesRegularExpression(
+            '/display:\s*flex/',
+            $base,
+            'the base .lz-jump rule is not flex',
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/gap:\s*(?!0\b)\S/',
+            $base,
+            'the navigator has no gap, so its buttons will touch',
+        );
+    }
+
+    public function test_the_answer_letter_is_centred_against_its_text_and_big_enough_to_read(): void
+    {
+        // Two separate faults in the option row, both invisible to the markup:
+        // the letter was set at .8rem (8px) inside an 18px chip, and the row was
+        // `align-items: flex-start`, which put the letter and the answer both on
+        // the top edge. That reads as "roughly centred" on a one-line option and
+        // as badly wrong on the two-line ones - measured at 14px of drift.
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        // Comments first, for the same reason as the navigator test above.
+        $css = (string) preg_replace('!/\*.*?\*/!s', '', $css);
+
+        preg_match_all('/([^{}]+)\{([^}]*)\}/', $css, $rules, PREG_SET_ORDER);
+
+        $row = null;
+        $key = null;
+
+        foreach ($rules as [, $selector, $body]) {
+            foreach (explode(',', $selector) as $one) {
+                $one = trim($one);
+
+                // Exact selectors, because `.lz-key {` would otherwise match the
+                // tail of `.lz-opt .lz-key {`, which only recolours it.
+                if ($one === '.lz-opt') {
+                    $row = $body;
+                }
+
+                if ($one === '.lz-key') {
+                    $key = $body;
+                }
+            }
+        }
+
+        $this->assertNotNull($row, 'no .lz-opt rule found');
+        $this->assertNotNull($key, 'no .lz-key rule found');
+
+        $this->assertMatchesRegularExpression(
+            '/align-items:\s*center/',
+            $row,
+            'the option row is not centred, so the letter floats above its answer',
+        );
+
+        $this->assertDoesNotMatchRegularExpression(
+            '/align-items:\s*flex-start/',
+            $row,
+            'the option row is flex-start aligned again, which puts the letter on the top edge',
+        );
+
+        // The radio carried a margin-top nudge that only existed to counteract
+        // the flex-start above. With the row centred it would shove the radio
+        // below centre instead, so it has to be gone.
+        $radio = null;
+
+        foreach ($rules as [, $selector, $body]) {
+            foreach (explode(',', $selector) as $one) {
+                if (trim($one) === '.lz-opt input') {
+                    $radio = $body;
+                }
+            }
+        }
+
+        $this->assertNotNull($radio, 'no .lz-opt input rule found');
+        $this->assertDoesNotMatchRegularExpression(
+            '/margin-top:/',
+            $radio,
+            'the radio still carries a top nudge that fights the centred row',
+        );
+
+        // Now the type. Body text is 1.8rem (18px) in this theme; the letter was
+        // less than half that, which is why it read as too small.
+        preg_match('/font-size:\s*([\d.]+)rem/', $key, $size);
+
+        $this->assertNotEmpty($size, '.lz-key sets no rem font size');
+        $this->assertGreaterThanOrEqual(
+            1.1,
+            (float) $size[1],
+            'the answer letter is set below 11px, which is too small to read',
+        );
+
+        // And the chip has to be able to hold it. A letter wider than the box it
+        // sits in is the other way this goes wrong.
+        preg_match('/flex:\s*0\s+0\s+([\d.]+)rem/', $key, $box);
+
+        $this->assertNotEmpty($box, '.lz-key sets no width in rem');
+        $this->assertGreaterThan(
+            (float) $size[1],
+            (float) $box[1],
+            'the answer letter would overflow its own chip',
+        );
+    }
+
+    public function test_there_is_a_jump_button_for_every_question(): void
+    {
+        // 24 questions means 24 targets, and a missing one is a question the
+        // learner cannot navigate back to.
+        $course = $this->course();
+        $buyer = $this->buyer($course);
+
+        $quiz = $this->makeQuiz($course, 'mock_test', 4, ['a', 'b', 'c', 'd'], 4);
+
+        $html = $this->actingAs($buyer)
+            ->get(route('learn.quizzes.play', [$course, $quiz]))
+            ->assertOk()
+            ->getContent();
+
+        preg_match_all('/data-goto="(\d+)"/', $html, $matches);
+
+        $this->assertSame(
+            range(1, 4),
+            array_map('intval', $matches[1]),
+            'the navigator does not list every question, in order',
+        );
+    }
+
+    /* -----------------------------------------------------------------
      | Reading the original .docx documents
      |
      | The JSON files cannot show whether a Word file is being read

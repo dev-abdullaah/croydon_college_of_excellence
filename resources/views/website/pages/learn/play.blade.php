@@ -7,13 +7,13 @@
 @section('learn')
 
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb--20">
-        <a href="{{ route('learn.index', $course) }}" class="rbt-btn btn-white">
+        <a href="{{ route('learn.index', $course) }}" class="btn btn-lg btn-outline-secondary">
             &larr; Back to the course
         </a>
 
         @if ($history->isNotEmpty())
             <a href="{{ route('learn.quizzes.result', [$course, $quiz->slug, $history->first()->id]) }}"
-                class="rbt-btn btn-white">Your last result</a>
+                class="btn btn-lg btn-outline-secondary">Your last result</a>
         @endif
     </div>
 
@@ -78,9 +78,9 @@
                          then. --}}
                     <div class="lz-card lz-nav p-4">
                         <div class="d-flex justify-content-between align-items-center">
-                            <button type="button" class="rbt-btn btn-white" data-move="back">Back</button>
+                            <button type="button" class="btn btn-lg btn-outline-secondary" data-move="back">Back</button>
 
-                            <button type="button" class="rbt-btn btn-gradient" data-move="next">
+                            <button type="button" class="btn btn-lg btn-primary" data-move="next">
                                 Next &rarr;
                             </button>
                         </div>
@@ -134,7 +134,11 @@
                         <li>You are marked as soon as you finish, and cannot change your answers afterwards.</li>
                     </ul>
 
-                    <button type="submit" form="paper-form" class="rbt-btn btn-white w-100 mt--20">
+                    {{--
+                        Green: finishing is the one action on this page that
+                        completes something, and this is what it does.
+                    --}}
+                    <button type="submit" form="paper-form" class="btn btn-lg btn-success w-100 mt--20">
                         Finish and see my results
                     </button>
                 </div>

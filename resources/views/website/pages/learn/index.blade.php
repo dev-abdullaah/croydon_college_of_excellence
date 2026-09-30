@@ -44,9 +44,15 @@
 
         <hr class="my-4">
 
+        {{--
+            These are navigation, not the thing the page is for. Outlined and
+            neutral so the course content below stays the loudest thing here;
+            the primary colour is reserved for starting a paper.
+        --}}
         <div class="d-flex flex-wrap gap-2">
-            <a href="{{ route('dashboard') }}" class="rbt-btn btn-white">My account</a>
-            <a href="{{ route('courses.show', $course) }}" class="rbt-btn btn-white">Course details</a>
+            <a href="{{ route('dashboard') }}" class="btn btn-lg btn-outline-secondary">My account</a>
+            <a href="{{ route('courses.show', $course) }}" class="btn btn-lg btn-outline-secondary">Course
+                details</a>
         </div>
     </div>
 
@@ -54,7 +60,7 @@
     @if ($lessons->isNotEmpty())
         <h3 class="title mb--20">Lessons</h3>
 
-        <div class="row g-3 mb--40">
+        <div class="row g-3 mb--40 lz-index-grid">
             @foreach ($lessons as $lesson)
                 <div class="col-lg-6 col-12">
                     <a href="{{ route('learn.lessons.show', [$course, $lesson->slug]) }}"
@@ -89,14 +95,15 @@
             @endif
         </p>
 
-        <div class="row g-3 mb--40">
+        <div class="row g-3 mb--40 lz-index-grid">
             @foreach ($group['quizzes'] as $quiz)
                 @php $row = $best->get($quiz->slug); @endphp
                 <div class="col-lg-6 col-12">
                     <a href="{{ route('learn.quizzes.play', [$course, $quiz->slug]) }}"
-                        class="lz-card d-block p-3 h-100 text-decoration-none text-reset">
-                        <div class="d-flex align-items-center">
-                            <div class="flex-grow-1">
+                        class="lz-card lz-paper-card d-block p-3 h-100 text-decoration-none text-reset">
+                        <div class="d-flex align-items-start">
+                            <span class="lz-num">{{ $loop->iteration }}</span>
+                            <div class="ms-3 flex-grow-1">
                                 <h5 class="title mb-1">{{ $quiz->title }}</h5>
                                 <p class="mb-0 small">
                                     {{ $quiz->questionCount() }} questions
@@ -126,7 +133,7 @@
                 <p class="mb-3">
                     The lessons and papers for this course are not loaded yet.
                 </p>
-                <a href="{{ route('dashboard') }}" class="rbt-btn btn-white">Back to my account</a>
+                <a href="{{ route('dashboard') }}" class="btn btn-lg btn-outline-secondary">Back to my account</a>
             </div>
         @endif
     @endforelse

@@ -37941,6 +37941,24 @@ Course Sidebar
   border: 1px solid var(--color-border);
   border-radius: 12px;
   box-shadow: var(--shadow-1);
+  transition: box-shadow .2s ease, border-color .2s ease, transform .15s ease;
+}
+
+/* Clickable cards (links wrapping .lz-card) lift slightly on hover.
+   The wrapper anchor must be display:block (d-block) for this to apply. */
+a.lz-card:hover,
+a[class*="lz-card"]:hover {
+  box-shadow: var(--shadow-3);
+  border-color: rgba(47, 87, 239, .35);
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+
+/* The two main card grids: lessons and papers on the course index. */
+.lz-index-grid .lz-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ---- Study cards -------------------------------------------------------- */
@@ -37956,17 +37974,39 @@ Course Sidebar
   border-bottom: 0;
 }
 
+/* 2.6rem is 26px and 1.3rem is 13px, because this theme sets
+   `html { font-size: 10px }`. That is the same pair `.lz-key` already uses.
+   This was 2.1rem/0.82rem: a 21px circle holding an 8.2px numeral, a ratio
+   that left the number looking lost in the middle of its own circle.
+
+   min-width rather than width, because a lesson has 100 study cards and this
+   has to hold "100". A fixed 2.6rem clipped the third digit; with
+   border-radius: 50% a box wider than it is tall comes out as a slightly oval
+   chip, which is the right shape once there are three digits to hold. */
 .lz-num {
-  flex: 0 0 2.1rem;
-  height: 2.1rem;
+  flex: 0 0 auto;
+  min-width: 2.6rem;
+  height: 2.6rem;
+  padding: 0 .5rem;
   border-radius: 50%;
   background: rgba(47, 87, 239, .1);
   color: var(--color-primary);
   font-weight: 700;
-  font-size: .82rem;
+  font-size: 1.7rem;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* The badge sits in a flex row with the question/answer.
+   align-items: flex-start makes it line up with the first line of text
+   (the question) instead of floating in the middle of the whole card. */
+.lz-item {
+  display: flex;
+  align-items: flex-start;
+  gap: .9rem;
+  padding: 1.1rem 0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .lz-item .lz-q {
@@ -37985,7 +38025,7 @@ Course Sidebar
   border-radius: 4px;
   background: #eef2ff;
   color: var(--color-primary);
-  font-size: .7rem;
+  font-size: 1.2rem;
   font-weight: 700;
   vertical-align: 2px;
 }
@@ -37994,7 +38034,13 @@ Course Sidebar
 
 .lz-opt {
   display: flex;
-  align-items: flex-start;
+  /* Centre, not flex-start.
+     The key and the answer were lining up along the top of the row while the
+     answer itself sat wherever its own line box put it. On a one-line option
+     that reads as roughly centred by luck; on the two and three line options
+     that some papers have, the letter floats at the top of a tall row with
+     nothing beside it. */
+  align-items: center;
   gap: .8rem;
   width: 100%;
   text-align: left;
@@ -38012,7 +38058,9 @@ Course Sidebar
 }
 
 .lz-opt input {
-  margin-top: .25rem;
+  /* No margin-top nudge any more: that existed to pull the radio down off the
+     top edge while the row was flex-start aligned, and it would now push it
+     below centre. */
   flex: 0 0 auto;
   width: 1.15rem;
   height: 1.15rem;
@@ -38020,14 +38068,19 @@ Course Sidebar
   cursor: pointer;
 }
 
+/* 2.6rem is 26px and 1.3rem is 13px, because this theme sets
+   `html { font-size: 10px }`. Both were scaled together on purpose: the letter
+   was 8px inside an 18px chip, a ratio that left it looking lost in the middle
+   of its own box, so enlarging the type alone would have burst the chip and the
+   chip alone would have left the type as small as it was. */
 .lz-key {
-  flex: 0 0 1.8rem;
-  height: 1.8rem;
-  border-radius: 6px;
+  flex: 0 0 2.6rem;
+  height: 2.6rem;
+  border-radius: 7px;
   background: #f1f3f7;
   color: var(--color-heading);
   font-weight: 700;
-  font-size: .8rem;
+  font-size: 1.3rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -38104,9 +38157,23 @@ Course Sidebar
 }
 
 .is-playing .lz-nav,
-.is-playing .lz-aside .progress,
-.is-playing .lz-aside .lz-jump {
+.is-playing .lz-aside .progress {
   display: block;
+}
+
+/*
+| Was in the rule above, alongside .lz-nav and .progress, all three of which do
+| want `display: block`. The navigator does not.
+|
+| Three classes here beat the one class on `.lz-jump`, so the moment the paper
+| started playing the flex was silently replaced by block - and `gap` does
+| nothing to a block box. The buttons fell back to wrapping as inline-level text
+| with only line-height between rows, which is why they ended up touching. The
+| gap below was never being applied at all; the buttons were small enough to
+| nearly fill each line that it went unnoticed.
+*/
+.is-playing .lz-aside .lz-jump {
+  display: flex;
 }
 
 .lz-nav {
@@ -38116,15 +38183,22 @@ Course Sidebar
 .lz-jump {
   display: flex;
   flex-wrap: wrap;
-  gap: .4rem;
+  gap: .5rem;
 }
+
+/* 4rem is 40px here, because this theme sets `html { font-size: 10px }`.
+   These are navigation controls reached for one-handed while working through a
+   paper, and at 2.3rem - 23px, with 8px type - they were smaller than the
+   buttons beside them and well under a comfortable touch target. 40px is the
+   smallest size that is reliably hittable without looking, and the number
+   still fits without crowding a two-digit question. */
 .lz-jump button {
-  width: 2.3rem;
-  height: 2.3rem;
-  border-radius: 6px;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 8px;
   border: 1px solid var(--color-border);
   background: var(--color-white);
-  font-size: .8rem;
+  font-size: 1.5rem;
   font-weight: 600;
   color: var(--color-heading);
 }
@@ -38168,9 +38242,9 @@ Course Sidebar
   margin-top: .55rem;
   padding: .6rem .8rem;
   border-left: 3px solid var(--color-border);
-  background: #f8f9fb;
+  background: #d0ffdf;
   border-radius: 0 6px 6px 0;
-  font-size: .9rem;
+  font-size: 1.5rem;
 }
 
 /* ---- Dark mode ---------------------------------------------------------- */

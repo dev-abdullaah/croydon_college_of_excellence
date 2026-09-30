@@ -8,7 +8,7 @@
 
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb--20">
         <div>
-            <a href="{{ route('learn.index', $course) }}" class="rbt-btn btn-white">
+            <a href="{{ route('learn.index', $course) }}" class="btn btn-lg btn-outline-secondary">
                 &larr; All lessons
             </a>
         </div>
@@ -66,8 +66,14 @@
                     </p>
                 </div>
                 <div class="col-md-4 text-md-end">
+                    {{--
+                        Primary either way: sitting the check is the point of
+                        this card. The one that has already been sat once says
+                        "again", which is an offer to improve a score, and that
+                        is not a warning, so it does not get warning colours.
+                    --}}
                     <a href="{{ route('learn.quizzes.play', [$course, $check->slug]) }}"
-                        class="rbt-btn w-100 {{ $checkScore !== null ? 'btn-white' : 'btn-gradient' }}">
+                        class="btn btn-lg btn-primary w-100">
                         {{ $checkScore !== null ? 'Sit it again' : 'Start ' . strtolower($check->title) }}
                     </a>
                 </div>
@@ -96,7 +102,8 @@
                 @else
                     <form method="POST" action="{{ route('learn.lessons.complete', [$course, $lesson->slug]) }}">
                         @csrf
-                        <button type="submit" class="rbt-btn btn-gradient w-100">Mark as read</button>
+                        {{-- Green, to match the green "Done" badge it turns into. --}}
+                        <button type="submit" class="btn btn-lg btn-success w-100">Mark as read</button>
                     </form>
                 @endif
             </div>
