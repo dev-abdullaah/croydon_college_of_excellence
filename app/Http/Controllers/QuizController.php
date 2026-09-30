@@ -15,10 +15,10 @@ use Illuminate\View\View;
 /**
  * Sitting a paper and reading the result.
  *
- * One question at a time, like the real test: the learner saves an answer and
- * moves on, so a refresh or a dropped connection never loses their work. When
- * they finish they are shown every question with what they chose, what the
- * right answer was, and the score.
+ * The learner works through the paper in their browser, which holds their
+ * choices as they go, so moving between questions costs no request. The whole
+ * answer map is posted once, when they finish, and they are then shown every
+ * question with what they chose, what the right answer was, and the score.
  *
  * The correct answer is never sent to the browser while a paper is in
  * progress. It is only read when the attempt is marked, on the server.
@@ -32,6 +32,10 @@ class QuizController extends Controller
 
     /**
      * Start a paper, or pick the learner back up where they left off.
+     *
+     * Every question is rendered up front and answered in the browser, so
+     * moving through a paper costs no request. That means the whole paper -
+     * prompts and options, never the answers - is on the page at once.
      */
     public function play(Request $request, Course $course, Quiz $quiz): View
     {
@@ -47,60 +51,43 @@ class QuizController extends Controller
             'course' => $course,
             'quiz' => $quiz,
             'attempt' => $attempt,
-            'question' => $quiz->questionAt($position) ?? $quiz->questionAt(1),
-            'questions' => $quiz->questions,
             'total' => $total,
             'position' => $position,
-            'answered' => $attempt->answeredCount(),
+            // `correct` and `explanation` are left out on purpose. They reveal
+            // the answer, and this page is built by the browser as well as
+            // read by it.
+            'questions' => $quiz->questions->map(fn (Question $question) => [
+                'position' => $question->position,
+                'prompt' => $question->prompt,
+                'options' => $question->options,
+            ]),
             'history' => $this->attempts->history($request->user(), $quiz),
         ]);
     }
 
     /**
-     * Save an answer and move to the next question.
-     */
-    public function answer(Request $request, Course $course, Quiz $quiz): RedirectResponse
-    {
-        $data = $request->validate([
-            'position' => ['required', 'integer', 'min:1', 'max:'.$quiz->questionCount()],
-            'answer' => ['nullable', 'string', 'in:a,b,c,d,A,B,C,D'],
-        ]);
-
-        $attempt = $this->attempts->openForAnswering($request->user(), $quiz);
-
-        $question = $this->questionAt($quiz, (int) $data['position']);
-
-        $this->attempts->recordAnswer($attempt, $question, $data['answer'] ?? null);
-
-        return redirect()->route('learn.quizzes.play', [$course, $quiz->slug, 'position' => $question->position + 1]);
-    }
-
-    /**
-     * Move the cursor without recording an answer, for the back button and
-     * the jump-to-question nav.
-     */
-    public function jump(Request $request, Course $course, Quiz $quiz): RedirectResponse
-    {
-        $data = $request->validate([
-            'position' => ['required', 'integer', 'min:1', 'max:'.$quiz->questionCount()],
-        ]);
-
-        $attempt = $this->attempts->openForAnswering($request->user(), $quiz);
-
-        $this->attempts->moveTo($attempt, (int) $data['position']);
-
-        return redirect()->route('learn.quizzes.play', [$course, $quiz->slug]);
-    }
-
-    /**
      * Finish the paper and mark it.
      *
-     * Submitting twice is harmless: the second one lands on the result that
-     * already exists rather than marking a second, empty sitting.
+     * The one request that carries the learner's work: the whole answer map
+     * arrives at once. Submitting twice is harmless: the second one lands on
+     * the result that already exists rather than marking a second, empty
+     * sitting.
      */
     public function submit(Request $request, Course $course, Quiz $quiz): RedirectResponse
     {
-        $attempt = $this->attempts->submitCurrent($request->user(), $quiz);
+        $data = $request->validate([
+            // Not `present`: a learner who finishes having answered nothing
+            // sends no `answers` field at all, and that is a blank paper, not a
+            // bad request.
+            'answers' => ['sometimes', 'array'],
+            'answers.*' => ['nullable', 'string', 'in:a,b,c,d,A,B,C,D'],
+        ]);
+
+        $attempt = $this->attempts->submitWithAnswers(
+            $request->user(),
+            $quiz,
+            $data['answers'] ?? []
+        );
 
         return redirect()->route('learn.quizzes.result', [$course, $quiz->slug, $attempt->id]);
     }
@@ -152,19 +139,5 @@ class QuizController extends Controller
                 ? $this->content->lessonByNumber($course->slug, $quiz->number)
                 : null,
         ]);
-    }
-
-    /**
-     * Find the question at a position, or 404 if the paper has no such
-     * question. Guards against a crafted position that is inside the range
-     * check but has no question behind it.
-     */
-    private function questionAt(Quiz $quiz, int $position): Question
-    {
-        $question = $quiz->questionAt($position);
-
-        abort_if($question === null, 404);
-
-        return $question;
     }
 }

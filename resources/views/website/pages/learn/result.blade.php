@@ -53,16 +53,16 @@
     </div>
 
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb--20">
-        <a href="{{ route('learn.index', $course) }}" class="btn btn-sm btn-outline-secondary">
+        <a href="{{ route('learn.index', $course) }}" class="rbt-btn btn-white">
             &larr; Back to the course
         </a>
 
         <div class="d-flex gap-2">
             @if ($lesson)
                 <a href="{{ route('learn.lessons.show', [$course, $lesson->slug]) }}"
-                    class="btn btn-sm btn-outline-secondary">Back to the lesson</a>
+                    class="rbt-btn btn-white">Back to the lesson</a>
             @endif
-            <a href="{{ route('learn.quizzes.play', [$course, $quiz->slug]) }}" class="btn btn-sm btn-primary">
+            <a href="{{ route('learn.quizzes.play', [$course, $quiz->slug]) }}" class="rbt-btn btn-gradient">
                 Sit this paper again
             </a>
         </div>
@@ -138,7 +138,7 @@
                             </span>
                             @if ($past->id !== $attempt->id)
                                 <a href="{{ route('learn.quizzes.result', [$course, $quiz->slug, $past->id]) }}"
-                                    class="btn btn-sm btn-outline-secondary">View</a>
+                                    class="rbt-btn btn-white">View</a>
                             @else
                                 <span class="small text-muted">This one</span>
                             @endif
@@ -150,3 +150,16 @@
     @endif
 
 @endsection
+
+@push('scripts')
+    {{-- This sitting is finished, so the copy the browser was holding for it
+         is cleared here rather than on the way out of the play screen. If the
+         submit had been refused, it would still be there to finish. --}}
+    <script>
+        try {
+            window.localStorage.removeItem('cce.quiz.attempt.{{ $attempt->id }}');
+        } catch (error) {
+            /* Nothing to do. */
+        }
+    </script>
+@endpush

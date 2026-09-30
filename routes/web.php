@@ -113,11 +113,14 @@ Route::middleware('auth')->group(function () {
                 ->name('lessons.complete');
 
             Route::get('/quizzes/{quiz}', [QuizController::class, 'play'])->name('quizzes.play');
-            Route::post('/quizzes/{quiz}/answer', [QuizController::class, 'answer'])
-                ->middleware('throttle:120,1')
-                ->name('quizzes.answer');
-            Route::post('/quizzes/{quiz}/jump', [QuizController::class, 'jump'])->name('quizzes.jump');
-            Route::post('/quizzes/{quiz}/submit', [QuizController::class, 'submit'])->name('quizzes.submit');
+
+            // The only write a paper takes. Answers are held in the browser
+            // while the learner moves around and arrive together here, so this
+            // is the one request that carries their work.
+            Route::post('/quizzes/{quiz}/submit', [QuizController::class, 'submit'])
+                ->middleware('throttle:30,1')
+                ->name('quizzes.submit');
+
             Route::get('/quizzes/{quiz}/attempts/{attempt}', [QuizController::class, 'result'])
                 ->name('quizzes.result');
         });

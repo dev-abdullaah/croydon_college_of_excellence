@@ -294,7 +294,7 @@ class LearningAreaTest extends TestCase
      | Sitting a paper
      | ----------------------------------------------------------------- */
 
-    public function test_opening_a_paper_starts_an_attempt_on_the_first_question(): void
+    public function test_opening_a_paper_starts_an_attempt_but_writes_no_answers(): void
     {
         $course = $this->course();
         $buyer = $this->buyer($course);
@@ -304,7 +304,6 @@ class LearningAreaTest extends TestCase
 
         $response->assertOk();
         $this->assertSame(1, $response->viewData('position'));
-        $this->assertSame(0, $response->viewData('answered'));
 
         $this->assertDatabaseHas('quiz_attempts', [
             'user_id' => $buyer->id,
@@ -312,6 +311,48 @@ class LearningAreaTest extends TestCase
             'quiz_slug' => $quiz,
             'status' => QuizAttempt::IN_PROGRESS,
         ]);
+
+        // The whole paper is answered in the browser, so opening it must not
+        // cost a write. This is the guarantee that makes a question free.
+        $this->assertSame(
+            0,
+            QuizAttempt::where('user_id', $buyer->id)->firstOrFail()->answeredCount()
+        );
+    }
+
+    /**
+     * The whole paper is on the page at once. That is what lets the browser
+     * move between questions without asking the server for the next one, so it
+     * is the thing that makes "no request per question" possible at all.
+     */
+    public function test_the_whole_paper_is_on_the_page_at_once(): void
+    {
+        $course = $this->course();
+        $buyer = $this->buyer($course);
+        $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 4);
+
+        $html = $this->actingAs($buyer)
+            ->get(route('learn.quizzes.play', [$course, $quiz]))
+            ->assertOk()
+            ->getContent();
+
+        foreach (range(1, 4) as $position) {
+            $this->assertStringContainsString(
+                "Question {$position}?",
+                $html,
+                "Question {$position} has to be on the page for the browser to move between them."
+            );
+        }
+
+        // One form, so the browser posts every answer in a single go.
+        $this->assertSame(1, substr_count($html, 'id="paper-form"'));
+
+        // The theme's main.js cancels the submit of any form called
+        // `quiz-form`, which it uses for a demo quiz elsewhere on the site.
+        // Sharing that id would stop the paper ever being marked, and nothing
+        // would say why: the page looks right and the learner just lands back
+        // where they started.
+        $this->assertStringNotContainsString('id="quiz-form"', $html);
     }
 
     public function test_the_correct_answer_is_never_sent_to_the_browser_while_a_paper_is_in_progress(): void
@@ -320,7 +361,7 @@ class LearningAreaTest extends TestCase
         $buyer = $this->buyer($course);
         $quiz = $this->makeQuiz($course, 'mock_test', 1, ['b', 'c', 'd', 'a'], 3);
 
-        $explanation = $this->paper($course, $quiz)->questionAt(1)->explanation;
+        $paper = $this->paper($course, $quiz);
 
         $html = $this->actingAs($buyer)
             ->get(route('learn.quizzes.play', [$course, $quiz]))
@@ -328,119 +369,162 @@ class LearningAreaTest extends TestCase
             ->getContent();
 
         $this->assertStringNotContainsString(
-            $explanation,
+            $paper->questionAt(1)->explanation,
             $html,
             'The explanation reveals the right answer and must not appear on the play screen.'
         );
+
+        // The page is built by the browser as well as read by it, so a correct
+        // letter must not be sitting there already chosen either. A pre-checked
+        // radio would hand the answers over with the markup.
+        foreach ($paper->questions as $question) {
+            $this->assertStringNotContainsString(
+                "value=\"{$question->correct}\" checked",
+                $html,
+                "Question {$question->position} gives its answer away in the markup."
+            );
+        }
     }
 
-    public function test_an_answer_is_saved_and_the_paper_moves_on(): void
+    public function test_finishing_a_paper_posts_every_answer_at_once_and_marks_it(): void
     {
         $course = $this->course();
         $buyer = $this->buyer($course);
-        $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 5);
+        $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 4);
 
-        $this->actingAs($buyer)
-            ->post(route('learn.quizzes.answer', [$course, $quiz]), [
-                'position' => 1,
-                'answer' => 'b',
-            ])
-            ->assertRedirect(route('learn.quizzes.play', [$course, $quiz, 'position' => 2]));
+        $this->actingAs($buyer)->get(route('learn.quizzes.play', [$course, $quiz]));
+
+        // The one request that carries the sitting: right, wrong, wrong, blank.
+        $this->submitPaper($buyer, $course, $quiz, [1 => 'a', 2 => 'a', 3 => 'a'])
+            ->assertRedirect();
 
         $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
 
-        $this->assertSame('b', $attempt->answerFor(1));
-        $this->assertSame(2, $attempt->current_position);
-        $this->assertSame(1, $attempt->answeredCount());
+        $this->assertSame(QuizAttempt::SUBMITTED, $attempt->status);
+        $this->assertSame(['1' => 'a', '2' => 'a', '3' => 'a'], $attempt->answers);
+        $this->assertSame(1, $attempt->score);
+        $this->assertSame(4, $attempt->total);
     }
 
-    public function test_answers_survive_a_reload(): void
-    {
-        $course = $this->course();
-        $buyer = $this->buyer($course);
-        $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 5);
-
-        $this->actingAs($buyer)->post(route('learn.quizzes.answer', [$course, $quiz]), [
-            'position' => 1, 'answer' => 'a',
-        ]);
-        $this->actingAs($buyer)->post(route('learn.quizzes.answer', [$course, $quiz]), [
-            'position' => 2, 'answer' => 'c',
-        ]);
-
-        // Reopening the paper resumes it rather than starting again.
-        $response = $this->actingAs($buyer)->get(route('learn.quizzes.play', [$course, $quiz]));
-
-        $this->assertSame(2, $response->viewData('answered'));
-        $this->assertSame(1, QuizAttempt::where('user_id', $buyer->id)->count());
-    }
-
-    public function test_an_answer_can_be_changed_before_finishing(): void
+    public function test_a_question_the_learner_never_answered_is_stored_as_blank(): void
     {
         $course = $this->course();
         $buyer = $this->buyer($course);
         $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 3);
 
-        $url = route('learn.quizzes.answer', [$course, $quiz]);
-
-        $this->actingAs($buyer)->post($url, ['position' => 1, 'answer' => 'a']);
-        $this->actingAs($buyer)->post($url, ['position' => 1, 'answer' => 'd']);
-
-        $this->assertSame(
-            'd',
-            QuizAttempt::where('user_id', $buyer->id)->firstOrFail()->answerFor(1)
-        );
-    }
-
-    public function test_jumping_around_moves_the_cursor_without_recording_an_answer(): void
-    {
-        $course = $this->course();
-        $buyer = $this->buyer($course);
-        $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 6);
-
-        $this->actingAs($buyer)
-            ->post(route('learn.quizzes.jump', [$course, $quiz]), ['position' => 4])
-            ->assertRedirect(route('learn.quizzes.play', [$course, $quiz]));
+        $this->submitPaper($buyer, $course, $quiz, [1 => 'a']);
 
         $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
 
-        $this->assertSame(4, $attempt->current_position);
-        $this->assertSame(0, $attempt->answeredCount());
-    }
-
-    public function test_an_answer_beyond_the_end_of_the_paper_is_rejected(): void
-    {
-        $course = $this->course();
-        $buyer = $this->buyer($course);
-        $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 3);
-
-        $this->actingAs($buyer)
-            ->post(route('learn.quizzes.answer', [$course, $quiz]), [
-                'position' => 99,
-                'answer' => 'a',
-            ])
-            ->assertSessionHasErrors('position');
-    }
-
-    public function test_an_answer_that_is_not_a_b_c_d_is_rejected(): void
-    {
-        $course = $this->course();
-        $buyer = $this->buyer($course);
-        $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 3);
-
-        $this->actingAs($buyer)
-            ->post(route('learn.quizzes.answer', [$course, $quiz]), [
-                'position' => 1,
-                'answer' => 'z',
-            ])
-            ->assertSessionHasErrors('answer');
+        $this->assertNull($attempt->answerFor(2));
+        $this->assertNull($attempt->answerFor(3));
+        $this->assertSame(1, $attempt->score, 'The two blanks count as wrong, as the paper says they do.');
     }
 
     /**
-     * Answering the last question leaves the cursor pointing just past the end
-     * (at "next"), which is the natural shape of a queue. A cursor that is
-     * stale for any reason - a paper shortened between sittings, or a saved
-     * queue that outran the paper - must come back to a real question when the
-     * learner reopens the paper, never render a blank page.
+     * The map that arrives is the whole sitting, so a question missing from it
+     * is one the learner has nothing chosen for. That is what makes a cleared
+     * answer clear: there is no earlier pick left behind on the server to keep
+     * a mark it had before.
+     */
+    public function test_a_question_missing_from_the_map_counts_as_blank(): void
+    {
+        $course = $this->course();
+        $buyer = $this->buyer($course);
+        $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 3);
+
+        $this->submitPaper($buyer, $course, $quiz, [2 => 'b']);
+
+        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+
+        $this->assertNull($attempt->answerFor(1));
+        $this->assertSame('b', $attempt->answerFor(2));
+        $this->assertNull($attempt->answerFor(3));
+        $this->assertSame(1, $attempt->score);
+    }
+
+    /**
+     * A crafted map cannot invent a question to be credited with. Anything
+     * keyed at a position the paper does not have is dropped, so the total is
+     * still the length of the paper.
+     */
+    public function test_an_answer_for_a_question_that_is_not_on_the_paper_is_ignored(): void
+    {
+        $course = $this->course();
+        $buyer = $this->buyer($course);
+        $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 3);
+
+        $this->submitPaper($buyer, $course, $quiz, [1 => 'a', 2 => 'b', 99 => 'c']);
+
+        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+
+        $this->assertSame(3, $attempt->total);
+        $this->assertSame(2, $attempt->score);
+        $this->assertSame(['1' => 'a', '2' => 'b'], $attempt->answers);
+    }
+
+    public function test_a_letter_that_is_not_a_b_c_d_is_rejected(): void
+    {
+        $course = $this->course();
+        $buyer = $this->buyer($course);
+        $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 3);
+
+        $this->submitPaper($buyer, $course, $quiz, [1 => 'z'])
+            ->assertSessionHasErrors('answers.1');
+
+        // The paper is left open rather than marked, so a refused submit does
+        // not cost the learner their sitting.
+        $this->assertSame(
+            QuizAttempt::IN_PROGRESS,
+            QuizAttempt::where('user_id', $buyer->id)->firstOrFail()->status
+        );
+    }
+
+    public function test_a_paper_with_no_answers_at_all_still_marks_as_all_wrong(): void
+    {
+        $course = $this->course();
+        $buyer = $this->buyer($course);
+        $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 3);
+
+        $this->submitPaper($buyer, $course, $quiz);
+
+        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+
+        $this->assertSame(0, $attempt->score);
+        $this->assertSame(3, $attempt->total);
+        $this->assertNull($attempt->answers);
+    }
+
+    /**
+     * A form that has had nothing ticked in it posts no `answers` field at all,
+     * rather than an empty one. That has to be read as a paper of blanks, not
+     * turned away as a malformed request, or a learner who finishes having
+     * chosen nothing loses their sitting to a 422.
+     */
+    public function test_finishing_without_any_answers_posts_nothing_and_still_marks(): void
+    {
+        $course = $this->course();
+        $buyer = $this->buyer($course);
+        $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 3);
+
+        $this->actingAs($buyer)->get(route('learn.quizzes.play', [$course, $quiz]));
+
+        $this->actingAs($buyer)
+            ->post(route('learn.quizzes.submit', [$course, $quiz]))
+            ->assertRedirect();
+
+        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+
+        $this->assertSame(QuizAttempt::SUBMITTED, $attempt->status);
+        $this->assertSame(0, $attempt->score);
+        $this->assertSame(3, $attempt->total);
+    }
+
+    /**
+     * The cursor is only a starting hint now - the browser remembers where the
+     * learner really is - but a stale value for any reason, such as a paper
+     * shortened between sittings, must still land on a real question rather
+     * than render nothing.
      */
     public function test_a_cursor_past_the_end_of_the_paper_renders_the_last_question(): void
     {
@@ -448,13 +532,11 @@ class LearningAreaTest extends TestCase
         $buyer = $this->buyer($course);
         $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 3);
 
-        // Saving the last answer points the queue at 4, past the end.
-        $this->actingAs($buyer)
-            ->post(route('learn.quizzes.answer', [$course, $quiz]), [
-                'position' => 3,
-                'answer' => 'a',
-            ])
-            ->assertRedirect(route('learn.quizzes.play', [$course, $quiz, 'position' => 4]));
+        $this->actingAs($buyer)->get(route('learn.quizzes.play', [$course, $quiz]));
+
+        QuizAttempt::where('user_id', $buyer->id)->firstOrFail()
+            ->forceFill(['current_position' => 99])
+            ->save();
 
         $this->actingAs($buyer)
             ->get(route('learn.quizzes.play', [$course, $quiz]))
@@ -475,15 +557,9 @@ class LearningAreaTest extends TestCase
         // answer cannot accidentally be right.
         $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 4);
 
-        // Q1 right, Q2 wrong, Q3 wrong, Q4 left blank.
-        foreach ([1, 2, 3] as $position) {
-            $this->actingAs($buyer)->post(route('learn.quizzes.answer', [$course, $quiz]), [
-                'position' => $position, 'answer' => 'a',
-            ]);
-        }
-
-        $response = $this->actingAs($buyer)
-            ->post(route('learn.quizzes.submit', [$course, $quiz]));
+        // Q1 right, Q2 wrong, Q3 wrong, Q4 left blank. All of it in the one
+        // request that finishes the paper.
+        $response = $this->submitPaper($buyer, $course, $quiz, [1 => 'a', 2 => 'a', 3 => 'a']);
 
         $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
 
@@ -537,7 +613,7 @@ class LearningAreaTest extends TestCase
 
         $this->travel(-30)->seconds();
 
-        $this->actingAs($buyer)->post(route('learn.quizzes.submit', [$course, $quiz]));
+        $this->submitPaper($buyer, $course, $quiz);
 
         $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
 
@@ -550,15 +626,11 @@ class LearningAreaTest extends TestCase
         $buyer = $this->buyer($course);
         $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 4);
 
-        $this->actingAs($buyer)->post(route('learn.quizzes.answer', [$course, $quiz]), [
-            'position' => 1, 'answer' => 'a',
-        ]);
+        $answers = [1 => 'a'];
 
-        $url = route('learn.quizzes.submit', [$course, $quiz]);
-
-        $this->actingAs($buyer)->post($url);
-        $this->actingAs($buyer)->post($url);
-        $this->actingAs($buyer)->post($url);
+        $this->submitPaper($buyer, $course, $quiz, $answers);
+        $this->submitPaper($buyer, $course, $quiz, $answers);
+        $this->submitPaper($buyer, $course, $quiz, $answers);
 
         $attempts = QuizAttempt::where('user_id', $buyer->id)->get();
 
@@ -572,17 +644,21 @@ class LearningAreaTest extends TestCase
         $buyer = $this->buyer($course);
         $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 2);
 
-        $this->actingAs($buyer)->post(route('learn.quizzes.answer', [$course, $quiz]), [
-            'position' => 1, 'answer' => 'a',
-        ]);
+        $this->actingAs($buyer)->get(route('learn.quizzes.play', [$course, $quiz]));
 
         $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
 
-        // Nothing but the answer was ever posted. A score cannot be supplied
-        // by the client, and an answer for a question that is not in the paper
-        // cannot be used to inflate the count.
+        // Nothing but answers is ever read. A score cannot be supplied by the
+        // client, and an answer for a question that is not in the paper cannot
+        // be used to inflate the count.
         $this->actingAs($buyer)
-            ->post(route('learn.quizzes.submit', [$course, $quiz]), ['score' => 100, 'total' => 1])
+            ->post(route('learn.quizzes.submit', [$course, $quiz]), [
+                'answers' => [1 => 'a', 99 => 'b'],
+                'score' => 100,
+                'total' => 1,
+                'percentage' => 100,
+                'passed' => true,
+            ])
             ->assertRedirect();
 
         $attempt->refresh();
@@ -598,14 +674,7 @@ class LearningAreaTest extends TestCase
         $buyer = $this->buyer($course);
         $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 4, 75);
 
-        foreach (range(1, 4) as $position) {
-            $this->actingAs($buyer)->post(route('learn.quizzes.answer', [$course, $quiz]), [
-                'position' => $position,
-                'answer' => ['a', 'b', 'c', 'd'][$position - 1],
-            ]);
-        }
-
-        $this->actingAs($buyer)->post(route('learn.quizzes.submit', [$course, $quiz]));
+        $this->submitPaper($buyer, $course, $quiz, [1 => 'a', 2 => 'b', 3 => 'c', 4 => 'd']);
 
         $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
 
@@ -624,9 +693,7 @@ class LearningAreaTest extends TestCase
 
         $this->assertSame(18, $this->paper($course, $paper)->passMarkCount());
 
-        $this->answerCorrectly($buyer, $course, $paper, 18);
-
-        $this->actingAs($buyer)->post(route('learn.quizzes.submit', [$course, $paper]));
+        $this->submitPaper($buyer, $course, $paper, $this->correctAnswers($course, $paper, 18));
 
         $this->assertTrue(QuizAttempt::where('user_id', $buyer->id)->firstOrFail()->passed);
     }
@@ -637,9 +704,7 @@ class LearningAreaTest extends TestCase
         $buyer = $this->buyer($course);
         $paper = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 24, 75);
 
-        $this->answerCorrectly($buyer, $course, $paper, 17);
-
-        $this->actingAs($buyer)->post(route('learn.quizzes.submit', [$course, $paper]));
+        $this->submitPaper($buyer, $course, $paper, $this->correctAnswers($course, $paper, 17));
 
         $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
 
@@ -647,29 +712,32 @@ class LearningAreaTest extends TestCase
         $this->assertFalse($attempt->passed);
     }
 
-    public function test_a_submitted_paper_cannot_be_answered_again(): void
+    /**
+     * Answers live in the browser now, so it is easy to have the same paper
+     * open twice. A tab that submits after the paper is already marked must not
+     * reopen it or quietly replace the score the learner has already been
+     * shown. To sit a paper again they open it, which is an explicit act.
+     */
+    public function test_a_stale_tab_cannot_overwrite_a_finished_result(): void
     {
         $course = $this->course();
         $buyer = $this->buyer($course);
         $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 3);
 
-        $this->actingAs($buyer)->post(route('learn.quizzes.answer', [$course, $quiz]), [
-            'position' => 1, 'answer' => 'a',
-        ]);
-        $this->actingAs($buyer)->post(route('learn.quizzes.submit', [$course, $quiz]));
+        $this->submitPaper($buyer, $course, $quiz, [1 => 'a', 2 => 'b', 3 => 'c']);
 
         $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
 
-        // A second posting must not reopen the finished paper, and the
-        // original score must stand.
-        $this->actingAs($buyer)
-            ->post(route('learn.quizzes.answer', [$course, $quiz]), [
-                'position' => 2, 'answer' => 'b',
-            ])
-            ->assertStatus(422);
+        $this->assertSame(3, $attempt->score);
 
+        // A second tab, holding a different set of answers, submits late.
+        $this->submitPaper($buyer, $course, $quiz, [1 => 'd', 2 => 'd', 3 => 'd'])
+            ->assertRedirect();
+
+        $this->assertSame(1, QuizAttempt::where('user_id', $buyer->id)->count());
         $this->assertSame(QuizAttempt::SUBMITTED, $attempt->fresh()->status);
-        $this->assertSame(1, $attempt->fresh()->score);
+        $this->assertSame(3, $attempt->fresh()->score);
+        $this->assertSame(['1' => 'a', '2' => 'b', '3' => 'c'], $attempt->fresh()->answers);
     }
 
     public function test_sitting_the_same_paper_again_makes_a_second_attempt(): void
@@ -678,10 +746,7 @@ class LearningAreaTest extends TestCase
         $buyer = $this->buyer($course);
         $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 2);
 
-        $this->actingAs($buyer)->post(route('learn.quizzes.answer', [$course, $quiz]), [
-            'position' => 1, 'answer' => 'a',
-        ]);
-        $this->actingAs($buyer)->post(route('learn.quizzes.submit', [$course, $quiz]));
+        $this->submitPaper($buyer, $course, $quiz, [1 => 'a', 2 => 'b']);
 
         $this->actingAs($buyer)->get(route('learn.quizzes.play', [$course, $quiz]))->assertOk();
 
@@ -696,10 +761,7 @@ class LearningAreaTest extends TestCase
         $owner = $this->buyer($course);
         $other = $this->buyer($course);
 
-        $this->actingAs($owner)->post(route('learn.quizzes.answer', [$course, $quiz]), [
-            'position' => 1, 'answer' => 'a',
-        ]);
-        $this->actingAs($owner)->post(route('learn.quizzes.submit', [$course, $quiz]));
+        $this->submitPaper($owner, $course, $quiz, [1 => 'a', 2 => 'b']);
 
         $attempt = QuizAttempt::where('user_id', $owner->id)->firstOrFail();
 
@@ -715,10 +777,7 @@ class LearningAreaTest extends TestCase
         $one = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 2);
         $two = $this->makeQuiz($course, 'mock_test', 2, ['a', 'b', 'c', 'd'], 2);
 
-        $this->actingAs($buyer)->post(route('learn.quizzes.answer', [$course, $one]), [
-            'position' => 1, 'answer' => 'a',
-        ]);
-        $this->actingAs($buyer)->post(route('learn.quizzes.submit', [$course, $one]));
+        $this->submitPaper($buyer, $course, $one, [1 => 'a', 2 => 'b']);
 
         $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
 
@@ -762,8 +821,7 @@ class LearningAreaTest extends TestCase
         $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 2);
         $this->makeQuiz($course, 'classroom_mock', 1, ['a', 'b', 'c', 'd'], 2);
 
-        $this->answerCorrectly($buyer, $course, $quiz, 2);
-        $this->actingAs($buyer)->post(route('learn.quizzes.submit', [$course, $quiz]));
+        $this->submitPaper($buyer, $course, $quiz, $this->correctAnswers($course, $quiz, 2));
 
         $this->actingAs($buyer)
             ->get(route('learn.index', $course))
@@ -811,8 +869,7 @@ class LearningAreaTest extends TestCase
         $quiz = $this->makeQuiz($course, 'knowledge_check', 1, ['a', 'b', 'c', 'd'], 2);
         [$lesson] = $this->makeLessons($course, 1);
 
-        $this->answerCorrectly($buyer, $course, $quiz, 2);
-        $this->actingAs($buyer)->post(route('learn.quizzes.submit', [$course, $quiz]));
+        $this->submitPaper($buyer, $course, $quiz, $this->correctAnswers($course, $quiz, 2));
 
         $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
 
@@ -830,8 +887,7 @@ class LearningAreaTest extends TestCase
         $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 2);
         [$lesson] = $this->makeLessons($course, 1);
 
-        $this->answerCorrectly($buyer, $course, $quiz, 2);
-        $this->actingAs($buyer)->post(route('learn.quizzes.submit', [$course, $quiz]));
+        $this->submitPaper($buyer, $course, $quiz, $this->correctAnswers($course, $quiz, 2));
 
         $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
 

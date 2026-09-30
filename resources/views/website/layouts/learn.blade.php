@@ -6,8 +6,6 @@
 @extends('website.layouts.master')
 
 @section('content')
-    @include('website.partials.learn.styles')
-
     <div class="rbt-conatct-area bg-gradient-9 rbt-section-gap">
         <div class="container">
             <div class="row">

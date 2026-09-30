@@ -127,24 +127,29 @@ class QuizAttempt extends Model
         return is_string($given) ? strtolower($given) : null;
     }
 
-    public function recordAnswer(int $position, ?string $letter): void
+    /**
+     * Replace every answer on this sitting with the ones given.
+     *
+     * A whole paper is recorded in one go, because the learner works through it
+     * in their browser and posts it all at the end. It replaces rather than
+     * merges: the map that arrives is the whole sitting, so a question missing
+     * from it is one they left blank.
+     *
+     * @param  array<int|string, string>  $answers  question number => "a".."d"
+     */
+    public function replaceAnswers(array $answers): void
     {
-        $answers = $this->answers ?? [];
-
-        if ($letter === null) {
-            unset($answers[$position]);
-        } else {
-            $answers[$position] = strtolower($letter);
-        }
-
-        // Cast to JSON explicitly: an empty array must be stored as JSON, not
-        // as the empty string the array cast would otherwise produce.
         $this->answers = $answers;
-        $this->attributes['answers'] = empty($answers) ? null : json_encode($answers);
+
+        // Cast to JSON explicitly: an empty map must be stored as NULL, not as
+        // the empty string the array cast would otherwise produce, so a paper
+        // that was never answered and one that was answered wrongly do not
+        // look the same in the database.
+        $this->attributes['answers'] = $answers === [] ? null : json_encode($answers);
     }
 
     /**
-     * How many questions the learner has answered so far.
+     * How many questions the learner answered on this sitting.
      */
     public function answeredCount(): int
     {
@@ -154,14 +159,6 @@ class QuizAttempt extends Model
             $answers,
             fn ($letter) => in_array(strtolower((string) $letter), Question::LETTERS, true)
         ));
-    }
-
-    /**
-     * "12 of 24 answered" for the progress bar on the paper.
-     */
-    public function progressLabel(int $questionTotal): string
-    {
-        return $this->answeredCount()." of {$questionTotal} answered";
     }
 
     /**

@@ -14,11 +14,15 @@ use Illuminate\Support\Facades\DB;
 /**
  * Sitting a paper.
  *
- * Answers are saved as the learner moves from question to question so a
- * refresh or a dropped connection never loses their work, and the score is
- * always recomputed from the content file at the moment they finish. There is
- * no path by which a stored score, or anything the browser posts, decides
- * whether someone passed.
+ * The learner moves between questions in the browser, which holds their
+ * choices so that working through a paper costs no server request. They arrive
+ * together in `recordAnswers()` when the paper is finished.
+ *
+ * Nothing the browser posts is believed. Only positions that are really on the
+ * paper and letters that could have been offered are kept, and the score is
+ * always recomputed from the content file at that moment. There is no path by
+ * which a stored score, a letter, or a question of the browser's own making
+ * decides whether someone passed.
  */
 class QuizAttemptService
 {
@@ -66,88 +70,61 @@ class QuizAttemptService
     }
 
     /**
-     * The attempt to record an answer against.
+     * Store every answer of a sitting in one go, then mark it.
      *
-     * Deliberately not `resumeOrStart`. A posting that arrives after the
-     * paper was finished - a stale tab, a double-click, a replayed request -
-     * must be refused rather than quietly opening a second sitting, or a
-     * learner could end up marking a paper they never meant to retake. To sit
-     * a paper again they open it, which is an explicit act.
-     */
-    public function openForAnswering(User $user, Quiz $quiz): QuizAttempt
-    {
-        $latest = QuizAttempt::query()
-            ->forPaper($user, $quiz->course, $quiz->slug)
-            ->recentFirst()
-            ->first();
-
-        if ($latest === null) {
-            return $this->start($user, $quiz);
-        }
-
-        abort_if(
-            $latest->isSubmitted(),
-            422,
-            'This sitting has already been submitted. Open the paper to start a new one.'
-        );
-
-        return $latest;
-    }
-
-    /**
-     * Store one answer and move on.
+     * The learner works through the paper in the browser and their choices are
+     * held there, so moving between questions costs no request. They arrive
+     * together when they finish.
      *
-     * A null letter clears the answer, which is how a learner changes their
-     * mind on the jump-to-question nav.
+     * Only positions that are really on this paper are kept, and only a letter
+     * the question could have been answered with. A hand-rolled request cannot
+     * invent a question to be credited with a mark or a letter that is not
+     * offered, so it cannot inflate the total.
+     *
+     * @param  array<int|string, mixed>  $answers  question number => "a".."d"
      */
-    public function recordAnswer(QuizAttempt $attempt, Question $question, ?string $letter): QuizAttempt
+    public function recordAnswers(QuizAttempt $attempt, array $answers): QuizAttempt
     {
         abort_unless($attempt->inProgress(), 422, 'This paper has already been submitted.');
 
-        $letter = $letter !== null ? strtolower($letter) : null;
+        $quiz = $this->paper($attempt);
 
-        if ($letter !== null && ! in_array($letter, Question::LETTERS, true)) {
-            $letter = null;
+        $kept = [];
+
+        foreach ($quiz->questions as $question) {
+            $given = $answers[$question->position] ?? $answers[(string) $question->position] ?? null;
+
+            if (is_string($given) && in_array(strtolower($given), Question::LETTERS, true)) {
+                $kept[$question->position] = strtolower($given);
+            }
         }
 
-        $attempt->recordAnswer($question->position, $letter);
-
-        $attempt->current_position = min($question->position + 1, $this->paper($attempt)->questionCount());
-
+        // Replaces rather than merges: the browser holds the full picture, so
+        // anything the learner cleared out of it is genuinely blank.
+        $attempt->replaceAnswers($kept);
+        $attempt->current_position = $quiz->questionCount();
         $attempt->save();
 
-        return $attempt;
+        return $this->submit($attempt);
     }
 
     /**
-     * Move the cursor without changing any answer, for the jump-to-question
-     * nav and the back button.
-     */
-    public function moveTo(QuizAttempt $attempt, int $position): QuizAttempt
-    {
-        abort_unless($attempt->inProgress(), 422, 'This paper has already been submitted.');
-
-        $attempt->current_position = max(1, min($position, $this->paper($attempt)->questionCount()));
-        $attempt->save();
-
-        return $attempt;
-    }
-
-    /**
-     * Mark whatever sitting is currently open, or return the one that was
-     * already marked.
+     * Mark the open sitting with the answers the browser has been holding, or
+     * return the one that was already marked.
      *
      * A second submit of the same paper is answered with the existing result
      * rather than opening a fresh blank attempt and immediately closing it,
      * so a double-click or a replayed request cannot manufacture an empty
      * score in the learner's history.
+     *
+     * @param  array<int|string, mixed>  $answers
      */
-    public function submitCurrent(User $user, Quiz $quiz): QuizAttempt
+    public function submitWithAnswers(User $user, Quiz $quiz, array $answers): QuizAttempt
     {
         $open = $this->inProgress($user, $quiz);
 
         if ($open !== null) {
-            return $this->submit($open);
+            return $this->recordAnswers($open, $answers);
         }
 
         $finished = QuizAttempt::query()

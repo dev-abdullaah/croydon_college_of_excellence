@@ -6,8 +6,10 @@ use App\Content\CourseContent;
 use App\Content\Lesson;
 use App\Content\Quiz;
 use App\Models\Course;
+use App\Models\QuizAttempt;
 use App\Models\User;
 use Illuminate\Support\Facades\File;
+use Illuminate\Testing\TestResponse;
 
 /**
  * Lets a test decide what course material the site sees.
@@ -205,21 +207,51 @@ trait InteractsWithCourseContent
     }
 
     /**
-     * Answer the first $howMany questions of a paper correctly, leaving it in
-     * progress for the test to submit or inspect.
+     * The first $howMany questions answered correctly, as the answer map a
+     * browser would post when a paper is finished.
+     *
+     * The whole map goes over at once, because that is the only write a paper
+     * takes: the learner works through it in their browser and posts it all
+     * when they finish.
+     *
+     * @return array<int, string> question number => letter
      */
-    protected function answerCorrectly(User $user, Course $course, string $slug, int $howMany): void
+    protected function correctAnswers(Course $course, string $slug, int $howMany): array
     {
-        $this->actingAs($user);
+        $answers = [];
 
-        $questions = $this->paper($course, $slug)?->questions ?? collect();
+        foreach ($this->paper($course, $slug)?->questions ?? collect() as $question) {
+            if ($question->position > $howMany) {
+                continue;
+            }
 
-        foreach ($questions->where('position', '<=', $howMany) as $question) {
-            $this->post(route('learn.quizzes.answer', [$course, $slug]), [
-                'position' => $question->position,
-                'answer' => $question->correct,
-            ]);
+            $answers[$question->position] = $question->correct;
         }
+
+        return $answers;
+    }
+
+    /**
+     * Finish a paper by posting its answers.
+     *
+     * A learner always opens the paper before they can answer it, and that is
+     * what starts the clock on a sitting, so the paper is opened here when
+     * there is not one already. Only when there is no sitting at all: opening
+     * a paper that is already finished is how you sit it again, and doing that
+     * on every call would turn a repeated finish into a second attempt.
+     *
+     * @param  array<int|string, string>  $answers  question number => letter
+     */
+    protected function submitPaper(User $user, Course $course, string $slug, array $answers = []): TestResponse
+    {
+        if (! QuizAttempt::query()->forPaper($user, $course->slug, $slug)->exists()) {
+            $this->actingAs($user)->get(route('learn.quizzes.play', [$course, $slug]));
+        }
+
+        return $this->actingAs($user)->post(
+            route('learn.quizzes.submit', [$course, $slug]),
+            ['answers' => $answers]
+        );
     }
 
     /**
