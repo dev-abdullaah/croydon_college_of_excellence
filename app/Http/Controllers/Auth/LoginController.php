@@ -39,11 +39,36 @@ class LoginController extends Controller
             ]);
         }
 
+        /*
+         | A correct password is not proof of the email address, so an
+         | unverified account is signed straight back out. Auth::attempt has
+         | already put a live session in place by this point, so it has to be
+         | undone rather than merely not started.
+         |
+         | This is the difference between "your password is right" and "you
+         | own this inbox". A fresh link goes out on the way, because the
+         | likeliest reason somebody is here is that the original expired or
+         | landed in spam.
+         */
+        $user = Auth::user();
+
+        if ($user->hasVerifiedEmail() === false) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            $request->session()->put('verification.email', $user->email);
+
+            $user->sendEmailVerificationNotification();
+
+            return redirect()->route('verification.notice')
+                ->with('info', 'Please confirm your email address first. We have sent you a fresh link.');
+        }
+
         // New session id on privilege change: prevents session fixation.
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard'))
-            ->with('success', 'Welcome back, '.Auth::user()->name.'!');
+            ->with('success', 'Welcome back, '.$user->name.'!');
     }
 
     public function destroy(Request $request): RedirectResponse

@@ -2,7 +2,8 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -10,9 +11,22 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+/**
+ * A learner.
+ *
+ * Implements MustVerifyEmail, so `email_verified_at` decides what the account
+ * is allowed to reach - see routes/web.php.
+ *
+ * The trait is imported as MustVerifyEmailTrait rather than under its own
+ * name on purpose. PHP resolves names in a `use TraitName` list against the
+ * current namespace and ignores the imports at the top of the file, so writing
+ * the bare `MustVerifyEmail` there quietly binds the *interface* of that name
+ * instead of the trait. The result is not a readable error: the process dies
+ * the moment a row is hydrated from the database.
+ */
+class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, MustVerifyEmailTrait, Notifiable;
 
     /**
      * The attributes that are mass assignable.

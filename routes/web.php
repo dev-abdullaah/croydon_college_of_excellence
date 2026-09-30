@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AssesmentMailController;
+use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\CheckoutController;
@@ -55,6 +56,33 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:10,1');
 });
 
+/*
+|--------------------------------------------------------------------------
+| Confirming an email address
+|--------------------------------------------------------------------------
+|
+| Deliberately outside the `guest` middleware group. A correct password on an
+| unverified account does not sign anybody in, and registration does not
+| either, so somebody following the link out of their inbox is a guest until
+| that link proves the address is theirs.
+|
+| The verify route is `signed` rather than `auth`: possession of the mailed
+| URL is the credential. `throttle` on top of that, because the URL is a
+| bearer token and should not be cheap to replay.
+|
+*/
+
+Route::get('/email/verify', [EmailVerificationController::class, 'notice'])
+    ->name('verification.notice');
+
+Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('verification.verify');
+
+Route::post('/email/resend', [EmailVerificationController::class, 'resend'])
+    ->middleware('throttle:2,1')
+    ->name('verification.resend');
+
 Route::post('/logout', [LoginController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
@@ -78,7 +106,7 @@ Route::get('/courses/{course}', [CheckoutController::class, 'show'])->name('cour
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/my-account', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::post('/checkout/{course}', [CheckoutController::class, 'store'])

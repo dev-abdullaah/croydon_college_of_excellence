@@ -134,17 +134,20 @@ class PaidCoursesTest extends TestCase
      | Authentication
      | ----------------------------------------------------------------- */
 
-    public function test_a_visitor_can_register_and_reach_their_account(): void
+    public function test_a_visitor_can_register_but_not_reach_their_account(): void
     {
+        // The behaviour this replaced: registration used to end with
+        // Auth::login and a redirect to the dashboard, so the whole site was
+        // reachable with an address nobody had confirmed.
         $this->post('/register', [
             'name' => 'Sajib Islam',
             'email' => 'sajib@example.com',
             'password' => 'Sup3rSecret!',
             'password_confirmation' => 'Sup3rSecret!',
-        ])->assertRedirect('/my-account');
+        ])->assertRedirect('/email/verify');
 
-        $this->assertAuthenticated();
-        $this->get('/my-account')->assertOk()->assertSee('sajib@example.com');
+        $this->assertGuest();
+        $this->get('/my-account')->assertRedirect('/login');
     }
 
     /* -----------------------------------------------------------------
