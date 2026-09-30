@@ -125,9 +125,9 @@
             <div class="lz-card p-4 text-center">
                 <h4 class="title">Course material is being prepared</h4>
                 <p class="mb-3">
-                    Your downloads are available now. The lessons and papers for this course are not loaded yet.
+                    The lessons and papers for this course are not loaded yet.
                 </p>
-                <a href="{{ route('dashboard') }}" class="btn btn-sm btn-outline-secondary">Go to downloads</a>
+                <a href="{{ route('dashboard') }}" class="btn btn-sm btn-outline-secondary">Back to my account</a>
             </div>
         @endif
     @endforelse

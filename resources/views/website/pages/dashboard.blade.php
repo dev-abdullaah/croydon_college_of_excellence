@@ -95,53 +95,24 @@
                         <hr class="my-4">
 
                         <h5 class="title">Your material</h5>
-                        <div class="row g-3">
-                            @forelse ($purchase->course->documents as $document)
-                                <div class="col-lg-6 col-12">
-                                    <div class="color-box radius-10 p-3 h-100">
-                                        <div class="d-flex align-items-start">
-                                            <i class="feather-file-text mt-1 me-2"></i>
-                                            <div class="flex-grow-1">
-                                                <h6 class="title mb-1">{{ $document->title }}</h6>
-                                                <p class="mb-2">{{ $document->description }}</p>
-
-                                                @if ($document->fileExists())
-                                                    <a href="{{ route('documents.download', $document) }}"
-                                                        class="rbt-btn btn-gradient btn-sm">
-                                                        <span>Download
-                                                            {{ strtoupper($document->file_type) }}</span>
-                                                    </a>
-                                                @else
-                                                    {{-- The source .docx was only ever present while the
-                                                         material was being laid out. Say where the content
-                                                         actually is rather than offering a dead link. --}}
-                                                    @if ($purchase->course->hasLearningContent())
-                                                        <a href="{{ route('learn.index', $purchase->course) }}"
-                                                            class="rbt-btn btn-gradient btn-sm">
-                                                            <span>Read on the website</span>
-                                                        </a>
-                                                    @else
-                                                        <span class="text-muted small">Printable version coming
-                                                            soon</span>
-                                                    @endif
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            @empty
-                                <div class="col-12">
-                                    <p class="mb-0">Everything in this course is on the website. Please
-                                        contact us on 07405 073764 if you cannot find it.</p>
-                                </div>
-                            @endforelse
-                        </div>
+                        @if ($purchase->course->hasLearningContent())
+                            <p class="mb-3">
+                                This course is read and tested on the website. Nothing is downloaded.
+                            </p>
+                            <a href="{{ route('learn.index', $purchase->course) }}"
+                                class="rbt-btn btn-gradient btn-sm">
+                                <span>Open the course</span>
+                            </a>
+                        @else
+                            <p class="mb-0">Everything in this course is on the website. Please
+                                contact us on 07405 073764 if you cannot find it.</p>
+                        @endif
                     </div>
                 @empty
                     <div class="rbt-service rbt-service-2 radius-10">
                         <h4 class="title">You have not purchased anything yet</h4>
                         <p>
-                            Choose the Life in the UK Course or the 24 Mock Tests package and your downloads will
+                            Choose the Life in the UK Course or the 24 Mock Tests package and your course will
                             appear here the moment Stripe confirms your payment.
                         </p>
                         <a href="{{ route('home') }}#paid-courses"

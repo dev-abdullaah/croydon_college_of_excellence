@@ -50,11 +50,6 @@ class Course extends Model
         return 'slug';
     }
 
-    public function documents(): HasMany
-    {
-        return $this->hasMany(CourseDocument::class)->orderBy('sort_order');
-    }
-
     public function purchases(): HasMany
     {
         return $this->hasMany(Purchase::class);

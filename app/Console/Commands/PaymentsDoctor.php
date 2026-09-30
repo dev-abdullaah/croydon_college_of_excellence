@@ -91,7 +91,7 @@ class PaymentsDoctor extends Command
             return self::FAILURE;
         }
 
-        $courses = Course::with('documents')->ordered()->get();
+        $courses = Course::ordered()->get();
 
         if ($courses->isEmpty()) {
             $this->components->error('The catalogue is empty. Run: php artisan db:seed');
@@ -107,24 +107,13 @@ class PaymentsDoctor extends Command
                 filled($priceId),
                 $course->formattedPrice().' - '.($priceId ?: 'no STRIPE_*_PRICE_ID')
             );
-
-            foreach ($course->documents as $document) {
-                // A missing .docx is not a fault: the same material is served
-                // from the database as lessons and papers. It only means the
-                // "download the file" button has nothing to hand over.
-                if ($document->fileExists()) {
-                    $row('    '.$document->title, true, $document->filename);
-                } else {
-                    $warn('    '.$document->title, $document->filename.' - not on disk; the content is on the website');
-                }
-            }
         }
 
         $this->newLine();
 
         // The learning content is what a buyer actually gets. It is not in the
-        // database and not in a .docx: it is the JSON files in the repository,
-        // so this reads them and reports what a learner would actually find.
+        // database: it is the JSON files in the repository, so this reads them
+        // and reports what a learner would actually find.
         $this->components->info('Course content');
 
         $files = [

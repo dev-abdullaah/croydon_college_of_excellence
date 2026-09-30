@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\StripeService;
 use Database\Seeders\CourseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Mockery;
 use Stripe\Checkout\Session;
 use Stripe\Exception\ApiConnectionException;
@@ -67,57 +68,50 @@ class PaidCoursesTest extends TestCase
         $this->assertSame('£49', $mocks->formattedPrice());
         $this->assertSame('price_test_course', $course->stripePriceId());
         $this->assertSame('price_test_mock_tests', $mocks->stripePriceId());
-        $this->assertCount(3, $course->documents);
-        $this->assertCount(1, $mocks->documents);
-    }
-
-    public function test_every_catalogue_document_exists_on_disk(): void
-    {
-        $this->requireCourseFiles();
-
-        Course::with('documents')->get()->each(function (Course $course) {
-            $course->documents->each(function ($document) {
-                $this->assertFileExists(
-                    base_path('course-files/'.$document->filename),
-                    "Missing course file: {$document->filename}"
-                );
-            });
-        });
     }
 
     /**
-     * A catalogue row may outlive its file, and the site has to cope.
+     * Nothing is sold as a file, so the catalogue must not point at one.
      *
-     * The .docx files were only ever present while the material was being laid
-     * out. The learning area serves the same content from the JSON files, so a
-     * missing file is a normal state: the download must fail cleanly, and the
-     * account page must point the buyer at the content rather than at a dead
-     * link.
+     * The material is read and tested on the website from the JSON content
+     * files. This is the regression guard for the DOCX era: no downloadable
+     * document is described anywhere a visitor or a buyer can see.
      */
-    public function test_a_missing_download_fails_cleanly_rather_than_erroring(): void
+    public function test_no_course_is_advertised_as_a_downloadable_file(): void
     {
-        $user = User::factory()->create();
-        $course = $this->course('life-in-the-uk-course');
-
-        $this->markAsPaid($user, $course, 'cs_test_missing_file');
-
-        $document = $course->documents->firstOrFail();
-
-        if ($document->fileExists()) {
-            $this->markTestSkipped('The source .docx is present, so there is no missing file to test.');
+        foreach (Course::all() as $course) {
+            $this->assertObjectNotHasProperty(
+                'documents',
+                $course,
+                "{$course->slug} still exposes a documents relation."
+            );
         }
 
-        $this->actingAs($user)
-            ->get("/my-account/downloads/{$document->id}")
-            ->assertNotFound();
+        // The catalogue config must not reintroduce a file to sell.
+        foreach (config('catalog.courses', []) as $definition) {
+            $this->assertArrayNotHasKey(
+                'documents',
+                $definition,
+                "config/catalog.php still lists downloadable files for {$definition['slug']}."
+            );
+        }
 
-        // The account page must not offer a link that dead-ends, and must not
-        // pretend the course has nothing in it.
-        $this->actingAs($user)
-            ->get('/my-account')
-            ->assertOk()
-            ->assertDontSee("/my-account/downloads/{$document->id}")
-            ->assertSee($document->title);
+        // And the schema must not keep a table for them either.
+        $this->assertFalse(
+            Schema::hasTable('course_documents'),
+            'The course_documents table still exists; nothing is sold as a file.'
+        );
+    }
+
+    /**
+     * The old download URL must be gone, not merely unauthorised.
+     *
+     * A route that 404s proves there is nothing behind it; a route that 403s
+     * would mean the files are still being served to somebody.
+     */
+    public function test_the_download_url_no_longer_exists(): void
+    {
+        $this->get('/my-account/downloads/1')->assertNotFound();
     }
 
     /* -----------------------------------------------------------------
@@ -511,40 +505,29 @@ class PaidCoursesTest extends TestCase
      | Protected content
      | ----------------------------------------------------------------- */
 
-    public function test_guests_cannot_download_course_files_by_typing_the_url(): void
+    public function test_guests_cannot_reach_the_learning_area_by_typing_the_url(): void
     {
-        $document = $this->course('life-in-the-uk-course')->documents->first();
+        $course = $this->course('life-in-the-uk-course');
 
-        $this->get("/my-account/downloads/{$document->id}")->assertRedirect('/login');
+        $this->get(route('learn.index', $course))->assertRedirect('/login');
     }
 
     public function test_a_signed_in_user_without_the_purchase_gets_a_403(): void
     {
         $user = User::factory()->create();
-        $document = $this->course('life-in-the-uk-course')->documents->first();
+        $course = $this->course('life-in-the-uk-course');
 
-        $this->actingAs($user)->get("/my-account/downloads/{$document->id}")->assertForbidden();
+        $this->actingAs($user)->get(route('learn.index', $course))->assertForbidden();
     }
 
-    public function test_a_purchaser_can_download_their_course_files(): void
+    public function test_a_purchaser_can_open_the_learning_area(): void
     {
-        $this->requireCourseFiles();
-
         $user = User::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
-        $this->markAsPaid($user, $course, 'cs_test_download');
+        $this->markAsPaid($user, $course, 'cs_test_open');
 
-        foreach ($course->documents as $document) {
-            $response = $this->actingAs($user)->get("/my-account/downloads/{$document->id}");
-
-            $response->assertOk();
-            $response->assertDownload($document->downloadName());
-            $this->assertSame(
-                realpath(base_path('course-files/'.$document->filename)),
-                $response->baseResponse->getFile()->getPathname()
-            );
-        }
+        $this->actingAs($user)->get(route('learn.index', $course))->assertOk();
     }
 
     public function test_the_course_does_not_unlock_the_mock_test_package(): void
@@ -558,11 +541,7 @@ class PaidCoursesTest extends TestCase
         $this->assertTrue($user->fresh()->hasPurchased($course));
         $this->assertFalse($user->fresh()->hasPurchased($mocks));
 
-        // The 403 must not depend on the file being present: an unpurchased
-        // course is refused before the file is ever looked for.
-        foreach ($mocks->documents as $document) {
-            $this->actingAs($user)->get("/my-account/downloads/{$document->id}")->assertForbidden();
-        }
+        $this->actingAs($user)->get(route('learn.index', $mocks))->assertForbidden();
     }
 
     public function test_the_mock_test_package_does_not_unlock_the_course(): void
@@ -576,27 +555,26 @@ class PaidCoursesTest extends TestCase
         $this->assertTrue($user->fresh()->hasPurchased($mocks));
         $this->assertFalse($user->fresh()->hasPurchased($course));
 
-        foreach ($course->documents as $document) {
-            $this->actingAs($user)->get("/my-account/downloads/{$document->id}")->assertForbidden();
+        $this->actingAs($user)->get(route('learn.index', $course))->assertForbidden();
+    }
+
+    /**
+     * Even with the source files on disk, no URL may hand them out.
+     *
+     * The .docx files are temporary build input. This asserts the guarantee
+     * holds without depending on whether the files are currently present, so
+     * it keeps its teeth after the folder is deleted.
+     */
+    public function test_no_url_serves_a_source_document(): void
+    {
+        foreach ([
+            '/course-files/Life%20in%20the%20UK%20Lesson%201-10.docx',
+            '/course-files/6%20Classroom%20Mock%20Test.docx',
+            '/my-account/downloads/1',
+            '/my-account/downloads/9999',
+        ] as $path) {
+            $this->get($path)->assertNotFound();
         }
-    }
-
-    public function test_a_download_cannot_escape_the_course_files_directory(): void
-    {
-        $user = User::factory()->create();
-        $course = $this->course('life-in-the-uk-course');
-
-        $this->markAsPaid($user, $course, 'cs_test_traversal');
-
-        $document = $course->documents->first();
-        $document->forceFill(['filename' => '../../.env'])->save();
-
-        $this->actingAs($user)->get("/my-account/downloads/{$document->id}")->assertNotFound();
-    }
-
-    public function test_course_files_are_not_reachable_through_the_web_root(): void
-    {
-        $this->get('/course-files/Life%20in%20the%20UK%20Lesson%201-10.docx')->assertNotFound();
     }
 
     /* -----------------------------------------------------------------
@@ -717,18 +695,48 @@ class PaidCoursesTest extends TestCase
     {
         $user = User::factory()->create();
 
+        // Nothing is owned, so the purchase card must be absent. The
+        // marketing copy may still name the course, so this asserts on the
+        // part of the page that only a purchase produces.
         $this->actingAs($user)->get('/my-account')
             ->assertOk()
             ->assertSee('You have not purchased anything yet')
-            ->assertDontSee('Life in the UK Lessons 1-10');
+            ->assertDontSee('Your material')
+            ->assertDontSee('Open the course');
 
         $this->markAsPaid($user, $this->course('life-in-the-uk-course'), 'cs_test_dashboard');
 
         $this->actingAs($user)->get('/my-account')
             ->assertOk()
-            ->assertSee('Life in the UK Lessons 1-10')
-            ->assertSee('6 Classroom Mock Tests')
-            ->assertDontSee('Total 24 Mock Tests - Life in the UK');
+            ->assertSee('Your material')
+            ->assertSee('Open the course')
+            ->assertSee(route('learn.index', $this->course('life-in-the-uk-course')), escape: false);
+
+        $this->markAsPaid($user, $this->course('24-mock-tests'), 'cs_test_dashboard_mocks');
+
+        $this->actingAs($user)->get('/my-account')
+            ->assertOk()
+            ->assertSee('24 Mock Tests Package')
+            ->assertSee('Life in the UK Course');
+    }
+
+    /**
+     * The account page must not send a buyer looking for a file.
+     *
+     * The old page listed downloadable documents. Nothing is a file now, so
+     * the words and links that promised one must not reappear.
+     */
+    public function test_the_account_page_offers_no_downloads(): void
+    {
+        $user = User::factory()->create();
+
+        $this->markAsPaid($user, $this->course('life-in-the-uk-course'), 'cs_test_no_downloads');
+
+        $response = $this->actingAs($user)->get('/my-account')->assertOk();
+
+        $response->assertDontSee('Download', escape: false);
+        $response->assertDontSee('/my-account/downloads/', escape: false);
+        $response->assertSee('Nothing is downloaded.', escape: false);
     }
 
     /* -----------------------------------------------------------------
@@ -738,23 +746,6 @@ class PaidCoursesTest extends TestCase
     protected function course(string $slug): Course
     {
         return Course::where('slug', $slug)->firstOrFail();
-    }
-
-    /**
-     * Skip the calling test when the source .docx files are not on this machine.
-     *
-     * They were handed to a designer and are not part of the repository. The
-     * lessons and papers they produced now live in the JSON files the site
-     * serves, so the download tests simply have nothing to download.
-     */
-    protected function requireCourseFiles(): void
-    {
-        if (! is_file(base_path('course-files/Life in the UK Lesson 1-10.docx'))) {
-            $this->markTestSkipped(
-                'The .docx source documents are not present; they were temporary and the download '
-                .'feature has no file to serve. The course content itself is covered by LearningAreaTest.'
-            );
-        }
     }
 
     /**

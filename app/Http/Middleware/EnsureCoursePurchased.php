@@ -3,7 +3,6 @@
 namespace App\Http\Middleware;
 
 use App\Models\Course;
-use App\Models\CourseDocument;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,11 +13,9 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Usage:
  *   Route::get('/courses/{course}/read', ...)->middleware('purchased:course');
- *   Route::get('/files/{document}', ...)->middleware('purchased:document');
  *
- * The argument is the *route parameter* to inspect. It may be a bound
- * Course, a bound CourseDocument (in which case its course is used) or a
- * course slug. The middleware never decides access on its own - it
+ * The argument is the *route parameter* to inspect. It may be a bound Course
+ * or a course slug. The middleware never decides access on its own - it
  * delegates to the user's purchase record, so there is only one definition
  * of "has paid" in the application.
  */
@@ -48,12 +45,6 @@ class EnsureCoursePurchased
 
         if ($routeParam instanceof Course) {
             return $routeParam->is_active ? $routeParam : null;
-        }
-
-        if ($routeParam instanceof CourseDocument) {
-            $course = $routeParam->course;
-
-            return $course?->is_active ? $course : null;
         }
 
         $slug = $routeParam ?: $request->route('slug');

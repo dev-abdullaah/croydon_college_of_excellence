@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Course;
-use App\Models\CourseDocument;
 use Illuminate\Support\Collection;
 use Throwable;
 
@@ -26,7 +25,7 @@ class CatalogService
     public function displayCourses(): Collection
     {
         try {
-            $courses = Course::query()->active()->ordered()->with('documents')->get();
+            $courses = Course::query()->active()->ordered()->get();
 
             if ($courses->isNotEmpty()) {
                 return $courses;
@@ -63,27 +62,7 @@ class CatalogService
                     'sort_order' => 0,
                 ]);
 
-                $course->setRelation('documents', $this->documentsFromConfig($definition['documents'] ?? []));
-
                 return $course;
-            })
-            ->values();
-    }
-
-    /**
-     * @return Collection<int, CourseDocument>
-     */
-    protected function documentsFromConfig(array $documents): Collection
-    {
-        return collect($documents)
-            ->map(function (array $document) {
-                return new CourseDocument([
-                    'title' => $document['title'] ?? '',
-                    'filename' => $document['filename'] ?? '',
-                    'description' => $document['description'] ?? null,
-                    'file_type' => $document['file_type'] ?? 'docx',
-                    'sort_order' => $document['sort_order'] ?? 0,
-                ]);
             })
             ->values();
     }

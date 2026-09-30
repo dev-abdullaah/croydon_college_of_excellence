@@ -17,15 +17,15 @@ class DashboardController extends Controller
     public function __construct(private readonly CourseContent $content) {}
 
     /**
-     * "My account": everything the signed-in user owns, plus the download
-     * links for each document their purchase unlocks.
+     * "My account": everything the signed-in user owns, with a way into the
+     * learning area for each course their purchase unlocks.
      */
     public function index(Request $request): View|RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
 
-        $purchases = Purchase::with('course.documents')
+        $purchases = Purchase::with('course')
             ->where('user_id', $user->id)
             ->orderByDesc('created_at')
             ->get();

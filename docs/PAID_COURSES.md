@@ -11,8 +11,8 @@ Excellence site:
 They are **separate courses**. Buying one never unlocks the other, and each is
 sold through its own Stripe Price.
 
-A purchase opens two things: the downloads for the documents, and a learning
-area where the lessons can be read and the papers sat and marked. See
+A purchase opens one thing: a learning area where the lessons can be read and
+the papers sat and marked. **Nothing is sold or served as a file.** See
 [§5](#5-the-learning-area).
 
 ---
@@ -55,7 +55,7 @@ area where the lessons can be read and the papers sat and marked. See
                                           PurchaseService → purchases.status = paid
                                                      │
                                                      ▼
-                                     User::hasPurchased() → downloads unlocked
+                                     User::hasPurchased() → learning area unlocked
 ```
 
 Two rules run through the whole design:
@@ -90,9 +90,10 @@ changing one column.
 ### The single source of truth
 
 `config/catalog.php` describes both courses — names, copy, prices in pence and
-the mapping to files in `course-files/`.
+the marketing bullets. The material itself is not described here; it lives in
+the JSON content files the learning area reads.
 
-* `CourseSeeder` copies that into the `courses` / `course_documents` tables.
+* `CourseSeeder` copies that into the `courses` table.
 * `CatalogService` falls back to the same config if the tables are missing or
   empty, so the homepage can never go blank or 500 because someone forgot to
   seed.
@@ -223,10 +224,7 @@ chars, `gbp`), `features` (JSON, the marketing bullets), `stripe_price_key`
 (which key in `config/stripe.php` to read), `stripe_price_id` (optional
 per-course override), `is_active`, `sort_order`, timestamps.
 
-**`course_documents`** — what each course unlocks
-`id`, `course_id`, `title`, `filename` (a file **inside `course-files/`**),
-`description`, `file_type`, `sort_order`, timestamps. Unique on
-(`course_id`, `filename`).
+There is no `course_documents` table: no course has files attached to it.
 
 **`purchases`** — one row per payment attempt
 `id`, `user_id`, `course_id`, `stripe_checkout_session_id` (**unique**),
@@ -258,10 +256,8 @@ php artisan db:seed --class=CourseSeeder
 
 or, on a fresh install, `php artisan migrate --seed`.
 
-The seeder is idempotent — it matches courses on `slug` and documents on
-`filename`, so re-running it updates the copy without touching any purchase a
-customer has already made. It warns about any file referenced in
-`config/catalog.php` that is not actually present in `course-files/`.
+The seeder is idempotent — it matches courses on `slug`, so re-running it
+updates the copy without touching any purchase a customer has already made.
 
 `php artisan db:seed` (with no `--class`) also runs it, via `DatabaseSeeder`.
 
@@ -305,9 +301,9 @@ the six classroom papers, and is shown exactly which answers were right and
 which were wrong with a score at the end. The £49 pack works the same way with
 its 24 mock tests.
 
-Access uses the same `purchased` middleware as the downloads, so **a URL is
-never enough** — typing the address of a lesson or a paper from the other course
-gets a 403 (or a 404 for a slug that belongs to a different course).
+Access uses the `purchased` middleware, so **a URL is never enough** — typing
+the address of a lesson or a paper from the other course gets a 403 (or a 404
+for a slug that belongs to a different course).
 
 ### Where the content lives
 
@@ -345,9 +341,10 @@ into the JSON files:
 | `6 Classroom Mock Test.docx` | 6 Classroom Mock Tests × 24 questions | Life in the UK Course (£99) |
 | `Total 24 Mock Tests Life in the UK.docx` | 24 Mock Tests × 24 questions | 24 Mock Tests Package (£49) |
 
-> **The `.docx` files are temporary.** They were handed over to a designer and
-> are not part of the repository. Nothing on the site needs them: the JSON files
-> above are the only copy of the course that matters.
+> **The `.docx` files are build input, not product.** They were handed over to
+> a designer and are not part of the repository. Nothing on the site needs
+> them: the JSON files above are the only copy of the course, and the
+> `course-files/` folder is not deployed.
 
 ### Building a server from nothing
 
@@ -634,8 +631,8 @@ Any future expiry date, any CVC and any postcode will do.
 6. Stripe returns you to `/checkout/success`. The page asks Stripe about the
    session; because the payment genuinely completed, the purchase is confirmed
    there even if the webhook has not landed yet.
-7. You land on **My account** with the three course documents listed. Press
-   *Download* on any of them.
+7. You land on **My account** with the course listed and an *Open the course*
+   button. Press it to reach the lessons and papers.
 
 Confirm it from the database:
 
@@ -652,7 +649,7 @@ You should see `status => "paid"`, a `stripe_checkout_session_id`, a
 
 1. Start checkout again with `4000 0000 0000 0002`.
 2. Stripe shows the decline and returns you to the cancel URL.
-3. `purchases.status` is `failed` and **no** documents are unlocked.
+3. `purchases.status` is `failed` and **the learning area stays locked**.
 
 ### Walking through a cancelled payment
 
@@ -661,11 +658,11 @@ states that no payment was taken. No access is granted.
 
 ### The important negative tests
 
-* Sign in as a **different** user and try
-  `/my-account/downloads/{id}` for a document the first user bought → **403**.
-* Buy the course, then try to download the 24 mock tests → **403**.
+* Sign in as a **different** user and try the course hub the first user bought
+  → **403**.
+* Buy the £99 course, then try the 24 mock tests' hub → **403**.
+* Try `/my-account/downloads/1` → **404**. There is no download route at all.
 * Try `/course-files/Life%20in%20the%20UK%20Lesson%201-10.docx` → **404**.
-  The files live outside `public/` precisely so they cannot be guessed.
 * Visit `/checkout/success?session_id=cs_test_anything` without paying →
   the page says it is still confirming, and nothing is unlocked.
 * Visit that URL while signed in as a **different** user → the other user's
@@ -681,7 +678,7 @@ php artisan test
 
 `tests/Feature/PaidCoursesTest.php` covers the catalogue, the homepage promo,
 registration and sign-in, checkout, webhook signature verification,
-idempotency, refunds, protected downloads and the return trip from Stripe.
+idempotency, refunds, protected course access and the return trip from Stripe.
 Stripe itself is mocked, so **no test ever touches the network and no real
 money is involved**.
 
@@ -754,7 +751,7 @@ prices and the webhook secret.
    * the Stripe dashboard shows the payment under the correct Stripe product at the
      correct amount,
    * `purchases` has a `paid` row with the real session and intent ids,
-   * the customer can download, and
+   * the customer can open the learning area, and
    * `storage/logs/laravel.log` has no webhook errors.
 
 ### Rolling back to test mode
@@ -784,10 +781,9 @@ purchases are unaffected.
   before the signature checks out.
 * **CSRF everywhere else.** The webhook is the only route exempt, and only
   because Stripe cannot send a token.
-* **Paid files are not in the web root.** `course-files/` sits outside
-  `public/`. Files are served by `CourseContentController` through
-  `basename()` plus a `realpath()` containment check, so a tampered filename
-  cannot escape the directory.
+* **There is nothing to download.** No course sells or serves a file, so
+  there is no file-handling code to get wrong and no path to traverse. The
+  `.docx` originals are build input only and are not deployed.
 * **Authorization on every protected route.** The `purchased` middleware
   resolves the course from the route parameter, then the `CoursePolicy`
   decides. Both call the one method that defines ownership,
@@ -830,13 +826,12 @@ purchases are unaffected.
 | 500 on `/stripe/webhook`, log says "no signing secret configured" | `STRIPE_WEBHOOK_SECRET` is blank. |
 | 403 on `/stripe/webhook` | The signature does not match. Usually a test secret against a live endpoint (or the reverse), or the secret was rotated. |
 | Redirect to Stripe works, payment completes, but no access | The webhook is not reaching the app. Run `stripe listen` locally, and in production check the endpoint's response log in the Stripe dashboard. Watch `storage/logs/laravel.log` for `Stripe webhook handler failed`. |
-| Downloads return 403 | The purchase is not `paid` — check its `status` and `paid_at`. |
-| Downloads return 404 | The document is not in `course_documents`, or the file is missing from `course-files/`. `php artisan payments:doctor` checks both. |
+| 403 in the learning area | The purchase is not `paid` — check its `status` and `paid_at`. |
+| 404 on `/my-account/downloads/…` | Expected: that route was removed. Nothing is served as a file. |
 | Homepage section is missing | The catalogue is empty and `config/catalog.php` returned nothing. Run `php artisan db:seed --class=CourseSeeder`. |
 | Price on the site does not match Stripe | `courses.price` is what is displayed; the Stripe Price is what is charged. Update the `price_…` id in `.env` after changing a price in Stripe. |
 | "No Stripe Price is configured for the … course" in the log | The course's `stripe_price_key` does not match a key in `config/stripe.php`, or the matching `.env` variable is empty. |
 | "My Account" shows material but no **Start learning** | The course has no lessons or papers loaded. The JSON files in `database/data/` are missing from the repository, or a file is broken — `payments:doctor` reports which. |
-| A download 404s but the buyer has paid | The `.docx` files were temporary and are not on the server. The same content is on the website — the account page links to it. Add the file back to `course-files/` to restore downloads. |
 | `payments:doctor` says a content file is `MISSING` | `database/data/lesson-content.json` or `quiz-content.json` is not in the repository. Restore it from version control, or rebuild both with `php artisan courses:extract` if the `.docx` files are available. |
 | A lesson or paper 404s but exists | The content file was edited in a way the store refuses — check `storage/logs/laravel.log` for the `CourseContentException` naming the file and the row. Or the slug belongs to the other course: `{lesson}` and `{quiz}` are scoped to `{course}`, so a slug from the other course deliberately does not resolve. |
 | An edit to a JSON file has no effect | There is no cache to clear on purpose — the files are read each request. If you ran `php artisan config:cache`, re-run it after editing `config/course-content.php` only; content edits are read live. |
@@ -854,7 +849,6 @@ Everything added or changed for this feature:
 
 **Database**
 * `database/migrations/2024_01_01_000001_create_courses_table.php`
-* `database/migrations/2024_01_01_000002_create_course_documents_table.php`
 * `database/migrations/2024_01_01_000003_create_purchases_table.php`
 * `database/migrations/2024_01_01_000004_create_stripe_webhook_events_table.php`
 * `database/migrations/2024_01_01_000009_create_lesson_progress_table.php`
@@ -866,7 +860,7 @@ Everything added or changed for this feature:
   content seeder: the content is files, not rows.
 
 **Domain**
-* `app/Models/Course.php`, `CourseDocument.php`, `Purchase.php`,
+* `app/Models/Course.php`, `Purchase.php`,
   `StripeWebhookEvent.php`, and `User::hasPurchased()` / `purchasedCourses()`
 * `app/Models/LessonProgress.php` — which lessons a learner has read
 * `app/Models/QuizAttempt.php` — one sitting of a paper per row
@@ -895,7 +889,6 @@ Everything added or changed for this feature:
 **HTTP**
 * `app/Http/Controllers/CheckoutController.php` — course page, checkout, return trip
 * `app/Http/Controllers/StripeWebhookController.php` — signature verification, event ledger
-* `app/Http/Controllers/CourseContentController.php` — secure file delivery
 * `app/Http/Controllers/CourseLearnController.php` — the course hub
 * `app/Http/Controllers/LessonController.php` — reading a lesson, marking it read
 * `app/Http/Controllers/QuizController.php` — sitting a paper, the result

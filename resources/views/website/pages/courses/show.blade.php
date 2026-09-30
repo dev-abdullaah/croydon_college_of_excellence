@@ -56,17 +56,24 @@
                         </div>
 
                         <div class="col-lg-5">
-                            <h4 class="title">Your downloads</h4>
+                            <h4 class="title">How it works</h4>
                             <ul class="rbt-list-style-1 list-unstyled mb-0">
-                                @foreach ($course->documents as $document)
-                                    <li class="d-flex">
-                                        <i class="feather-file-text"></i>
-                                        <span class="ms-2">{{ $document->title }}
-                                            <br>
-                                            <small>{{ strtoupper($document->file_type) }} document</small>
-                                        </span>
-                                    </li>
-                                @endforeach
+                                <li class="d-flex">
+                                    <i class="feather-monitor"></i>
+                                    <span class="ms-2">Read the lessons online, one card at a time</span>
+                                </li>
+                                <li class="d-flex">
+                                    <i class="feather-edit-3"></i>
+                                    <span class="ms-2">Take every knowledge check and mock test as multiple choice</span>
+                                </li>
+                                <li class="d-flex">
+                                    <i class="feather-bar-chart-2"></i>
+                                    <span class="ms-2">Get your score and answers immediately, and try again as often as you like</span>
+                                </li>
+                                <li class="d-flex">
+                                    <i class="feather-lock"></i>
+                                    <span class="ms-2">Everything stays private to your account</span>
+                                </li>
                             </ul>
                         </div>
                     </div>

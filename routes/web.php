@@ -5,7 +5,6 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\ContactMailController;
-use App\Http\Controllers\CourseContentController;
 use App\Http\Controllers\CourseLearnController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EnrollMailController;
@@ -90,20 +89,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/checkout/cancel', [CheckoutController::class, 'cancel'])->name('checkout.cancel');
 
     /*
-     | Paid content. `purchased` is told which route parameter to read; it
-     | resolves the owning course from it and refuses the request unless a
-     | `paid` purchase exists for the signed-in user, so typing the URL
-     | grants nothing.
-     */
-    Route::get('/my-account/downloads/{document}', [CourseContentController::class, 'download'])
-        ->middleware('purchased:document')
-        ->name('documents.download');
-
-    /*
      | The learning area: read a lesson one card at a time, then sit the
-     | papers. Same `purchased` gate as the downloads - one purchase opens
-     | the documents and the course material together, and buys only the
-     | course it belongs to.
+     | papers. This is the only way into the paid material - nothing is
+     | served as a file, so a purchase unlocks reading and testing online
+     | and buys only the course it belongs to.
      |
      | A lesson and a paper are read from the JSON content files rather than
      | from database tables, so `{lesson}` and `{quiz}` are turned back into
