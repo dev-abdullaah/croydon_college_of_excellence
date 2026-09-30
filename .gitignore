@@ -8,6 +8,9 @@
 #.env
 .env.backup
 .env.production
+# Overrides .env wholesale on a developer machine. Holds real SMTP credentials
+# when MAIL_MAILER=smtp-live, so it must never be committed.
+.env.local
 .phpunit.result.cache
 Homestead.json
 Homestead.yaml

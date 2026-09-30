@@ -8,7 +8,7 @@
 --}}
 @if ($courses->isNotEmpty())
     <!-- Start Paid Courses Area -->
-    <div class="rbt-paid-courses-area bg-color-extra2 rbt-section-gap overflow-hidden" id="paid-courses">
+    <div class="rbt-paid-courses-area bg-color-extra2 rbt-section-gap overflow-hidden">
         <div class="container">
             <div class="row">
                 <div class="col-lg-12">

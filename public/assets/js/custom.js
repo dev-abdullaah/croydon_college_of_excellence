@@ -144,6 +144,74 @@ document.addEventListener("DOMContentLoaded", function () {
         window.setTimeout(remove, 400);
     }
 
+    /*
+     * Take a message off the screen by itself.
+     *
+     * Only messages that ask for no response. A confirmation says what already
+     * happened, so it can go once it has been noticed; a list of errors cannot,
+     * and is never given a data-site-toast-autoclose in the first place. So
+     * this only ever runs on what the Blade view opted in.
+     *
+     * Hovering or tabbing into the message holds it and restarts the countdown
+     * on the way out. Without that the timer would run against somebody reading
+     * it, which is the failure WCAG 2.2.1 is about.
+     */
+    function autoClose(toast) {
+        var delay = parseInt(toast.getAttribute("data-site-toast-autoclose"), 10);
+
+        // Anything under a second is not a reading time, it is a flash of
+        // colour, and would read as the message failing to appear.
+        if (! delay || delay < 1000) {
+            return;
+        }
+
+        var timer = 0;
+
+        var start = function () {
+            if (! toast.isConnected) {
+                // Already gone, most likely closed by hand before the
+                // countdown ran out. Restarting would leave a timer running
+                // against a detached node.
+                return;
+            }
+
+            timer = window.setTimeout(function () {
+                dismiss(toast);
+            }, delay);
+        };
+
+        var hold = function () {
+            window.clearTimeout(timer);
+        };
+
+        var release = function () {
+            window.clearTimeout(timer);
+            start();
+        };
+
+        toast.addEventListener("mouseenter", hold);
+        toast.addEventListener("focusin", hold);
+        toast.addEventListener("mouseleave", release);
+        toast.addEventListener("focusout", release);
+
+        start();
+    }
+
+    function startAutoClose() {
+        var toasts = document.querySelectorAll(".site-toast[data-site-toast-autoclose]");
+
+        Array.prototype.forEach.call(toasts, autoClose);
+    }
+
+    // The script is loaded at the end of the body, so the messages above it are
+    // normally already parsed. Waiting if they are not costs nothing and rules
+    // out the whole feature silently doing nothing.
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", startAutoClose);
+    } else {
+        startAutoClose();
+    }
+
     document.addEventListener("click", function (event) {
         var button = event.target.closest("[data-site-toast-dismiss]");
 

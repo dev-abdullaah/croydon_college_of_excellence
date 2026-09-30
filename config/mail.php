@@ -100,6 +100,44 @@ return [
             'password' => null,
         ],
 
+        /*
+         * Real SMTP on purpose, on any machine.
+         *
+         * The mailer above this one cannot send off a development machine, and
+         * that is deliberate: it turns to the log transport unless APP_ENV is
+         * production. It is the right default, because a checkout that carries
+         * mailbox credentials should not post to a live inbox the moment
+         * somebody registers.
+         *
+         * This one is the escape hatch for when you genuinely want the message
+         * to arrive - testing verification against a real inbox, or checking
+         * SPF and DKIM on mail you have to see land. It is not the default, so
+         * it is never chosen by accident; you have to ask for it by name in
+         * MAIL_MAILER.
+         *
+         * Two rules keep it from undoing the protection above.
+         *
+         * First, it reads the same MAIL_HOST and MAIL_USERNAME variables the
+         * production mailer reads, and the tracked .env does not set them. Put
+         * the credentials in .env.local, which is untracked, or export them in
+         * your shell. A password in .env is a password in git.
+         *
+         * Second, it sends from MAIL_FROM_ADDRESS, which has to be an address
+         * on the domain the relay is authorised for. Sending as hello@example.com
+         * through this relay is refused by the receiving end or lands in spam,
+         * so set it to the mailbox you are sending from.
+         */
+        'smtp-live' => [
+            'transport' => 'smtp',
+            'host' => env('MAIL_HOST'),
+            'port' => env('MAIL_PORT', 465),
+            'encryption' => env('MAIL_ENCRYPTION', 'ssl'),
+            'username' => env('MAIL_USERNAME'),
+            'password' => env('MAIL_PASSWORD'),
+            'timeout' => null,
+            'local_domain' => env('MAIL_EHLO_DOMAIN'),
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],
