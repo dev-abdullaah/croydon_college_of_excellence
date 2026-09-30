@@ -1,22 +1,20 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-
-use App\Http\Controllers\TutorMailController;
-use App\Http\Controllers\ContactMailController;
-use App\Http\Controllers\EnrollMailController;
 use App\Http\Controllers\AssesmentMailController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\ContactMailController;
 use App\Http\Controllers\CourseContentController;
 use App\Http\Controllers\CourseLearnController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EnrollMailController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LessonController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\StripeWebhookController;
-
+use App\Http\Controllers\TutorMailController;
+use Illuminate\Support\Facades\Route;
 
 Route::post('/enroll/send', [EnrollMailController::class, 'sendMail'])->name('enroll.send');
 
@@ -25,7 +23,6 @@ Route::post('/assesment/send', [AssesmentMailController::class, 'sendMail'])->na
 Route::post('/contact/send', [ContactMailController::class, 'sendMail'])->name('contact.send');
 
 Route::post('/tutor/send', [TutorMailController::class, 'sendMail'])->name('tutor.send');
-
 
 /*
 |--------------------------------------------------------------------------
@@ -40,7 +37,6 @@ Route::post('/tutor/send', [TutorMailController::class, 'sendMail'])->name('tuto
 
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle'])
     ->name('stripe.webhook');
-
 
 /*
 |--------------------------------------------------------------------------
@@ -64,7 +60,6 @@ Route::post('/logout', [LoginController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
 
-
 /*
 |--------------------------------------------------------------------------
 | Course Detail
@@ -77,7 +72,6 @@ Route::post('/logout', [LoginController::class, 'destroy'])
 */
 
 Route::get('/courses/{course}', [CheckoutController::class, 'show'])->name('courses.show');
-
 
 /*
 |--------------------------------------------------------------------------
@@ -139,7 +133,6 @@ Route::middleware('auth')->group(function () {
                 ->name('quizzes.result');
         });
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -238,7 +231,6 @@ Route::get('/regular-uk-life', function () {
     return view('website.pages.courses_regular.regular_uk_life');
 });
 
-
 Route::get('/send-english', function () {
     return view('website.pages.courses_send.send_english');
 });
@@ -290,4 +282,3 @@ Route::get('/send-life-skills', function () {
 Route::get('/send-music', function () {
     return view('website.pages.courses_send.send_music');
 });
-

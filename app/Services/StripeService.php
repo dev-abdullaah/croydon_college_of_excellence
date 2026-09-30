@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\PaymentException;
 use Stripe\Checkout\Session;
 use Stripe\Event;
+use Stripe\Exception\SignatureVerificationException;
 use Stripe\StripeClient;
 use Stripe\Webhook;
 
@@ -71,7 +72,7 @@ class StripeService
     /**
      * Verify and decode an inbound webhook payload.
      *
-     * @throws \Stripe\Exception\SignatureVerificationException
+     * @throws SignatureVerificationException
      */
     public function constructEvent(string $payload, string $signature, int $tolerance): Event
     {

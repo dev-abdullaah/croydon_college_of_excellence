@@ -501,8 +501,7 @@ class CourseContentFilesTest extends TestCase
      * only copy of the course, and neither test ever writes to them.
      *
      * @param  array{lessons?: string|null, papers?: string|null}  $files
-     * @param  callable  $body
-     * @return mixed  whatever the body returns
+     * @return mixed whatever the body returns
      */
     private function usingContent(array $files, callable $body): mixed
     {

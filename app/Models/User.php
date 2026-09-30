@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -97,7 +98,7 @@ class User extends Authenticatable
     /**
      * The active courses this user is allowed to open, in catalogue order.
      *
-     * @return \Illuminate\Support\Collection<int, Course>
+     * @return Collection<int, Course>
      */
     public function purchasedCourses()
     {

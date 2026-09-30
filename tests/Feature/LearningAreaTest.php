@@ -8,6 +8,7 @@ use App\Models\Purchase;
 use App\Models\QuizAttempt;
 use App\Models\User;
 use App\Services\CourseContentExtractionFailedException;
+use App\Services\CourseContentExtractor;
 use App\Services\CourseContentParser;
 use App\Support\DocxReader;
 use Database\Seeders\CourseSeeder;
@@ -968,7 +969,7 @@ class LearningAreaTest extends TestCase
             $failed = null;
 
             try {
-                app(\App\Services\CourseContentExtractor::class)->extract($partial);
+                app(CourseContentExtractor::class)->extract($partial);
             } catch (CourseContentExtractionFailedException $e) {
                 $failed = $e;
             }

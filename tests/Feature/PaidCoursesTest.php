@@ -12,6 +12,7 @@ use Database\Seeders\CourseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Stripe\Checkout\Session;
+use Stripe\Exception\ApiConnectionException;
 use Tests\TestCase;
 
 class PaidCoursesTest extends TestCase
@@ -781,7 +782,7 @@ class PaidCoursesTest extends TestCase
         $mock = $this->stripeMock();
 
         $mock->shouldReceive('retrieveCheckoutSession')
-            ->andThrow(new \Stripe\Exception\ApiConnectionException('No such checkout session'));
+            ->andThrow(new ApiConnectionException('No such checkout session'));
 
         $this->app->instance(StripeService::class, $mock);
     }
