@@ -79,10 +79,45 @@
 
                     <hr class="my-4">
 
-                    @if ($course->hasAccessFor(auth()->user()))
+                    @if (! $course->requiresPurchase())
+                        {{-- The paywall is off while the material is being built.
+                             An account is still needed to hold a sitting. --}}
+                        @auth
+                            <div class="row align-items-center g-3">
+                                <div class="col-lg-6">
+                                    <a href="{{ route('learn.index', $course) }}"
+                                        class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center">
+                                        <span>Start Learning</span>
+                                    </a>
+                                </div>
+                                <div class="col-lg-6">
+                                    <p class="mb-0">
+                                        <i class="feather-check-circle me-2"></i>
+                                        Every lesson and paper is open to your account while this is in progress.
+                                    </p>
+                                </div>
+                            </div>
+                        @else
+                            <div class="row align-items-center g-3">
+                                <div class="col-lg-6">
+                                    <a href="{{ route('login') }}"
+                                        class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center">
+                                        <span>Sign In To Start</span>
+                                    </a>
+                                </div>
+                                <div class="col-lg-6">
+                                    <p class="mb-0">
+                                        New here?
+                                        <a href="{{ route('register') }}">Create a free account</a>
+                                        to begin.
+                                    </p>
+                                </div>
+                            </div>
+                        @endauth
+                    @elseif ($course->hasAccessFor(auth()->user()))
                         <div class="alert alert-success mb-0" role="alert">
                             You already own this course.
-                            <a href="{{ route('dashboard') }}" class="ms-2">Go to My Account to download it</a>.
+                            <a href="{{ route('learn.index', $course) }}" class="ms-2">Start learning</a>.
                         </div>
                     @else
                         @auth

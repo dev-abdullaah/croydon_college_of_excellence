@@ -63,9 +63,9 @@
                             <div class="mt-auto pt-4">
                                 @auth
                                     @if ($course->hasAccessFor(auth()->user()))
-                                        <a href="{{ route('dashboard') }}"
+                                        <a href="{{ $course->requiresPurchase() ? route('dashboard') : route('learn.index', $course) }}"
                                             class="rbt-btn btn-gradient btn-sm w-100 justify-content-center text-center">
-                                            <span>View In My Account</span>
+                                            <span>{{ $course->requiresPurchase() ? 'View In My Account' : 'Start Learning' }}</span>
                                         </a>
                                     @else
                                         <form method="POST" action="{{ route('checkout.store', $course) }}">
@@ -77,13 +77,22 @@
                                         </form>
                                     @endif
                                 @else
-                                    <form method="POST" action="{{ route('checkout.store', $course) }}">
-                                        @csrf
-                                        <button type="submit"
+                                    @if ($course->requiresPurchase())
+                                        <form method="POST" action="{{ route('checkout.store', $course) }}">
+                                            @csrf
+                                            <button type="submit"
+                                                class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center">
+                                                <span>Buy {{ $course->name }} &mdash; {{ $course->formattedPrice() }}</span>
+                                            </button>
+                                        </form>
+                                    @else
+                                        {{-- The paywall is off, but a sitting is tied to
+                                             an account, so sign in rather than sell. --}}
+                                        <a href="{{ route('login') }}"
                                             class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center">
-                                            <span>Buy {{ $course->name }} &mdash; {{ $course->formattedPrice() }}</span>
-                                        </button>
-                                    </form>
+                                            <span>Sign In To Start Learning</span>
+                                        </a>
+                                    @endif
                                 @endauth
 
                                 <div class="mt-3 text-center">

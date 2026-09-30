@@ -38,12 +38,28 @@ class PaidCoursesTest extends TestCase
         $this->seed(CourseSeeder::class);
     }
 
+    /**
+     * Describe a live site, where the paywall is on.
+     *
+     * The paywall is off by default so the material can be built and marked
+     * before anything is sold. Every test here is about what a paying or
+     * would-be-paying customer sees, so it opts back in explicitly.
+     */
+    private function requirePurchase(): static
+    {
+        config(['course-content.require_purchase' => true]);
+
+        return $this;
+    }
+
     /* -----------------------------------------------------------------
      | Catalogue and homepage
      | ----------------------------------------------------------------- */
 
     public function test_homepage_advertises_both_courses_with_prices(): void
     {
+        $this->requirePurchase();
+
         $this->get('/')
             ->assertOk()
             ->assertSee('Prepare For The Official Life in the UK Test')
@@ -548,6 +564,8 @@ class PaidCoursesTest extends TestCase
 
     public function test_a_signed_in_user_without_the_purchase_gets_a_403(): void
     {
+        $this->requirePurchase();
+
         $user = User::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
@@ -566,6 +584,8 @@ class PaidCoursesTest extends TestCase
 
     public function test_the_course_does_not_unlock_the_mock_test_package(): void
     {
+        $this->requirePurchase();
+
         $user = User::factory()->create();
         $course = $this->course('life-in-the-uk-course');
         $mocks = $this->course('24-mock-tests');
@@ -580,6 +600,8 @@ class PaidCoursesTest extends TestCase
 
     public function test_the_mock_test_package_does_not_unlock_the_course(): void
     {
+        $this->requirePurchase();
+
         $user = User::factory()->create();
         $course = $this->course('life-in-the-uk-course');
         $mocks = $this->course('24-mock-tests');
@@ -713,8 +735,95 @@ class PaidCoursesTest extends TestCase
             ->assertDontSee('Try 24 Mock Tests Package Again');
     }
 
+    /* -----------------------------------------------------------------
+     | The paywall being switched off
+     |
+     | While the lessons and papers are being built, the paywall is off and
+     | any signed-in account can open everything. Stripe may not even be
+     | configured. These tests pin that down, because the danger is a live
+     | site quietly shipping in this state.
+     | ----------------------------------------------------------------- */
+
+    public function test_with_the_paywall_off_any_signed_in_account_can_open_the_learning_area(): void
+    {
+        $this->assertFalse(config('course-content.require_purchase'));
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get(route('learn.index', $this->course('life-in-the-uk-course')))
+            ->assertOk();
+
+        $this->actingAs($user)
+            ->get(route('learn.index', $this->course('24-mock-tests')))
+            ->assertOk();
+    }
+
+    public function test_with_the_paywall_off_a_guest_is_still_sent_to_login(): void
+    {
+        // A sitting is a database row keyed to a user, so a guest cannot be
+        // let in to take a quiz. Turning the paywall off relaxes the purchase
+        // check only, never the sign-in.
+        $this->get(route('learn.index', $this->course('life-in-the-uk-course')))
+            ->assertRedirect(route('login'));
+    }
+
+    public function test_with_the_paywall_off_no_stripe_configuration_is_needed(): void
+    {
+        config([
+            'stripe.key' => null,
+            'stripe.secret' => null,
+            'stripe.prices.course' => null,
+            'stripe.prices.mock_tests' => null,
+        ]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get(route('learn.index', $this->course('life-in-the-uk-course')))
+            ->assertOk();
+    }
+
+    public function test_with_the_paywall_off_the_cta_sends_a_customer_straight_to_the_lessons(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/courses/life-in-the-uk-course')
+            ->assertOk()
+            ->assertSee('Start Learning')
+            ->assertDontSee('Buy Now')
+            ->assertDontSee('Stripe');
+    }
+
+    public function test_with_the_paywall_off_a_guest_is_asked_to_sign_in_rather_than_buy(): void
+    {
+        $this->get('/courses/life-in-the-uk-course')
+            ->assertOk()
+            ->assertSee('Sign In To Start')
+            ->assertDontSee('Buy Now');
+    }
+
+    public function test_payments_doctor_warns_that_the_paywall_is_off(): void
+    {
+        $this->artisan('payments:doctor')
+            ->expectsOutputToContain('THE PAYWALL IS OFF')
+            ->assertSuccessful();
+    }
+
+    public function test_payments_doctor_does_not_warn_once_the_paywall_is_on(): void
+    {
+        $this->requirePurchase();
+
+        $this->artisan('payments:doctor')
+            ->doesntExpectOutputToContain('THE PAYWALL IS OFF')
+            ->assertSuccessful();
+    }
+
     public function test_a_guest_is_sent_to_login_before_checking_out(): void
     {
+        $this->requirePurchase();
+
         $this->get('/courses/life-in-the-uk-course')
             ->assertOk()
             ->assertSee('Sign In To Buy')
