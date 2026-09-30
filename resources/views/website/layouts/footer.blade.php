@@ -94,6 +94,15 @@
                             <li>
                                 <a href="{{ url('/become-tutor') }}">Become an Tutor</a>
                             </li>
+                            <li>
+                                <a href="{{ route('courses.show', 'life-in-the-uk-course') }}">Life in the UK Course</a>
+                            </li>
+                            <li>
+                                <a href="{{ route('courses.show', '24-mock-tests') }}">24 Mock Tests</a>
+                            </li>
+                            <li>
+                                <a href="{{ route('login') }}">Sign In</a>
+                            </li>
                         </ul>
                     </div>
                 </div>

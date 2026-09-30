@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log;
 use App\Mail\TutorMail;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Throwable;
 
 class TutorMailController extends Controller
@@ -30,6 +30,7 @@ class TutorMailController extends Controller
                 'recipient' => 'info@croydoncollegeofexcellence.co.uk',
                 'data' => $validatedData,
             ]);
+
             return back()->with('success', 'Your form has been submitted successfully.');
 
         } catch (Throwable $e) {

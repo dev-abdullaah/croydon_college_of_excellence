@@ -21,7 +21,7 @@ class TutorMail extends Mailable
     {
         return $this->from(env('MAIL_FROM_ADDRESS')) // Sender address, could be no-reply
             ->to('info@croydoncollegeofexcellence.co.uk') // Your recipient email
-            ->subject('Tutor Registration Request from ' . $this->data['full_name']) // Subject for the email
+            ->subject('Tutor Registration Request from '.$this->data['full_name']) // Subject for the email
             ->view('emails.tutor_mail_template') // The email template to use
             ->with('data', $this->data); // Data sent to the view
     }

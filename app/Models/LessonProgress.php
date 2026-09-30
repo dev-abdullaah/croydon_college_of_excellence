@@ -1,0 +1,65 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Collection;
+
+/**
+ * "I have finished this lesson".
+ *
+ * Deliberately tiny - the lesson reader does not gate content on it, it is
+ * the learner's own record that they got to the end. That keeps someone
+ * re-reading a lesson from having to redo anything to keep their progress.
+ *
+ * A lesson is not a database row, so this names one by its course and lesson
+ * slug. Both are needed because a slug is only unique within its course and the
+ * two courses are sold separately.
+ */
+class LessonProgress extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'user_id',
+        'course_slug',
+        'lesson_slug',
+        'completed_at',
+    ];
+
+    protected $casts = [
+        'completed_at' => 'datetime',
+    ];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function scopeFor(Builder $query, User|int $user): Builder
+    {
+        return $query->where('user_id', $user instanceof User ? $user->id : $user);
+    }
+
+    /**
+     * Which of one course's lessons a learner has read, as a set of lesson slugs.
+     *
+     * The learning pages ask "have they read this?" about every lesson at once,
+     * and this is the one query that answers it. Slugs rather than ids, so the
+     * lesson list can be asked about as it is drawn.
+     *
+     * @return Collection<int, string>
+     */
+    public static function readSlugsFor(User|int $user, string $courseSlug): Collection
+    {
+        $id = $user instanceof User ? $user->id : $user;
+
+        return static::query()
+            ->for($id)
+            ->where('course_slug', $courseSlug)
+            ->pluck('lesson_slug');
+    }
+}

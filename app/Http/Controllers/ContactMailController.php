@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log;
 use App\Mail\ContactMail;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Throwable;
 
 class ContactMailController extends Controller
@@ -32,7 +32,7 @@ class ContactMailController extends Controller
             ]);
 
             return back()->with('success', 'Your message has been sent successfully.');
-            
+
         } catch (Throwable $e) {
             // Log error with more details
             Log::error('Contact Form Email sending failed', [

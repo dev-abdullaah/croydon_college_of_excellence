@@ -20,7 +20,7 @@ class AssesmentMail extends Mailable
     public function build()
     {
         return $this->to('info@croydoncollegeofexcellence.co.uk') // Set recipient email here
-            ->subject('Free Assesment Request from ' . $this->data['full_name']) // Set email subject
+            ->subject('Free Assesment Request from '.$this->data['full_name']) // Set email subject
             ->view('emails.assesment_mail_template')
             ->with([
                 'full_name' => $this->data['full_name'],
@@ -31,7 +31,7 @@ class AssesmentMail extends Mailable
                 'guardian_name' => $this->data['guardian_name'] ?? 'N/A',
                 'guardian_contact' => $this->data['guardian_contact'] ?? 'N/A',
                 'address' => $this->data['address'],
-                'subjects' => implode(', ', $this->data['subjects'])
+                'subjects' => implode(', ', $this->data['subjects']),
             ]);
     }
 }

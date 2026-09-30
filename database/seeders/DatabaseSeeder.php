@@ -18,5 +18,13 @@ class DatabaseSeeder extends Seeder
         //     'name' => 'Test User',
         //     'email' => 'test@example.com',
         // ]);
+
+        // The paid course catalogue (Life in the UK Course and the 24 Mock
+        // Tests package). Required before the checkout buttons will work.
+        $this->call(CourseSeeder::class);
+
+        // The lessons and papers are not seeded: they are the JSON files in
+        // `database/data/`, read straight from the repository at request time.
+        // There is nothing to import and nothing to drift out of step.
     }
 }

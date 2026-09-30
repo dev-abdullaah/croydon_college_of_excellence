@@ -45,12 +45,33 @@
                 </li>
                 <li><a href="{{ url('/courses-regular') }}">COURSES</a></li>
                 <li><a href="{{ url('/courses-send') }}">SEND COURSES</a></li>
+                <li class="has-dropdown has-menu-child-item">
+                    <a>LIFE IN THE UK <i class="feather-chevron-down"></i></a>
+                    <ul class="submenu">
+                        <li><a href="{{ route('courses.show', 'life-in-the-uk-course') }}">LIFE IN THE UK COURSE &mdash; &pound;99</a></li>
+                        <li><a href="{{ route('courses.show', '24-mock-tests') }}">24 MOCK TESTS &mdash; &pound;49</a></li>
+                        @auth
+                            <li><a href="{{ route('dashboard') }}">MY ACCOUNT</a></li>
+                        @else
+                            <li><a href="{{ route('login') }}">SIGN IN</a></li>
+                        @endauth
+                    </ul>
+                </li>
                 <li><a href="{{ url('/contact-us') }}">CONTACT US</a></li>
                 <li><a href="{{ url('/gallery') }}">GALLERY</a></li>
             </ul>
         </nav>
 
         <div class="mobile-menu-bottom">
+            @auth
+                <div class="rbt-btn-wrapper mb--20">
+                    <a class="rbt-btn btn-border-gradient radius-round btn-sm hover-transform-none w-100 justify-content-center text-center"
+                        href="{{ route('dashboard') }}">
+                        <span>My Account</span>
+                    </a>
+                </div>
+            @endauth
+
             <div class="rbt-btn-wrapper mb--20">
                 <a class="rbt-btn btn-border-gradient radius-round btn-sm hover-transform-none w-100 justify-content-center text-center"
                     href="{{ url('/enroll-now') }}">
