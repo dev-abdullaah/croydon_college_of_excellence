@@ -9,6 +9,7 @@ use App\Services\StripeService;
 use Closure;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Routing\Route as IlluminateRoute;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
@@ -41,9 +42,26 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->useBootstrapPagination();
+
         $this->limitApiRequests();
 
         $this->bindCourseContent();
+    }
+
+    /**
+     * Paginate with the styles the site actually loads.
+     *
+     * Laravel's default paginator view is written for Tailwind, but this site
+     * loads Bootstrap 5. Left alone, `$paginator->links()` emits utility
+     * classes the stylesheet has never heard of, so the page buttons come out
+     * unstyled and the Previous/Next arrows inherit the heading font at full
+     * size. Pointing the paginator at the Bootstrap 5 view fixes the lesson
+     * reader and anything else that paginates.
+     */
+    protected function useBootstrapPagination(): void
+    {
+        Paginator::useBootstrapFive();
     }
 
     /**
