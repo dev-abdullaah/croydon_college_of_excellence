@@ -77,17 +77,19 @@
     @include('website.layouts.mobile_menu')
     <!-- Mobile Menu Section End-->
 
-    <!-- Start Page Container Area -->
-    <div class="container">
-        <div class="row">
-            <div class="col-12">
-                {{-- Session feedback, here so that every page shows it. A page
-                     that redirects back to itself and stays silent looks like
-                     a button that does nothing. --}}
-                @include('website.partials.flash')
-            </div>
-        </div>
-    </div>
+    {{--
+        Session feedback. Rendered here, after the header and menu, so that
+        every page shows it: a page that redirects back to itself and stays
+        silent looks like a button that does nothing.
+
+        It is emitted at the end of the body rather than in a slot in the page
+        content, because the message is a fixed overlay and has no business
+        being inside a container that also holds the page. Putting it in flow
+        meant it sat flush under the header and pushed the page down for as
+        long as it was on screen. The partial handles the "only if there is
+        something to say" part, so no empty element is left behind.
+    --}}
+    @include('website.partials.flash')
 
     @yield('content')
     <!-- End Page Container Area -->

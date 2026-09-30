@@ -147,6 +147,148 @@ class PaidCoursesTest extends TestCase
         $this->get('/my-account')->assertOk()->assertSee('sajib@example.com');
     }
 
+    /* -----------------------------------------------------------------
+     | Where a message is shown
+     |
+     | Feedback from a redirect used to be a bar of alert markup in a
+     | container at the top of the page. That put it directly under the
+     | header, where it read as part of the navigation, and made it part of
+     | the document flow, so it shoved the page down by its own height and
+     | the layout jumped when it went.
+     |
+     | It is a fixed overlay now. The checks below are on the wrapper and its
+     | positioning rather than on the prose, because "is it in the flow" and
+     | "is it in the corner" are the two things that were wrong.
+     * ----------------------------------------------------------------- */
+
+    public function test_a_message_is_shown_as_a_fixed_overlay(): void
+    {
+        // Registration no longer ends at the dashboard, so the message is
+        // seeded onto the session directly rather than produced by signing
+        // up. The overlay is the thing under test, not how a message is
+        // caused.
+        $this->actingAs(User::factory()->create())
+            ->withSession(['success' => 'Your account is ready'])
+            ->get('/my-account')
+            ->assertOk()
+            ->assertSee('Your account is ready')
+            ->assertSee('class="site-toasts"', false)
+            ->assertSee('class="alert alert-success site-toast"', false)
+            // Outside the flow, so it cannot move the page, and above the
+            // sticky header, which is z-index 99 and would otherwise cover it.
+            ->assertSee('class="site-toasts" role="region"', false);
+    }
+
+    public function test_a_message_carries_a_dismiss_control(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->withSession(['success' => 'All done'])
+            ->get('/my-account')
+            ->assertOk()
+            ->assertSee('data-site-toast-dismiss', false)
+            ->assertSee('Dismiss this message', false);
+    }
+
+    public function test_nothing_is_rendered_on_a_page_without_a_message(): void
+    {
+        // The wrapper used to render unconditionally, putting a stray empty
+        // container above the content of every page in the site.
+        $html = $this->actingAs(User::factory()->create())
+            ->get('/my-account')
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('site-toasts', $html);
+        $this->assertStringNotContainsString('Please check the form', $html);
+    }
+
+    public function test_a_validation_failure_is_shown_as_a_toast(): void
+    {
+        // No actingAs here: /register sits behind the `guest` middleware, so
+        // a signed-in visitor is redirected away before validation is reached.
+        //
+        // One request rather than two, because carrying the error bag across a
+        // separate follow-up GET leans on flash data surviving between
+        // requests, which is not something to assert layout on.
+        $this->followingRedirects()
+            ->post('/register', [
+                'name' => '',
+                'email' => 'not-an-email',
+                'password' => 'short',
+                'password_confirmation' => 'different',
+            ])
+            ->assertOk()
+            ->assertSee('Please check the form')
+            ->assertSee('class="alert alert-danger site-toast"', false)
+            ->assertSee('class="site-toasts"', false);
+    }
+
+    public function test_the_toast_overlay_is_pinned_centred_and_clears_the_header(): void
+    {
+        // Read the stylesheet rather than trusting the markup: a toast that is
+        // not actually fixed, or that sits below the header's z-index, would
+        // look correct in a test and wrong on the page.
+        //
+        // The header is not a fixed height (134px on a desktop, 239px on a
+        // phone), so the 50px gap is measured from a custom property that
+        // custom.js fills in, rather than from a hardcoded pixel value.
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        preg_match('/\.site-toasts\s*\{([^}]*)\}/', $css, $block);
+        $rules = $block[1] ?? '';
+
+        $this->assertMatchesRegularExpression('/position:\s*fixed/', $rules, 'the overlay must be out of the flow');
+
+        // 50px below the header, however tall that header happens to be.
+        $this->assertMatchesRegularExpression(
+            '/top:\s*calc\(var\(--site-header-height[^;]*\+\s*50px\)/',
+            $rules,
+            'the message must sit 50px below the header'
+        );
+
+        // Centred horizontally. The margin is done with a transform rather
+        // than auto margins so that the box can still be pinned by its left
+        // and right edges on narrow screens.
+        $this->assertMatchesRegularExpression('/left:\s*50%/', $rules);
+        $this->assertMatchesRegularExpression('/transform:\s*translateX\(-50%\)/', $rules);
+
+        preg_match('/z-index:\s*(\d+)/', $rules, $found);
+        $toastIndex = (int) $found[1];
+
+        preg_match('/\.rbt-header \.rbt-header-wrapper\.rbt-sticky\s*\{([^}]*)\}/', $css, $header);
+        preg_match('/z-index:\s*(\d+)/', $header[1] ?? '', $headerIndex);
+
+        $this->assertNotEmpty($headerIndex, 'could not find the sticky header z-index to compare against');
+        $this->assertGreaterThan(
+            (int) $headerIndex[1],
+            $toastIndex,
+            'a message under the sticky header would be hidden once the header pins'
+        );
+    }
+
+    public function test_the_header_height_drives_the_message_position(): void
+    {
+        // The per-breakpoint fallbacks have to exist for the no-script case,
+        // and they have to be defined on the root element so that the inline
+        // style custom.js writes can override them.
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        $this->assertMatchesRegularExpression(
+            '/:root\s*\{[^}]*--site-header-height:\s*134px/',
+            $css,
+            'the desktop fallback must live on the root element'
+        );
+        $this->assertMatchesRegularExpression(
+            '/max-width:\s*575px[^}]*--site-header-height/',
+            $css,
+            'the phone fallback must exist, since the header is tallest there'
+        );
+
+        $script = (string) file_get_contents(public_path('assets/js/custom.js'));
+        $this->assertStringContainsString('--site-header-height', $script);
+        $this->assertStringContainsString('orientationchange', $script, 'the gap must be recalculated on rotation');
+    }
+
     public function test_a_visitor_can_sign_in(): void
     {
         $user = User::factory()->create([

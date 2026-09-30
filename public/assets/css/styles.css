@@ -38187,3 +38187,222 @@ Course Sidebar
   background: #23262f;
   border-left-color: rgba(255, 255, 255, .2);
 }
+
+/* ==========================================================================
+   Session messages (toast)
+   --------------------------------------------------------------------------
+   Feedback from a redirect - signed up, saved, failed validation - shown
+   floating in the corner rather than as a bar above the page.
+
+   Fixed positioning is the whole point: the message must not be part of the
+   document flow, or it pushes the page down by its own height for as long as
+   it is there and the layout jumps when it goes.
+
+   The z-index clears the sticky header (99) and the search dropdown (104) so
+   nothing slides over the top of a message and hides it. It deliberately sits
+   below the off-canvas menus (9999) and the cart drawer (99999): those are
+   opened deliberately and are meant to be the thing you are looking at.
+
+   Colours come from the theme's own variables so dark mode comes along for
+   free rather than needing a second palette invented for it.
+   ========================================================================== */
+
+/* How tall the site header is, so the message can sit a fixed distance below
+   it. These are fallbacks for when scripting is off; custom.js measures the
+   real header on load and overwrites this, which is why the values here only
+   have to be roughly right. The header is not one height: it grows from 134px
+   on a desktop to 239px on a phone, as the contact bar stacks. */
+:root {
+  --site-header-height: 134px;
+}
+
+@media only screen and (max-width: 1199px) {
+  :root {
+    --site-header-height: 164px;
+  }
+}
+
+@media only screen and (max-width: 991px) {
+  :root {
+    --site-header-height: 200px;
+  }
+}
+
+@media only screen and (max-width: 575px) {
+  :root {
+    --site-header-height: 233px;
+  }
+}
+
+.site-toasts {
+  position: fixed;
+  top: calc(var(--site-header-height, 134px) + 50px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1080;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: 400px;
+  max-width: calc(100vw - 40px);
+  /* Never grow past the space below the header, so a short window cannot push
+     the messages off the bottom of the screen. */
+  max-height: calc(100vh - var(--site-header-height, 134px) - 70px);
+  overflow-y: auto;
+  pointer-events: none;
+}
+
+.site-toast {
+  position: relative;
+  width: 100%;
+  margin: 0;
+  padding: 14px 44px 14px 16px;
+  border: 0;
+  border-left: 4px solid var(--color-primary);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(25, 35, 51, .18);
+  color: var(--color-darker);
+  font-size: 14px;
+  line-height: 1.5;
+  pointer-events: auto;
+  animation: site-toast-in .25s ease-out both;
+}
+
+.site-toast.alert-success {
+  background: #eafaf0;
+  border-left-color: var(--color-success);
+  color: #1a6b34;
+}
+
+.site-toast.alert-danger {
+  background: #fdecec;
+  border-left-color: var(--color-danger);
+  color: #9b0000;
+}
+
+.site-toast.alert-warning {
+  background: #fff5ea;
+  border-left-color: var(--color-warning);
+  color: #8a4a00;
+}
+
+.site-toast.alert-info {
+  background: #e8f6fd;
+  border-left-color: var(--color-info);
+  color: #0d5b7a;
+}
+
+.site-toast__body ul {
+  font-size: 14px;
+}
+
+/* The dismiss button sits over the right edge of the panel rather than in a
+   flex row, so the message text can run to the full width of the panel
+   without having to reserve a column for it. */
+.site-toast__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: currentColor;
+  opacity: .55;
+  cursor: pointer;
+  transition: opacity .15s ease-in-out, background-color .15s ease-in-out;
+}
+
+.site-toast__close:hover,
+.site-toast__close:focus-visible {
+  opacity: 1;
+  background: rgba(25, 35, 51, .08);
+}
+
+.site-toast__close i,
+.site-toast__close svg {
+  width: 16px;
+  height: 16px;
+}
+
+@keyframes site-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.site-toast.is-leaving {
+  animation: site-toast-out .2s ease-in both;
+}
+
+@keyframes site-toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* The theme rescales every rem value (html is 10px, not 16px), so a "small"
+   gap here is 62.5% of what the number suggests. */
+@media only screen and (max-width: 575px) {
+  /* Edge to edge rather than a centred column: at this width a 400px panel
+     leaves margins too narrow to read against. The transform is dropped
+     because centring is done with it, and here the box is pinned by its
+     left and right edges instead. */
+  .site-toasts {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    transform: none;
+  }
+}
+
+.active-dark-mode .site-toast {
+  background: #23262f;
+  color: var(--color-white);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .5);
+}
+
+.active-dark-mode .site-toast.alert-success {
+  color: #7ee2a2;
+}
+
+.active-dark-mode .site-toast.alert-danger {
+  color: #ff9d9d;
+}
+
+.active-dark-mode .site-toast.alert-warning {
+  color: #ffc080;
+}
+
+.active-dark-mode .site-toast.alert-info {
+  color: #8fd8f5;
+}
+
+.active-dark-mode .site-toast__close:hover,
+.active-dark-mode .site-toast__close:focus-visible {
+  background: rgba(255, 255, 255, .12);
+}
+
+/* Someone who has asked the system to stop moving things should not have
+   things move on them. */
+@media (prefers-reduced-motion: reduce) {
+
+  .site-toast,
+  .site-toast.is-leaving {
+    animation: none;
+  }
+}
