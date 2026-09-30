@@ -23,38 +23,63 @@
 
                 <div class="rbt-service rbt-service-2 radius-10">
                     {{--
-                        This page is reachable whether or not somebody is
-                        signed in. Registration deliberately does not sign
-                        anyone in, and a correct password for an unverified
-                        account does not either, so the person following the
-                        email link is a guest until the link proves the address
-                        is theirs.
+                        One question on this page: the code.
+
+                        This form used to ask for an email address as well, and
+                        carried a second form underneath for resending. Two
+                        email boxes on one screen is not a normal thing to meet -
+                        it reads as two competing forms, and people cannot tell
+                        which one to fill in. The address is already known,
+                        because whoever sent the code remembered it, so asking
+                        again bought nothing.
+
+                        Requesting a new code is now a link to its own page.
                     --}}
                     <p class="mb-4">
-                        We have sent a verification link to
-                        @if ($email)
-                            <strong>{{ $email }}</strong>.
+                        @if ($hasEmail)
+                            We sent a six digit code to <strong>{{ $email }}</strong>.
                         @else
-                            <strong>your email address</strong>.
+                            Enter the six digit code we sent you.
                         @endif
-                        Open it and you will be signed in automatically.
                     </p>
 
-                    <p class="mb-4">
-                        Nothing arrived? Check your junk folder, or send it again below. The link
-                        stops working after {{ config('auth.verification.expire', 60) }} minutes, so
-                        an old one is best replaced rather than searched for.
-                    </p>
-
-                    <form method="POST" action="{{ route('verification.resend') }}" novalidate>
+                    <form method="POST" action="{{ route('verification.verify') }}" novalidate>
                         @csrf
 
+                        {{--
+                            Fallback for the case where the address is not
+                            known, which happens once the session that carried
+                            it has gone. Not visible, and not a way in: the code
+                            is what proves ownership, and this only says which
+                            account to compare it against.
+                        --}}
+                        @unless ($hasEmail)
+                            <input type="hidden" name="email" value="{{ old('email') }}">
+                        @endunless
+
                         <div class="mb-3">
-                            <label for="email" class="form-label">Email Address</label>
-                            <input type="email" id="email" name="email" value="{{ old('email', $email) }}"
-                                class="form-control @error('email') is-invalid @enderror" required
-                                autocomplete="email">
-                            @error('email')
+                            <label for="code" class="form-label">Verification Code</label>
+                            {{--
+                                inputmode=numeric and autocomplete=one-time-code
+                                are what make this read as a code from a phone:
+                                the keyboard becomes digits, and iOS and Android
+                                will offer the code they just received.
+
+                                No placeholder, deliberately. A sample value like
+                                123456 is indistinguishable from a real code,
+                                and it reads as one - which is exactly how it was
+                                mistaken for the code that had been sent, and
+                                then typed in as though it were. The other
+                                placeholders on this site name the field in
+                                words for the same reason; a code is the one
+                                field where an example is actively misleading.
+                            --}}
+                            <input type="text" id="code" name="code" inputmode="numeric" pattern="[0-9]*"
+                                autocomplete="one-time-code" maxlength="6"
+                                class="form-control @error('code') is-invalid @enderror"
+                                value="{{ old('code') }}" required autofocus>
+                            <div class="form-text">Enter the six digit code that we sent to your mail.</div>
+                            @error('code')
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
                         </div>
@@ -62,10 +87,19 @@
                         <div class="rbt-btn-wrapper">
                             <button type="submit"
                                 class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center">
-                                <span>Send the link again</span>
+                                <span>Confirm my email</span>
                             </button>
                         </div>
                     </form>
+
+                    <p class="mt-4 mb-0">
+                        Nothing arrived, or the code has expired? The code stops working after
+                        {{ config('auth.verification_code.expire', 15) }} minutes, and
+                        {{ config('auth.verification_code.max_attempts', 5) }} wrong attempts lock it
+                        out for {{ config('auth.verification_code.lockout_minutes', 15) }} minutes, so
+                        request a new one rather than guessing again.
+                        <a href="{{ route('verification.resend.form') }}">Send a new code</a>.
+                    </p>
                 </div>
 
                 <p class="text-center mt--20">

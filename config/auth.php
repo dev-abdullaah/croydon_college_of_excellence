@@ -75,6 +75,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Verifying an Email Address by Code
+    |--------------------------------------------------------------------------
+    |
+    | Verification is by mailed code rather than by link. A signed URL cannot
+    | be guessed; a six digit code can be, so these numbers are what make it
+    | safe rather than merely convenient.
+    |
+    | `expire` is in minutes and is deliberately short. A link could afford an
+    | hour because whoever intercepted it still had to guess nothing; a code is
+    | guessable, so it gets spent quickly.
+    |
+    | `max_attempts` is the real defence. A million possible codes sounds safe
+    | until you divide it by the number of tries allowed: at these settings an
+    | attacker gets five guesses and then waits out `lockout_minutes`. Raising
+    | the code length without lowering this would undo the point.
+    |
+    */
+
+    'verification_code' => [
+        'expire' => env('VERIFY_CODE_EXPIRE', 15),
+        'max_attempts' => env('VERIFY_CODE_MAX_ATTEMPTS', 5),
+        'lockout_minutes' => env('VERIFY_CODE_LOCKOUT_MINUTES', 15),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Resetting Passwords
     |--------------------------------------------------------------------------
     |

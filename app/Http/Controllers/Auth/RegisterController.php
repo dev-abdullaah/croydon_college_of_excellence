@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -45,23 +44,27 @@ class RegisterController extends Controller
          | left null, so every route behind the `verified` middleware refuses
          | it, including the dashboard.
          |
-         | Firing Registered sends the verification link. It is fired by hand
-         | rather than relied upon automatically because Laravel only does
-         | that when a listener is subscribed; naming the event makes the
-         | dependency visible, and means the email cannot quietly stop being
-         | sent if that subscription is ever changed.
+         | The code is sent here rather than by firing Registered and hoping a
+         | listener picks it up. Laravel's own listener would send its link
+         | notification, which is the mechanism this replaced, so sending the
+         | code explicitly is what guarantees the thing that actually gets
+         | delivered is the code.
          |
          | No Auth::login here. This is the whole point: signing somebody in
          | before they have shown they own the address is what let an account
          | be created against an address its owner never sees.
          */
-        event(new Registered($user));
+        // Minted and mailed here. See the note above: firing Registered instead
+        // would send Laravel's link notification, not this code.
+        $user->sendEmailVerificationCodeNotification();
 
         // Only for rendering the notice, so the guest who has just registered
-        // can see which address the link went to.
+        // can see which address the code went to, and enter it without typing
+        // the address again.
         $request->session()->put('verification.email', $user->email);
+        $request->session()->put('verification.email_locked', true);
 
         return redirect()->route('verification.notice')
-            ->with('success', 'Almost there. Check your inbox for the link that confirms your email address.');
+            ->with('success', 'Almost there. Check your inbox for the code that confirms your email address.');
     }
 }

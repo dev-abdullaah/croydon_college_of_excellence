@@ -58,10 +58,10 @@ class LoginController extends Controller
             $request->session()->regenerateToken();
             $request->session()->put('verification.email', $user->email);
 
-            $user->sendEmailVerificationNotification();
+            $user->sendEmailVerificationCodeNotification();
 
             return redirect()->route('verification.notice')
-                ->with('info', 'Please confirm your email address first. We have sent you a fresh link.');
+                ->with('info', 'Please confirm your email address first. We have sent you a fresh code.');
         }
 
         // New session id on privilege change: prevents session fixation.
