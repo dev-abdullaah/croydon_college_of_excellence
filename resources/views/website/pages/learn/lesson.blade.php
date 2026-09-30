@@ -8,7 +8,7 @@
 
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb--20">
         <div>
-            <a href="{{ route('learn.index', $course) }}" class="btn btn-sm btn-outline-secondary">
+            <a href="{{ route('learn.index', $course) }}" class="rbt-btn btn-white">
                 &larr; All lessons
             </a>
         </div>
@@ -67,7 +67,7 @@
                 </div>
                 <div class="col-md-4 text-md-end">
                     <a href="{{ route('learn.quizzes.play', [$course, $check->slug]) }}"
-                        class="btn {{ $checkScore !== null ? 'btn-outline-secondary' : 'btn-primary' }} w-100">
+                        class="rbt-btn w-100 {{ $checkScore !== null ? 'btn-white' : 'btn-gradient' }}">
                         {{ $checkScore !== null ? 'Sit it again' : 'Start ' . strtolower($check->title) }}
                     </a>
                 </div>
@@ -96,7 +96,7 @@
                 @else
                     <form method="POST" action="{{ route('learn.lessons.complete', [$course, $lesson->slug]) }}">
                         @csrf
-                        <button type="submit" class="btn btn-primary w-100">Mark as read</button>
+                        <button type="submit" class="rbt-btn btn-gradient w-100">Mark as read</button>
                     </form>
                 @endif
             </div>

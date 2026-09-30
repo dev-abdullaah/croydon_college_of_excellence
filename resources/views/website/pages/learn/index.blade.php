@@ -45,8 +45,8 @@
         <hr class="my-4">
 
         <div class="d-flex flex-wrap gap-2">
-            <a href="{{ route('dashboard') }}" class="btn btn-sm btn-outline-secondary">Downloads</a>
-            <a href="{{ route('courses.show', $course) }}" class="btn btn-sm btn-outline-secondary">Course details</a>
+            <a href="{{ route('dashboard') }}" class="rbt-btn btn-white">My account</a>
+            <a href="{{ route('courses.show', $course) }}" class="rbt-btn btn-white">Course details</a>
         </div>
     </div>
 
@@ -126,7 +126,7 @@
                 <p class="mb-3">
                     The lessons and papers for this course are not loaded yet.
                 </p>
-                <a href="{{ route('dashboard') }}" class="btn btn-sm btn-outline-secondary">Back to my account</a>
+                <a href="{{ route('dashboard') }}" class="rbt-btn btn-white">Back to my account</a>
             </div>
         @endif
     @endforelse
