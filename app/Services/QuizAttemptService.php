@@ -195,9 +195,15 @@ class QuizAttemptService
             $attempt->total = $total;
             $attempt->percentage = $percentage;
             $attempt->passed = $percentage >= $quiz->pass_mark_percent;
-            $attempt->time_taken_seconds = max(
+            // How long the learner sat the paper. The diff is measured from the
+            // start, so the start is the left-hand side; asking for it the
+            // other way round returns a negative number and clamps to zero.
+            // Carbon 3 returns a float, and the column is whole seconds, so
+            // the result is cast down. Clamped at zero to absorb a clock that
+            // has drifted backwards mid-paper.
+            $attempt->time_taken_seconds = (int) max(
                 0,
-                now()->diffInSeconds($attempt->started_at, false)
+                $attempt->started_at->diffInSeconds(now())
             );
             $attempt->submitted_at = now();
 

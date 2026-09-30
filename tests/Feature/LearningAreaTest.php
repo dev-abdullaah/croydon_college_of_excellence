@@ -474,6 +474,41 @@ class LearningAreaTest extends TestCase
             ->assertSee('You chose this');
     }
 
+    public function test_the_time_taken_is_recorded(): void
+    {
+        $course = $this->course();
+        $buyer = $this->buyer($course);
+        $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 4);
+
+        // Opening the paper is what starts the clock.
+        $this->actingAs($buyer)->get(route('learn.quizzes.play', [$course, $quiz]));
+
+        $this->travel(754)->seconds();
+
+        $this->actingAs($buyer)->post(route('learn.quizzes.submit', [$course, $quiz]));
+
+        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+
+        $this->assertSame(754, $attempt->time_taken_seconds);
+    }
+
+    public function test_a_clock_that_drifted_backwards_records_no_time_at_all(): void
+    {
+        $course = $this->course();
+        $buyer = $this->buyer($course);
+        $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 4);
+
+        $this->actingAs($buyer)->get(route('learn.quizzes.play', [$course, $quiz]));
+
+        $this->travel(-30)->seconds();
+
+        $this->actingAs($buyer)->post(route('learn.quizzes.submit', [$course, $quiz]));
+
+        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+
+        $this->assertSame(0, $attempt->time_taken_seconds);
+    }
+
     public function test_submitting_twice_does_not_manufacture_a_second_score(): void
     {
         $course = $this->course();
