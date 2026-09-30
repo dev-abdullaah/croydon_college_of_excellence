@@ -21,7 +21,6 @@
         <div class="row justify-content-center">
             <div class="col-lg-6 col-md-8">
 
-                @include('website.partials.flash')
 
                 <div class="rbt-service rbt-service-2 radius-10">
                     <form method="POST" action="{{ route('login') }}" novalidate>

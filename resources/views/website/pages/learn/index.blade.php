@@ -8,7 +8,6 @@
 
 @section('learn')
 
-    @include('website.partials.flash')
 
     {{-- Where the learner is, in one glance. --}}
     <div class="lz-card p-4 mb--30">

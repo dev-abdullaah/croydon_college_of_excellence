@@ -23,7 +23,6 @@
         <div class="row justify-content-center">
             <div class="col-lg-10">
 
-                @include('website.partials.flash')
 
                 <div class="row mb--40 align-items-center">
                     <div class="col-md-8">

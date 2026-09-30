@@ -78,6 +78,17 @@
     <!-- Mobile Menu Section End-->
 
     <!-- Start Page Container Area -->
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                {{-- Session feedback, here so that every page shows it. A page
+                     that redirects back to itself and stays silent looks like
+                     a button that does nothing. --}}
+                @include('website.partials.flash')
+            </div>
+        </div>
+    </div>
+
     @yield('content')
     <!-- End Page Container Area -->
 

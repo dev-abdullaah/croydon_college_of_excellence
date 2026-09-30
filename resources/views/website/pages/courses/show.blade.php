@@ -26,7 +26,6 @@
         <div class="row justify-content-center">
             <div class="col-lg-10">
 
-                @include('website.partials.flash')
 
                 <div class="rbt-service rbt-service-2 radius-10">
                     <h3 class="title">{{ $course->name }}</h3>

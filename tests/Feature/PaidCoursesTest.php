@@ -208,6 +208,40 @@ class PaidCoursesTest extends TestCase
         $this->assertFalse($user->fresh()->hasPurchased('life-in-the-uk-course'));
     }
 
+    /**
+     * A Stripe Price that is not configured must say so, on screen.
+     *
+     * The suite fakes the gateway and sets both price ids, so it never sees
+     * the state a fresh install is really in. Without a Stripe Price the
+     * checkout cannot start, and the controller redirects back - which used
+     * to look like a button that did nothing, because the homepage rendered
+     * no session feedback. This covers both halves.
+     */
+    public function test_a_missing_stripe_price_tells_the_visitor_instead_of_reloading_silently(): void
+    {
+        config(['stripe.prices.course' => null]);
+
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->from('/')
+            ->post('/checkout/life-in-the-uk-course');
+
+        // It goes back to where the button lives...
+        $response->assertRedirect('/');
+        $response->assertSessionHas('error');
+
+        // ...and the message is actually rendered on that page.
+        $this->actingAs($user)
+            ->get('/')
+            ->assertOk()
+            ->assertSee('Online payments are temporarily unavailable');
+
+        // Nothing was written: a failed start must not leave a purchase row
+        // that a webhook could later flip to paid.
+        $this->assertSame(0, Purchase::count());
+    }
+
     public function test_client_supplied_prices_are_ignored(): void
     {
         $user = User::factory()->create();
