@@ -18,7 +18,8 @@ use Illuminate\Support\Facades\Schema;
  */
 class PaymentsDoctor extends Command
 {
-    protected $signature = 'payments:doctor';
+    protected $signature = 'payments:doctor
+                            {--expect= : The live domain this site serves, e.g. croydoncollegeofexcellence.co.uk. Tells the command this is a real site even when the .env says otherwise}';
 
     protected $description = 'Check that the Stripe paid-course integration is configured and ready';
 
@@ -50,6 +51,113 @@ class PaymentsDoctor extends Command
             }
         };
 
+        /*
+         | Which environment is this, and is it the one you meant?
+         |
+         | This is first because it decides whether the checks below mean
+         | anything. A live site whose .env still says APP_ENV=local fails
+         | every other check in this command in ways that look like missing
+         | configuration, when in fact the file is simply the wrong file.
+         |
+         | The usual cause is uploading a local .env to the server, because it
+         | is committed and therefore always present in a copy of the project.
+         | That single mistake produces a site that shows stack traces, builds
+         | links pointing at localhost, and silently writes every email to a
+         | log file instead of sending it. None of those announce themselves.
+         */
+        $this->components->info('Environment');
+
+        $env = (string) config('app.env');
+        $debug = (bool) config('app.debug');
+        $url = (string) config('app.url');
+        $host = parse_url($url, PHP_URL_HOST);
+
+        /*
+         * Whether this deserves production-grade scrutiny, which is not the
+         * same question as what APP_ENV says.
+         *
+         * The failure this guards against is a developer's .env reaching the
+         * server, and in exactly that case APP_ENV says `local`, so anything
+         * that trusts APP_ENV to decide whether the site is live will sit down
+         * and report everything fine. Worse, a local .env also carries
+         * APP_URL=http://localhost, so from the command line there is no
+         * evidence at all that a real site is running. Hence --expect: on a
+         * live server you say what the domain is, and every check below is then
+         * made against that claim instead of against a file that may be the
+         * wrong one.
+         */
+        $expected = strtolower(trim((string) $this->option('expect')));
+        $expected = rtrim(trim((string) preg_replace('#^https?://#', '', $expected)), '/');
+        $expected = $expected === '' ? null : $expected;
+
+        $isLocalHost = $host === null || in_array($host, ['localhost', '127.0.0.1', '::1'], true);
+        $looksLive = $expected !== null || ! $isLocalHost;
+
+        $row(
+            'APP_ENV',
+            $env === 'production' || ! $looksLive,
+            $env.' - '.$this->environmentAdvice($env, $looksLive)
+        );
+
+        if ($looksLive) {
+            $row('APP_DEBUG', ! $debug, $debug
+                ? 'ON: stack traces, including config values, are shown to visitors'
+                : 'off');
+
+            $row('APP_URL', ! $isLocalHost, $url.($isLocalHost
+                ? ' - links in email, such as email verification, point at this machine'
+                : ''));
+
+            if ($expected !== null) {
+                $row('Serving '.$expected, strtolower((string) $host) === $expected, (string) $host);
+            }
+        } else {
+            $warn('APP_DEBUG', $debug ? 'on (fine anywhere but a live site)' : 'off');
+            $warn('APP_URL', $url);
+        }
+
+        /*
+         | Mail
+         |
+         | The interesting value is the transport the chosen mailer actually
+         | resolved to, not the MAIL_MAILER that was asked for. config/mail.php
+         | makes smtp mean "the live mailbox" only in production and the log
+         | transport everywhere else, so on a live site a mailer of `smtp` that
+         | reports a transport of `log` means the config was cached somewhere
+         | else and every email this site sends is going to a file.
+         */
+        $this->newLine();
+        $this->components->info('Mail');
+
+        $mailer = (string) config('mail.default');
+        $transport = (string) config('mail.mailers.'.$mailer.'.transport', $mailer);
+        $sends = ! in_array($transport, ['log', 'array'], true);
+
+        $row(
+            'Mailer',
+            $looksLive ? $sends : true,
+            $mailer.' -> '.$transport.($sends ? '' : ' - messages are written to a log, not sent')
+        );
+
+        $from = (string) config('mail.from.address');
+
+        $row('MAIL_FROM_ADDRESS', filled($from), $from);
+
+        if ($looksLive && $sends) {
+            $smtpHost = config('mail.mailers.'.$mailer.'.host');
+            $smtpUser = config('mail.mailers.'.$mailer.'.username');
+
+            $row('SMTP host', filled($smtpHost), (string) $smtpHost);
+            $row('SMTP username', filled($smtpUser), $smtpUser
+                ? $this->mask((string) $smtpUser)
+                : 'no MAIL_USERNAME: the server will reject the login');
+        }
+
+        if (! $looksLive) {
+            $this->line('           Mail is inert away from a live site by design: see config/mail.php.');
+        }
+
+        $this->newLine();
         $this->components->info('Stripe credentials');
 
         $key = (string) config('stripe.key');
@@ -180,6 +288,24 @@ class PaymentsDoctor extends Command
         $this->components->info('Everything is configured. Ready for '.$mode.'.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Say whether this environment is the one the site should be running in.
+     *
+     * The interesting case is a live site reporting `local`, which is almost
+     * always a developer's .env that reached the server. It is worth spelling
+     * out, because on its own it looks like a harmless value.
+     */
+    protected function environmentAdvice(string $env, bool $looksLive): string
+    {
+        return match (true) {
+            $env === 'production' => 'as expected for a live site',
+            $looksLive => 'NOT production on a site serving a real domain: a local .env has been uploaded',
+            $env === 'local' => 'a developer machine',
+            $env === 'testing' => 'the test suite',
+            default => 'unrecognised value',
+        };
     }
 
     /**

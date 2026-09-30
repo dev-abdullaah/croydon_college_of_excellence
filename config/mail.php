@@ -34,16 +34,70 @@ return [
     */
 
     'mailers' => [
-        'smtp' => [
+        /*
+         * The live mailbox, and only the live mailbox.
+         *
+         * This one mailer is what production sends through. Everywhere else it
+         * resolves to the log transport instead, and the SMTP credentials are
+         * not even read.
+         *
+         * That is deliberate. This project's .env is committed, so the
+         * production mailbox password is a file that travels: it gets copied
+         * between machines, sits in backups, and ends up in whatever editor or
+         * terminal scrollback is to hand. The next person to open a local .env
+         * and see a real mailbox password has no way to tell whether the next
+         * test registration is going to email a stranger.
+         *
+         * So a stray copy of the credentials cannot cause a send. A local
+         * registration writes the email - including its verification link - to
+         * the log, and nothing leaves the machine. The switch is on the
+         * environment rather than on a value someone has to remember to set,
+         * so there is no state in which local mail quietly becomes real.
+         *
+         * The branch is resolved when the config is loaded, which is what makes
+         * it safe under `php artisan config:cache`: the cached copy is built on
+         * the server, in production, with the server's own environment. Never
+         * upload a bootstrap/cache/ directory built elsewhere. `payments:doctor`
+         * reports the mailer this actually resolved to, so a cache copied from
+         * a local machine is caught before launch rather than after.
+         */
+        'smtp' => env('APP_ENV', 'production') === 'production'
+            ? [
+                'transport' => 'smtp',
+                'url' => env('MAIL_URL'),
+                'host' => env('MAIL_HOST'),
+                'port' => env('MAIL_PORT', 465),
+                'encryption' => env('MAIL_ENCRYPTION', 'ssl'),
+                'username' => env('MAIL_USERNAME'),
+                'password' => env('MAIL_PASSWORD'),
+                'timeout' => null,
+                'local_domain' => env('MAIL_EHLO_DOMAIN'),
+            ]
+            : [
+                'transport' => 'log',
+                'channel' => env('MAIL_LOG_CHANNEL'),
+            ],
+
+        /*
+         * A mailbox on your own machine, for when you want to read the email as
+         * a message rather than as a line in a log file.
+         *
+         * Not used by default: it needs a Mailpit binary listening on 1025,
+         * which nothing installs for you. It is here because the alternative
+         * when you want to eyeball an email is to point MAIL_HOST at the live
+         * mailbox, which is the thing this file exists to prevent.
+         *
+         * Note this is hard-coded to the loopback address. It is not a
+         * configurable remote host, so like the mailer above it cannot reach
+         * anything off the machine.
+         */
+        'mailpit' => [
             'transport' => 'smtp',
-            'url' => env('MAIL_URL'),
-            'host' => env('MAIL_HOST', 'smtp.mailgun.org'),
-            'port' => env('MAIL_PORT', 587),
-            'encryption' => env('MAIL_ENCRYPTION', 'tls'),
-            'username' => env('MAIL_USERNAME'),
-            'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
-            'local_domain' => env('MAIL_EHLO_DOMAIN'),
+            'host' => '127.0.0.1',
+            'port' => 1025,
+            'encryption' => null,
+            'username' => null,
+            'password' => null,
         ],
 
         'ses' => [

@@ -820,6 +820,117 @@ class PaidCoursesTest extends TestCase
             ->assertSuccessful();
     }
 
+    /* -----------------------------------------------------------------
+     | Mail is only real in production
+     |
+     | The .env in this repository is committed, so it is copied around:
+     | between machines, into backups, and onto the server. If a copy of the
+     | live mailbox credentials sat in it, then any developer running a
+     | registration test would send mail through the real mailbox from
+     | wherever they happened to be sitting, with no error to say so.
+     |
+     | So the smtp mailer resolves to the log transport unless the app is in
+     | production, and the credentials are not even read. These tests hold
+     | that line in place, because the failure it prevents is invisible.
+     * ----------------------------------------------------------------- */
+
+    public function test_the_live_mailbox_is_inert_outside_production(): void
+    {
+        $this->assertNotSame('production', config('app.env'));
+
+        $mail = config('mail.mailers.smtp');
+
+        $this->assertSame('log', $mail['transport'], 'smtp must not talk to a real server off production');
+        $this->assertNull($mail['host'] ?? null, 'the smtp host must not be read off production');
+        $this->assertNull($mail['password'] ?? null, 'the mailbox password must not be read off production');
+    }
+
+    public function test_the_smtp_mailer_becomes_real_in_production(): void
+    {
+        // config/mail.php reads APP_ENV when it is loaded, so the branch is
+        // exercised by loading the file again with production set.
+        $previous = $_ENV['APP_ENV'] ?? null;
+
+        try {
+            $_ENV['APP_ENV'] = 'production';
+            putenv('APP_ENV=production');
+
+            $mail = require config_path('mail.php');
+
+            $this->assertSame('smtp', $mail['mailers']['smtp']['transport']);
+            $this->assertSame(465, $mail['mailers']['smtp']['port']);
+        } finally {
+            if ($previous === null) {
+                unset($_ENV['APP_ENV']);
+            } else {
+                $_ENV['APP_ENV'] = $previous;
+            }
+
+            putenv('APP_ENV='.$previous);
+        }
+    }
+
+    public function test_the_mailpit_mailer_can_only_reach_this_machine(): void
+    {
+        // Offered as a local convenience, so it is hard-coded rather than read
+        // from the environment. That is the point: there is no way to aim it
+        // at the live mailbox.
+        $this->assertSame('127.0.0.1', config('mail.mailers.mailpit.host'));
+        $this->assertSame(1025, config('mail.mailers.mailpit.port'));
+        $this->assertNull(config('mail.mailers.mailpit.username'));
+    }
+
+    public function test_payments_doctor_catches_a_local_env_uploaded_to_a_live_site(): void
+    {
+        // The whole failure is that APP_ENV says `local` on a real site, so
+        // the doctor has to be told what the site is serving. Left to itself
+        // it reads the same wrong .env and reports everything fine.
+        $this->artisan('payments:doctor --expect=croydoncollegeofexcellence.co.uk')
+            ->expectsOutputToContain('a local .env has been uploaded')
+            ->expectsOutputToContain('stack traces')
+            ->expectsOutputToContain('point at this machine')
+            ->assertFailed();
+    }
+
+    public function test_payments_doctor_catches_mail_being_logged_on_a_live_site(): void
+    {
+        // A config cache built on a developer machine bakes the log transport
+        // in, and then a live site accepts every email without complaint.
+        config(['mail.default' => 'smtp']);
+
+        $this->artisan('payments:doctor --expect=croydoncollegeofexcellence.co.uk')
+            ->expectsOutputToContain('messages are written to a log, not sent')
+            ->assertFailed();
+    }
+
+    public function test_payments_doctor_is_happy_on_a_developer_machine(): void
+    {
+        // No --expect, so nothing here should be treated as a live site.
+        $this->artisan('payments:doctor')
+            ->doesntExpectOutputToContain('a local .env has been uploaded')
+            ->doesntExpectOutputToContain('Serving')
+            ->assertSuccessful();
+    }
+
+    public function test_payments_doctor_is_happy_on_a_correctly_configured_live_site(): void
+    {
+        config([
+            'app.env' => 'production',
+            'app.debug' => false,
+            'app.url' => 'https://www.croydoncollegeofexcellence.co.uk',
+            'mail.default' => 'smtp',
+            'mail.mailers.smtp.transport' => 'smtp',
+            'mail.mailers.smtp.host' => 'smtp.hostinger.com',
+            'mail.mailers.smtp.username' => 'no-reply@croydoncollegeofexcellence.co.uk',
+        ]);
+
+        $this->artisan('payments:doctor --expect=www.croydoncollegeofexcellence.co.uk')
+            ->doesntExpectOutputToContain('a local .env has been uploaded')
+            ->doesntExpectOutputToContain('messages are written to a log')
+            ->expectsOutputToContain('smtp -> smtp')
+            ->assertSuccessful();
+    }
+
     public function test_a_guest_is_sent_to_login_before_checking_out(): void
     {
         $this->requirePurchase();
