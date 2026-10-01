@@ -68,6 +68,18 @@ class Course extends Model
         return app(CourseContent::class)->hasContent($this->slug);
     }
 
+    /**
+     * Whether this course has lessons to read.
+     *
+     * The £49 mock test pack has none - it is papers only - so views label its
+     * call to action accordingly instead of sending buyers to "start learning"
+     * when there is nothing to learn.
+     */
+    public function hasLessons(): bool
+    {
+        return app(CourseContent::class)->lessons($this->slug)->isNotEmpty();
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);

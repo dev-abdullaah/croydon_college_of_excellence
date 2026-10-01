@@ -36,11 +36,29 @@
 
                         <hr class="my-4">
 
+                        {{--
+                            Nothing is downloaded - the material is read and sat
+                            on the website - so the button goes straight to the
+                            course that was just bought. The label follows the
+                            course: the £99 pack has lessons to read, the £49
+                            mock test pack has none and is papers only.
+                        --}}
                         <div class="rbt-btn-wrapper">
-                            <a href="{{ route('dashboard') }}"
-                                class="rbt-btn btn-border-gradient radius-round btn-sm justify-content-center text-center">
-                                <span>Go To My Downloads</span>
-                            </a>
+                            @if ($purchase->course->hasLearningContent())
+                                <a href="{{ route('learn.index', $purchase->course) }}"
+                                    class="rbt-btn btn-border-gradient radius-round btn-sm justify-content-center text-center">
+                                    <span>{{ $purchase->course->hasLessons() ? 'Start Learning' : 'Start Your Mock Tests' }}</span>
+                                </a>
+                                <a href="{{ route('dashboard') }}"
+                                    class="rbt-btn btn-border-gradient radius-round btn-sm justify-content-center text-center mt-3">
+                                    <span>Go To My Account</span>
+                                </a>
+                            @else
+                                <a href="{{ route('dashboard') }}"
+                                    class="rbt-btn btn-border-gradient radius-round btn-sm justify-content-center text-center">
+                                    <span>Go To My Account</span>
+                                </a>
+                            @endif
                         </div>
                     </div>
                 @else
@@ -54,7 +72,7 @@
                         <h3 class="title mt--20">We Are Confirming Your Payment</h3>
                         <p>
                             Stripe is still confirming this payment with us. This page updates automatically once
-                            it arrives, and your downloads will be waiting in My Account.
+                            it arrives, and your course will be waiting in My Account.
                         </p>
                         <p class="mb-0">
                             If this message is still here in a few minutes, please email
