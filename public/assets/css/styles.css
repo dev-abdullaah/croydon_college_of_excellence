@@ -39079,6 +39079,53 @@ a.lz-card:hover .lz-num {
   margin-top: 2px;
 }
 
+/* Dark mode for the rich submenu above.
+ *
+ * Both of those colours are light-mode tokens and neither was ever given a dark
+ * counterpart, which is not survivable here: dark mode paints this dropdown's
+ * panel `--color-darker`, and `--color-heading` *is* `--color-darker`. The two
+ * course rows were therefore #192335 on #192335 - 1.00:1. Not low-contrast, the
+ * same colour as the background behind them.
+ *
+ * Hovering does not rescue it either. Dark mode repaints a hovered row
+ * `--color-bodyest`, but the title carries its own explicit colour, so explicit
+ * always beats inherited no matter how much the ancestor is weighted: #192335
+ * on #273041, 1.19:1. The `.submenu-rich li a:hover { color: ... !important }`
+ * in the dark block never had a chance to reach these spans.
+ *
+ * Brightness still carries the hierarchy the light-mode pair had - title at
+ * 15.75:1, description at 11.16:1 - so the course names read first and the
+ * detail underneath stays secondary.
+ */
+.active-dark-mode .submenu-rich-title {
+  color: var(--color-white);
+}
+
+.active-dark-mode .submenu-rich-desc {
+  color: var(--color-white-dark);
+}
+
+/* The dashboard and sign-in rows carry Bootstrap's `.text-primary` on both the
+ * anchor and the title span - #0d6efd, 3.50:1 on the panel, short of the 4.5:1
+ * these 15px labels need. `!important` to reach it, and `#8fb0ff` to match the
+ * accent already used elsewhere on the course pages.
+ *
+ * On hover the theme's own `.submenu li a:hover { color: ... !important }` wins
+ * on specificity and these go white instead, which is the behaviour the rest of
+ * the header dropdown already has. */
+.active-dark-mode .submenu-rich .text-primary {
+  color: #8fb0ff !important;
+}
+
+/* `.dropdown-divider` is `rgba(0, 0, 0, .15)` - a *black* hairline, which is
+ * the right idea on white and the wrong one here. Over #192335 it composites to
+ * 1.06:1, so the separator between the courses and the account link disappears
+ * and the two groups run together. White at the same 0.15 alpha gives 1.61:1,
+ * which is the subtlety the light-mode divider has on white (1.44:1). */
+.active-dark-mode .submenu-rich .dropdown-divider {
+  border-top-color: rgba(255, 255, 255, 0.15);
+}
+
 /* Mobile Quick Access Bar */
 .mobile-quick-actions {
   background: #f8faff;
