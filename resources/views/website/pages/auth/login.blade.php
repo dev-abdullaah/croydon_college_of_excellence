@@ -8,8 +8,9 @@
         <div class="row">
             <div class="col-lg-12">
                 <div class="section-title text-center">
+                    <span class="subtitle bg-primary-opacity">STUDENT PORTAL</span>
                     <h2 class="title">Sign In</h2>
-                    <p class="mt--10 mb-0">Access your purchased course materials and mock tests.</p>
+                    <p class="mt--10 mb-0">Access your Life in the UK course lessons, study cards, and mock tests.</p>
                 </div>
             </div>
         </div>
@@ -61,10 +62,16 @@
                     </form>
                 </div>
 
-                <p class="text-center mt--20">
-                    New to Croydon College of Excellence?
-                    <a href="{{ route('register') }}">Create an account</a>
-                </p>
+                <div class="text-center mt--20">
+                    <p class="mb-2">
+                        New student?
+                        <a href="{{ route('register') }}" class="fw-bold">Create an account</a>
+                    </p>
+                    <p class="mb-0">
+                        Haven't enrolled yet?
+                        <a href="{{ route('courses.index') }}" class="text-primary fw-bold">Explore Life in the UK Courses &amp; Mock Tests &rarr;</a>
+                    </p>
+                </div>
 
             </div>
         </div>
