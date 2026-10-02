@@ -35395,6 +35395,43 @@ Course Sidebar
   background: transparent;
 }
 
+/* Dark-mode support for the other two section gradients.
+ *
+ * The page banner above is the only gradient in the theme dark mode knows
+ * about, which is why /courses-regular and /courses-send behave and the rest
+ * of the site does not. `.bg-gradient-9` is declared in the same rule as
+ * `.rbt-page-banner-wrapper .rbt-banner-image` near the top of this file -
+ * same purple-to-blue gradient, same white wash - so it gets the same
+ * treatment here rather than being left to the global `h1`..`h6` and
+ * `.section-title p` overrides, which paint white text onto a background that
+ * is still pale.
+ *
+ * Both halves are required. Swapping the gradient alone would leave the
+ * white `::after` sitting over it, and white text on a white wash is no
+ * better than the pale background it was meant to fix. Measured on the washed
+ * background the hero heading reached 1.62:1 and its paragraph 1.15:1; on
+ * `--gradient-dark-2` with the wash gone they reach 9.89:1 and 7.00:1 at the
+ * blue end, 8.83:1 and 6.26:1 at the purple end.
+ */
+.active-dark-mode .bg-gradient-9 {
+  background: var(--gradient-dark-2) !important;
+}
+
+.active-dark-mode .bg-gradient-9::after {
+  background: transparent;
+}
+
+/* `--gradient-5` is a flat near-white (#EFF1FF) and heads the 21 course pages
+ * under /courses-regular and /courses-send - the sub-pages of the two routes
+ * that do work, which is why the breakage reads as inconsistent rather than
+ * total. No wash to remove here, only a background to swap:
+ * `--color-bodyest` is the theme's own pale-to-dark mapping, already used
+ * for `.bg-gradient-1`. White headings go from 1.12:1 to 13.25:1.
+ */
+.active-dark-mode .bg-gradient-5 {
+  background: var(--color-bodyest) !important;
+}
+
 .active-dark-mode .rbt-splash-slider {
   background-image: url(../images/dark/bg/bg-image-10.jpg);
 }
