@@ -1143,11 +1143,20 @@ class PaidCoursesTest extends TestCase
         // The icon inside them, and the banner's own icon, are Bootstrap's
         // `.text-primary` - #0d6efd, which is 2.80:1 on these dark containers
         // and has to be lifted or it reads as a smudge.
-        $this->assertSame(
-            2,
-            preg_match_all('/^\.active-dark-mode [^{]*\.text-primary\s*\{[^}]*color:\s*#8fb0ff\s*!important/m', $css),
-            'expected the promo and banner icons to be lifted for dark mode'
-        );
+        //
+        // Matched by scope rather than by counting: an earlier version of this
+        // asserted there were exactly two such rules in the file, which passed
+        // only until an unrelated block needed its own accent lifted.
+        foreach ([
+            '/^\.active-dark-mode \.rbt-paid-courses-area \.badge \.text-primary\s*\{[^}]*color:\s*#8fb0ff\s*!important/m',
+            '/^\.active-dark-mode \.enrollment-banner \.text-primary\s*\{[^}]*color:\s*#8fb0ff\s*!important/m',
+        ] as $pattern) {
+            $this->assertMatchesRegularExpression(
+                $pattern,
+                $css,
+                'the promo and banner icons are Bootstrap\'s #0d6efd, which is 2.80:1 on these containers'
+            );
+        }
 
         // The banner's dark background is translucent precisely because it
         // appears over two different containers; a flat value would vanish
@@ -1166,6 +1175,175 @@ class PaidCoursesTest extends TestCase
             4.5,
             $this->contrast($this->flatten('var(--color-white-dark)', $tint, $css), $tint),
             'the banner text does not clear AA on its own dark background'
+        );
+    }
+
+    /**
+     * The course feature cards - "10 Structured Lessons", "576 Questions" and
+     * the rest - are built from three Bootstrap utilities that do not follow
+     * dark mode: `.bg-white`, `.text-primary` and `.text-muted`. All three
+     * carry `!important` and none has a dark-mode rule anywhere in the theme.
+     *
+     * The card was the one that actually destroyed text rather than merely
+     * jarring. Nothing between `.active-dark-mode` and the cards sets `color`,
+     * so the lesson lists inherited white from the root and sat on a white
+     * card: 1.00:1. This test pins the reason that happened, because the fix
+     * looks like a background change and nothing about it suggests the list
+     * items depend on it. Give any of these `<li>`s a colour class and the
+     * coupling becomes explicit; until then the card's colour is load-bearing
+     * for every unclassed descendant inside it.
+     *
+     * @see https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html
+     */
+    public function test_the_course_feature_cards_follow_dark_mode(): void
+    {
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        // `bg-color-extra2` is the pale section both sets of cards live in, and
+        // dark mode flattens it to a fixed #333d51 rather than a variable.
+        preg_match('/^\.active-dark-mode \.bg-color-extra2\s*\{[^}]*background:\s*([^;]+);/m', $css, $section);
+        $this->assertNotEmpty($section, 'these sections need a dark background of their own');
+
+        $sectionBg = $this->flatten(trim($section[1]), $this->cssColour($css, '--color-darker'), $css);
+
+        // --- The card surface ------------------------------------------------
+        preg_match(
+            '/^\.active-dark-mode \.bg-color-extra2 \.bg-white:not\(\.rbt-badge-3\)\s*\{[^}]*background-color:\s*([^;]+);/m',
+            $css,
+            $cardRule
+        );
+
+        $this->assertNotEmpty(
+            $cardRule,
+            'the feature cards stay #ffffff in dark mode while dark mode paints their text white'
+        );
+
+        $card = $this->flatten(trim($cardRule[1]), $sectionBg, $css);
+
+        // The card has to be distinguishable from the panel it sits on, or it
+        // reads as a hole rather than a surface. Light mode manages this with
+        // the border alone - #ffffff on #F9F9FF is 1.05:1 - so 1.22:1 is in
+        // keeping, but 1.00:1 would mean the card has sunk into the panel.
+        $this->assertGreaterThan(
+            1.05,
+            $this->contrast($card, $sectionBg),
+            'the darkened card is indistinguishable from the section behind it'
+        );
+
+        // --- The lesson lists, which had no colour of their own --------------
+        // Read straight from the markup. Each of the three pages shapes these
+        // cards differently, so each is matched on its own terms rather than
+        // one pattern stretched over all three.
+        $this->assertMatchesRegularExpression(
+            '/class="bg-white[^"]*"[^>]*>.*?<ul class="rbt-list-style-1 list-unstyled mb-0 small">\s*'
+                .'<li><i class="feather-check text-primary"><\/i> <strong>Lessons 1-2:<\/strong>/s',
+            $this->get('/courses')->assertOk()->getContent(),
+            'expected the catalogue cards to be .bg-white with an unclassed checkmark list inside'
+        );
+
+        // The bare `<li>`s are the point of this page. Pin that they carry no
+        // colour class, which is precisely what made them depend on the card's
+        // own background to be readable at all.
+        $this->assertMatchesRegularExpression(
+            '/class="bg-white[^"]*"[^>]*>\s*<strong class="d-block mb-1 text-primary">'
+                .'Core Knowledge &amp; History:<\/strong>\s*'
+                .'<ul class="list-unstyled mb-0">\s*<li>&bull; Lesson 1: /',
+            $this->get('/courses/life-in-the-uk-course')->assertOk()->getContent(),
+            'the lesson list should be unclassed, inheriting the card\'s colour'
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/class="bg-white[^"]*"[^>]*>\s*<h5 class="title mb-1 text-primary">576 Questions<\/h5>\s*'
+                .'<p class="mb-0 text-muted">/',
+            $this->get('/courses/24-mock-tests')->assertOk()->getContent(),
+            'the mock-test cards should be .bg-white with a .text-primary heading and a .text-muted note'
+        );
+
+        // The action bar at the top of a course page, on `bg-color-white`. Both
+        // links use the same two utilities on a different background, which is
+        // why they needed their own scope rather than the section rules above.
+        $this->assertMatchesRegularExpression(
+            '/<div class="course-actions[^"]*">\s*'
+                .'<a href="[^"]*" class="text-primary fw-bold">.*?'
+                .'<a href="[^"]*" class="text-muted small">/s',
+            $this->get('/courses/life-in-the-uk-course')->assertOk()->getContent(),
+            'the course action bar should carry .course-actions so its links can be lifted in dark mode'
+        );
+
+        // Inheriting, they take the dark-mode root colour. Measured rather than
+        // assumed, because this is the pair that read 1.00:1 before.
+        $inherited = $this->flatten('var(--color-white)', $card, $css);
+
+        $this->assertGreaterThanOrEqual(
+            4.5,
+            $this->contrast($inherited, $card),
+            sprintf(
+                'text inheriting from the root does not clear AA on the darkened card (%.2f:1). '
+                    .'Left as it was, the lesson lists inherited white and sat on a white card.',
+                $this->contrast($inherited, $card)
+            )
+        );
+
+        // --- The two colour utilities ---------------------------------------
+        // Three scopes, three backgrounds: the card, the section the cross-sell
+        // lines sit on directly, and the `bg-color-white` action bar at the top
+        // of a course page.
+        $darker = $this->cssColour($css, '--color-darker');
+
+        $scopes = [
+            ['.bg-color-extra2', $card, 'the card'],
+            ['.bg-color-extra2', $sectionBg, 'the section itself'],
+            ['.course-actions', $darker, 'the course page action bar'],
+        ];
+
+        foreach (['text-primary', 'text-muted'] as $utility) {
+            foreach ($scopes as [$scope, $against, $where]) {
+                preg_match(
+                    '/^\.active-dark-mode '.preg_quote($scope, '/').' \.'.$utility.'\s*\{[^}]*color:\s*([^;]+);/m',
+                    $css,
+                    $rule
+                );
+
+                $this->assertNotEmpty(
+                    $rule,
+                    "Bootstrap's .{$utility} is !important and has no dark-mode rule, so it wins by default"
+                );
+
+                $colour = $this->flatten(trim($rule[1]), $against, $css);
+
+                $this->assertGreaterThanOrEqual(
+                    4.5,
+                    $this->contrast($colour, $against),
+                    sprintf(
+                        '.%s reads only %.2f:1 on %s. Bootstrap\'s own value is #6c757d for muted and '
+                            .'#0d6efd for primary, and both fail outright on a dark surface.',
+                        $utility,
+                        $this->contrast($colour, $against),
+                        $where
+                    )
+                );
+            }
+        }
+
+        // --- The discount badges, which must be left alone ------------------
+        // `.rbt-badge-3 { background: transparent !important }` only beats
+        // `.bg-white` on source order, being (0,1,0) against (0,1,0). A dark
+        // rule at (0,3,0) outranks it, and the badge would gain a fill it has
+        // never had, sitting behind its own SVG badge face.
+        foreach (['/courses-regular', '/courses-send'] as $url) {
+            $page = $this->get($url)->assertOk()->getContent();
+
+            $this->assertStringContainsString(
+                'rbt-badge-3 bg-white',
+                $page,
+                "expected the discount badges on {$url} to still carry .bg-white"
+            );
+        }
+
+        $this->assertStringContainsString(
+            '.rbt-badge-3',
+            $cardRule[0],
+            'the card rule must exclude .rbt-badge-3, or the 22 discount badges acquire a dark fill'
         );
     }
 
