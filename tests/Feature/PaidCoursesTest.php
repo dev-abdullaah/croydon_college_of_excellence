@@ -1060,6 +1060,115 @@ class PaidCoursesTest extends TestCase
         );
     }
 
+    /**
+     * The homepage promo's pills and the returning-student banner both have to
+     * follow dark mode.
+     *
+     * The banner was the harder half, because its palette was an inline
+     * `style` attribute. An inline style outranks every stylesheet rule short
+     * of an `!important` one, so there was nothing to write - the banner was
+     * `#f0f7ff` on a `#333d51` section at 10.09:1 and no amount of dark-mode
+     * CSS could have moved it. The test asserts the palette has left the
+     * markup, because putting it back would look correct and silently disable
+     * dark mode all over again.
+     *
+     * The pills are Bootstrap's `.bg-light` and `.text-secondary`, both
+     * `!important`, so their corrections have to be `!important` too.
+     */
+    public function test_the_homepage_promo_pills_and_banner_follow_dark_mode(): void
+    {
+        $home = $this->get('/')->assertOk()->getContent();
+
+        // The banner carries a class, and no longer a palette in the markup.
+        $this->assertMatchesRegularExpression(
+            '/class="enrollment-banner\b[^"]*"/',
+            $home,
+            'the returning-student banner should be styled by class so dark mode can reach it'
+        );
+
+        $this->assertDoesNotMatchRegularExpression(
+            '/class="enrollment-banner[^"]*"\s+style="[^"]*#(?:f0f7ff|bee3f8|1e3a8a)/',
+            $home,
+            'the banner palette is back in an inline style, which no dark-mode rule can override'
+        );
+
+        // The four feature pills are still Bootstrap utilities in the markup,
+        // which is fine as long as dark mode overrides them.
+        $this->assertSame(
+            4,
+            substr_count($home, 'badge bg-light text-secondary'),
+            'expected the four feature highlight pills'
+        );
+
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        // Pull the pill's dark fill and text colour out and measure them
+        // rather than asserting a pattern. A presence check on
+        // `background-color: ... !important` would pass just as happily on
+        // Bootstrap's own `#f8f9fa`, which is the bug.
+        preg_match(
+            '/^\.active-dark-mode \.rbt-paid-courses-area \.badge\.bg-light\s*\{[^}]*background-color:\s*([^;]+);[^}]*\}/m',
+            $css,
+            $fill
+        );
+        preg_match(
+            '/^\.active-dark-mode \.rbt-paid-courses-area \.badge\.text-secondary\s*\{[^}]*color:\s*([^;]+);/m',
+            $css,
+            $label
+        );
+
+        $this->assertNotEmpty($fill, 'the pills need !important to reach Bootstrap\'s .bg-light');
+        $this->assertNotEmpty($label, 'the pills need !important to reach Bootstrap\'s .text-secondary');
+
+        // The promo section is `bg-color-extra2`, which dark mode sets to a
+        // flat #333d51 rather than a variable.
+        preg_match('/^\.active-dark-mode \.bg-color-extra2\s*\{[^}]*background:\s*([^;]+);/m', $css, $section);
+
+        $this->assertNotEmpty($section, 'the promo section needs a dark background for the pills to sit on');
+
+        // The pill fill is translucent, so it has to be composited over the
+        // section before it can be judged.
+        $pill = $this->flatten(trim($fill[1]), '#333d51', $css);
+
+        $this->assertGreaterThanOrEqual(
+            4.5,
+            $this->contrast($this->flatten(trim($label[1]), $pill, $css), $pill),
+            sprintf(
+                'the pill text measures only %.2f:1 on its own dark fill; Bootstrap\'s #f8f9fa '
+                    .'with #6c757d text would pass this shape of check while being the bug',
+                $this->contrast($this->flatten(trim($label[1]), $pill, $css), $pill)
+            )
+        );
+
+        // The icon inside them, and the banner's own icon, are Bootstrap's
+        // `.text-primary` - #0d6efd, which is 2.80:1 on these dark containers
+        // and has to be lifted or it reads as a smudge.
+        $this->assertSame(
+            2,
+            preg_match_all('/^\.active-dark-mode [^{]*\.text-primary\s*\{[^}]*color:\s*#8fb0ff\s*!important/m', $css),
+            'expected the promo and banner icons to be lifted for dark mode'
+        );
+
+        // The banner's dark background is translucent precisely because it
+        // appears over two different containers; a flat value would vanish
+        // against one of them.
+        $this->assertMatchesRegularExpression(
+            '/^\.active-dark-mode \.enrollment-banner\s*\{[^}]*background:\s*rgba\(/m',
+            $css,
+            'the banner background must stay translucent so it reads on both containers it is used on'
+        );
+
+        // And the text on it has to clear AA on the lighter of the two.
+        $darker = $this->cssColour($css, '--color-darker');
+        $tint = $this->flatten('rgba(13, 110, 253, 0.16)', $darker, $css);
+
+        $this->assertGreaterThanOrEqual(
+            4.5,
+            $this->contrast($this->flatten('var(--color-white-dark)', $tint, $css), $tint),
+            'the banner text does not clear AA on its own dark background'
+        );
+    }
+
     public function test_a_visitor_can_sign_in(): void
     {
         $user = User::factory()->create([
