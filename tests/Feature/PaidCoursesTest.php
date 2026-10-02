@@ -72,6 +72,102 @@ class PaidCoursesTest extends TestCase
     }
 
     /* -----------------------------------------------------------------
+     | The returning student banner
+
+     | The banner above the course cards used to print one fixed sentence:
+     | "Already enrolled? Sign in to jump straight to your study cards." That
+     | was printed for everybody, so a learner who was already signed in was
+     | being asked to sign in, and a learner who had bought nothing was told
+     | their mock test papers were waiting for them. The wording has to follow
+     | the account, which is what these three tests pin down.
+     * ----------------------------------------------------------------- */
+
+    public function test_the_banner_tells_a_guest_to_sign_in(): void
+    {
+        $home = $this->get('/')->assertOk();
+        $catalogue = $this->get('/courses')->assertOk();
+
+        foreach ([$home, $catalogue] as $response) {
+            $response
+                ->assertSee('Already enrolled?')
+                ->assertSee('Sign in to jump straight to your study cards')
+                ->assertSee('Sign In To Your Account')
+                ->assertSee(route('login'), escape: false);
+
+            $this->assertStringNotContainsString(
+                'Welcome back',
+                $response->getContent()
+            );
+        }
+    }
+
+    public function test_the_banner_welcomes_a_signed_in_learner_with_a_course(): void
+    {
+        $user = User::factory()->create(['name' => 'Amina Rahman']);
+        $this->markAsPaid($user, $this->course('life-in-the-uk-course'), 'cs_test_banner');
+
+        $home = $this->actingAs($user)->get('/')->assertOk();
+        $catalogue = $this->actingAs($user)->get('/courses')->assertOk();
+
+        foreach ([$home, $catalogue] as $response) {
+            $response
+                ->assertSee('Welcome back, Amina.')
+                ->assertSee('Your course is ready')
+                ->assertSee('Go to My Account')
+                ->assertSee(route('dashboard'), escape: false);
+
+            // The guest wording is gone: nobody is asked to sign in while
+            // already being the person who is signed in.
+            $this->assertStringNotContainsString(
+                'Already enrolled?',
+                $response->getContent()
+            );
+            $this->assertStringNotContainsString(
+                'Sign in to jump straight',
+                $response->getContent()
+            );
+        }
+    }
+
+    public function test_the_banner_points_a_signed_in_learner_with_no_course_at_the_courses(): void
+    {
+        $user = User::factory()->create(['name' => 'Sam Okafor']);
+
+        // An unpaid purchase is not access, so it must not produce the
+        // "your course is ready" wording.
+        Purchase::create([
+            'user_id' => $user->id,
+            'course_id' => $this->course('24-mock-tests')->id,
+            'stripe_checkout_session_id' => 'cs_test_unpaid_banner',
+            'amount' => 4900,
+            'currency' => 'gbp',
+            'status' => Purchase::STATUS_PENDING,
+        ]);
+
+        $home = $this->actingAs($user)->get('/')->assertOk();
+        $catalogue = $this->actingAs($user)->get('/courses')->assertOk();
+
+        foreach ([$home, $catalogue] as $response) {
+            $response
+                ->assertSee('signed in, Sam.')
+                ->assertSee('have a course yet')
+                ->assertSee('See The Courses')
+                ->assertSee('href="#course-list"', escape: false);
+
+            // Not sent to an account that would be empty, and not told to
+            // sign in when they already have.
+            $this->assertStringNotContainsString(
+                'Your course',
+                $response->getContent()
+            );
+            $this->assertStringNotContainsString(
+                'Sign in to jump straight',
+                $response->getContent()
+            );
+        }
+    }
+
+    /* -----------------------------------------------------------------
      | The catalogue page
 
      | The account page and the checkout cancel page both send a visitor to
@@ -176,6 +272,55 @@ class PaidCoursesTest extends TestCase
             '#paid-courses',
             $html,
             'the account page still links to the homepage anchor'
+        );
+    }
+
+    public function test_the_account_heading_and_sign_out_stay_on_one_row(): void
+    {
+        $user = User::factory()->create();
+        $this->markAsPaid($user, $this->course('life-in-the-uk-course'), 'cs_test_account_bar');
+
+        $html = $this->actingAs($user)
+            ->get('/my-account')
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/<div class="account-bar[^"]*">\s*<h3[^>]*>\s*Your purchased materials\s*<\/h3>\s*<form/s',
+            $html,
+            'the heading and the Sign Out form must be siblings in one flex row, so they cannot stack'
+        );
+
+        // A Bootstrap column pair inside the bar is what stacked in the first
+        // place: col-md-* collapses to full width below 768px, which put the
+        // button on a line of its own on every phone.
+        $this->assertSame(
+            1,
+            preg_match('/<div class="account-bar[^"]*">(.*?)<\/div>\s*<!--/s', $html, $bar),
+            'could not isolate the account bar'
+        );
+        $this->assertStringNotContainsString(
+            'col-md-',
+            $bar[1],
+            'the bar must not use grid columns, which stack on small screens'
+        );
+
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        $this->assertMatchesRegularExpression(
+            '/\.account-bar\s*\{[^}]*flex-wrap:\s*nowrap/',
+            $css,
+            'the row must be pinned to one line'
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.account-bar \.title\s*\{[^}]*min-width:\s*0/',
+            $css,
+            'the heading must be able to shrink so the button is never pushed off the row'
+        );
+        $this->assertMatchesRegularExpression(
+            '/@media[^{]*max-width:\s*767px[^{]*\{[^@]*?\.account-bar \.title\s*\{[^}]*font-size/',
+            $css,
+            'the heading needs a mobile step-down; --h3 is a flat 34px'
         );
     }
 
@@ -587,6 +732,92 @@ class PaidCoursesTest extends TestCase
         $script = (string) file_get_contents(public_path('assets/js/custom.js'));
         $this->assertStringContainsString('--site-header-height', $script);
         $this->assertStringContainsString('orientationchange', $script, 'the gap must be recalculated on rotation');
+    }
+
+    /**
+     * The mobile account button has to say what it is.
+     *
+     * Its label used to carry `d-none d-sm-inline`, so on any phone narrower
+     * than 576px it collapsed to a bare person icon with nothing written next
+     * to it - the one control in the bar a first-time visitor could not name.
+     * The label is now unconditional, and this test fails if anyone reaches
+     * for a responsive utility to hide it again.
+     */
+    public function test_the_mobile_account_button_keeps_its_label(): void
+    {
+        $signedOut = $this->get('/')->assertOk()->getContent();
+        $signedIn = $this->actingAs(User::factory()->create())->get('/')->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/btn-header-account[^>]*>\s*<i[^>]*><\/i>\s*<span(?![^>]*\bd-(none|sm-|md-|lg-|xl-))[^>]*>\s*Sign In\s*<\/span>/',
+            $signedOut,
+            'the label must render with no responsive utility that hides it below 576px'
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/btn-header-account[^>]*>\s*<i[^>]*><\/i>\s*<span(?![^>]*\bd-(none|sm-|md-|lg-|xl-))[^>]*>\s*Account\s*<\/span>/',
+            $signedIn,
+            'the label must render with no responsive utility that hides it below 576px'
+        );
+
+        // The class that carries the layout has to exist, otherwise the button
+        // falls back to `.rbt-btn` (45px tall, 26px side padding) and overflows
+        // the bar it sits in.
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        $this->assertMatchesRegularExpression(
+            '/\.btn-header-account\s*\{[^}]*white-space:\s*nowrap/',
+            $css,
+            'the label must be kept on one line when the bar is tight'
+        );
+    }
+
+    /**
+     * The icon must sit beside the label with a gap, on the same line as it.
+     *
+     * `.rbt-btn i` pads the icon on its left and offsets it with `top: 2px`.
+     * Feather glyphs are an icon font, so the padding lands before the icon
+     * rather than between icon and label, and the offset drops the glyph below
+     * centre - the desktop My Account button read as "MyAccount" sitting two
+     * pixels low. `.btn-header-icon` corrects both, and it has to be on the
+     * desktop button too, not just the mobile one.
+     */
+    public function test_the_header_account_icon_is_gapped_and_centred(): void
+    {
+        $signedIn = $this->actingAs(User::factory()->create())
+            ->get('/')
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/class="rbt-btn btn-gradient btn-header-icon"[^>]*>\s*<i[^>]*><\/i>\s*<span>\s*My Account\s*<\/span>/',
+            $signedIn,
+            'the desktop My Account button must carry the icon-alignment class'
+        );
+
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        $this->assertMatchesRegularExpression(
+            '/\.btn-header-icon\s*\{[^}]*gap:\s*\d/',
+            $css,
+            'the gap between icon and label has to come from a flex gap, not from padding on the icon'
+        );
+
+        // `padding-left` must be cleared and the `top: 2px` offset removed,
+        // otherwise the glyph still has no gap after it and still sits low.
+        $this->assertMatchesRegularExpression(
+            '/\.btn-header-icon i\s*\{[^}]*padding-left:\s*0[^}]*top:\s*0/',
+            $css,
+            'the icon must have its inherited left padding and top offset cleared'
+        );
+
+        // The correction has to come after the rule it corrects, or it loses
+        // on source order and never applies.
+        $this->assertGreaterThan(
+            strpos($css, '.rbt-btn i {'),
+            strpos($css, '.btn-header-icon i {'),
+            'the icon corrections must follow the rule they are correcting'
+        );
     }
 
     public function test_a_visitor_can_sign_in(): void
