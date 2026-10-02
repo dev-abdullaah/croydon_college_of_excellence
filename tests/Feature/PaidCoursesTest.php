@@ -989,6 +989,77 @@ class PaidCoursesTest extends TestCase
         );
     }
 
+    /**
+     * The mobile drawer has to be repainted in dark mode, not just left alone.
+     *
+     * `.popup-mobile-menu` is inside <body>, which dark mode colours white,
+     * and its panel was pinned to `--color-white` with no override anywhere.
+     * So the nav inherited white onto white at 1.00:1 - the menu was not
+     * merely ugly in dark mode, it was absent - and the close button was a
+     * white disc on a white panel, so there was no visible way out of it
+     * either.
+     *
+     * The failure is easy to reintroduce silently, because every individual
+     * piece of the drawer's light styling still looks correct on its own.
+     * Only the pairing is wrong, so that is what gets asserted.
+     */
+    public function test_the_mobile_drawer_is_repainted_in_dark_mode(): void
+    {
+        $menu = $this->get('/')->assertOk()->getContent();
+
+        $this->assertStringContainsString('popup-mobile-menu', $menu);
+        $this->assertMatchesRegularExpression(
+            '/popup-mobile-menu[\s\S]*?class="mainmenu-nav"/',
+            $menu,
+            'the drawer should carry its own nav outside the header'
+        );
+
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+        $darker = $this->cssColour($css, '--color-darker');
+
+        // The panel itself, and the nav colour that had nothing to sit on.
+        $this->assertMatchesRegularExpression(
+            '/^\.active-dark-mode \.popup-mobile-menu \.inner-wrapper\s*\{[^}]*background-color:\s*var\(--color-darker\)/m',
+            $css,
+            'the drawer panel stays white in dark mode while dark mode paints its text white'
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/^\.active-dark-mode \.popup-mobile-menu \.mainmenu li a\s*\{[^}]*color:\s*var\(--color-white-dark\)/m',
+            $css,
+            'the drawer nav sets no colour of its own, so in dark mode it inherits white'
+        );
+
+        // The close button is an SVG on stroke="currentColor", so `color` has
+        // to be set on the button for the glyph to follow.
+        $this->assertMatchesRegularExpression(
+            '/^\.active-dark-mode \.popup-mobile-menu \.inner-wrapper \.inner-top \.close-button\s*\{[^}]*color:/m',
+            $css,
+            'the close glyph inherits currentColor and needs an explicit colour in dark mode'
+        );
+
+        // The quick-action card used the same colour as the old panel, so once
+        // the panel is darkened it has to be lifted off it or it disappears.
+        preg_match(
+            '/^\.active-dark-mode \.mobile-quick-actions\s*\{[^}]*background:\s*([^;]+);/m',
+            $css,
+            $quick
+        );
+
+        $this->assertNotSame(
+            'var(--color-darker)',
+            trim($quick[1] ?? ''),
+            'the quick-action card is now the same colour as the drawer panel it sits on'
+        );
+
+        // Finally the point of all of it: legible text on the panel.
+        $this->assertGreaterThanOrEqual(
+            4.5,
+            $this->contrast($this->flatten('var(--color-white-dark)', $darker, $css), $darker),
+            'the drawer nav does not clear AA on the darkened panel'
+        );
+    }
+
     public function test_a_visitor_can_sign_in(): void
     {
         $user = User::factory()->create([
