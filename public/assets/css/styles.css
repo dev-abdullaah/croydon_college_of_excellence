@@ -1178,6 +1178,30 @@ ul.rbt-dropdown-menu li:hover .sub-menu {
   z-index: -1;
 }
 
+/* Hero paragraphs on the gradient sections.
+ *
+ * These inherit `color` from `body`, which is --color-body: #6b7385, a grey
+ * chosen to sit quietly on white. It does not survive the gradient. The
+ * ::after above washes the top of the section towards white and lets the
+ * purple->blue through lower down, so the paragraph drifts from 4.76:1 at the
+ * very top to 2.34:1 by mid-section - below WCAG AA for body text well before
+ * the text has finished. The grey reads as washed out rather than as a
+ * deliberate second level, which is what made these look muddy.
+ *
+ * Re-pointed at the heading's own hue instead, so it looks related to the h2
+ * above it rather than borrowed from the rest of the theme. 85% opacity is the
+ * lowest value that still clears AA across the whole band, including the most
+ * saturated part of the wash, and it keeps the hierarchy - which here is
+ * carried by size, 44px against 16px, not by colour.
+ *
+ * Sits next to the gradient it is about. Equal specificity to
+ * `.active-dark-mode .section-title p` further down the file, so dark mode
+ * still wins on source order and keeps its own colour.
+ */
+.bg-gradient-9 .section-title p {
+  color: rgba(25, 35, 53, 0.85);
+}
+
 /*----------------------
     Bg Image  
 ------------------------*/
