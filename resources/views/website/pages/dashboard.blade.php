@@ -24,22 +24,27 @@
             <div class="col-lg-10">
 
 
-                <div class="row mb--40 align-items-center">
-                    <div class="col-md-8">
-                        <h3 class="title mb-0">Your purchased materials</h3>
-                    </div>
-                    <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
-                            {{--
-                                Red, and full size. Signing out is the one thing
-                                on this page that undoes something, so it should
-                                not look like the neutral "Course details" link
-                                sitting four inches below it.
-                            --}}
-                            <button type="submit" class="btn btn-lg btn-danger">Sign Out</button>
-                        </form>
-                    </div>
+                {{--
+                    Heading and Sign Out share one row at every width. This was
+                    a col-md-8 / col-md-4 pair, and below 768px the grid stacks
+                    those columns, so the button dropped onto a line of its own
+                    under the heading. Flex holds them side by side; the heading
+                    is allowed to wrap and steps down in size instead, which is
+                    the only way a 34px h3 and a large button both fit across a
+                    narrow phone. See `.account-bar`.
+                --}}
+                <div class="account-bar mb--40">
+                    <h3 class="title">Your purchased materials</h3>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        {{--
+                            Red, and full size. Signing out is the one thing
+                            on this page that undoes something, so it should
+                            not look like the neutral "Course details" link
+                            sitting four inches below it.
+                        --}}
+                        <button type="submit" class="btn btn-lg btn-danger">Sign Out</button>
+                    </form>
                 </div>
 
                 @if ($learnableCourses->isNotEmpty())
