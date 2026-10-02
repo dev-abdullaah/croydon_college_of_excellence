@@ -16212,7 +16212,6 @@ span.transparent-button:hover i {
   border-radius: var(--radius);
   background: var(--color-white);
   position: relative;
-  height: 100%;
 }
 
 @media only screen and (min-width: 992px) and (max-width: 1199px) {
@@ -39199,6 +39198,75 @@ a.lz-card:hover .lz-num {
 
 .active-dark-mode .rbt-paid-courses-area .badge .text-primary {
   color: #8fb0ff !important;
+}
+
+/* Course feature cards - the "10 Structured Lessons" and "24 Timed Mock Tests"
+ * panels on /courses, and the matching blocks on each course page.
+ *
+ * Three Bootstrap utilities meet in here and not one of them follows dark
+ * mode: `.bg-white`, `.text-primary` and `.text-muted`, each `!important`,
+ * with no dark-mode rule anywhere in the theme.
+ *
+ * The card is the serious one. Nothing between `.active-dark-mode` and these
+ * cards sets `color`, so the bare `<li>` and `<strong>` items - which is the
+ * lesson list itself, the thing a visitor came here to read - inherit white
+ * from the root and sit on a white `.bg-white` card. That is 1.00:1. They
+ * were not low-contrast, they were gone. Darkening the surface repairs the
+ * inheritance for free, because inherited white on a dark card is correct.
+ *
+ * `--color-bodyest` rather than `--color-darker`: these cards sit directly on
+ * `bg-color-extra2`, which dark mode flattens to #333d51, and #192335 against
+ * that is a card that has sunk into its own panel. #273041 lands at 1.22:1 -
+ * the same subtlety the card has in light mode, where #ffffff on #F9F9FF is
+ * 1.05:1 and the border does all the separating work either way.
+ *
+ * The `:not(.rbt-badge-3)` is load-bearing. 22 `.bg-white` elements are
+ * discount badges, and `.rbt-badge-3 { background: transparent !important }`
+ * is what actually makes them transparent - it only beats `.bg-white` today
+ * by source order, being (0,1,0) against (0,1,0). This rule is (0,3,0) and
+ * would outrank it, so without the guard the badges would acquire a dark fill
+ * they have never had, sitting behind their own SVG.
+ */
+.active-dark-mode .bg-color-extra2 .bg-white:not(.rbt-badge-3) {
+  background-color: var(--color-bodyest) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* `.text-primary` is #0d6efd: 2.94:1 on the darkened card, and its
+ * `!important` also outranks `.active-dark-mode h5`, so the card headings
+ * stayed dim blue in dark mode rather than whitening with everything else.
+ * Lifted to #8fb0ff at 6.20:1 - the same value the homepage promo icons use,
+ * so the accent reads consistently across the course pages. */
+.active-dark-mode .bg-color-extra2 .text-primary {
+  color: #8fb0ff !important;
+}
+
+/* `.text-muted` is #6c757d, which is 2.32:1 on the #333d51 section. Note this
+ * one bites on the section itself, not only on the cards: the "Need only mock
+ * tests?" cross-sell lines sit directly on `bg-color-extra2` with no card
+ * between them and the text. */
+.active-dark-mode .bg-color-extra2 .text-muted {
+  color: var(--color-white-dark) !important;
+}
+
+/* The "Back to all courses" and "Existing student? Sign in" links at the top of
+ * a course page.
+ *
+ * These sit on `bg-color-white` rather than `bg-color-extra2`, so the rules
+ * above miss them, and they carry the same two Bootstrap utilities. On the
+ * `#192335` that section becomes they read 3.50:1 and 3.36:1 - under AA, and
+ * short of the 4.5:1 these need rather than merely short of large-text AA.
+ *
+ * `.course-actions` was added to the markup for this. It could have been scoped
+ * by `.bg-color-white`, but that class appears 48 times across the checkout,
+ * auth, learn and account pages, none of which have been looked at.
+ */
+.active-dark-mode .course-actions .text-primary {
+  color: #8fb0ff !important;
+}
+
+.active-dark-mode .course-actions .text-muted {
+  color: var(--color-white-dark) !important;
 }
 
 

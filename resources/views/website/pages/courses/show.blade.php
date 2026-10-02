@@ -25,7 +25,12 @@
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-10">
-                <div class="mb--30 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                {{-- `.course-actions` is a hook, not decoration: the two links
+                     below use Bootstrap's `.text-primary` and `.text-muted`,
+                     which carry `!important` and have no dark-mode rule, so on
+                     this section - `bg-color-white`, dark #192335 - they read
+                     3.50:1 and 3.36:1. They need a class to be lifted from. --}}
+                <div class="course-actions mb--30 d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <a href="{{ route('courses.index') }}" class="text-primary fw-bold">
                         <i class="feather-arrow-left me-1"></i> Back to All Life in the UK Courses
                     </a>
