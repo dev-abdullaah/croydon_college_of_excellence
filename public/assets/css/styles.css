@@ -36330,6 +36330,53 @@ Course Sidebar
   color: var(--color-white);
 }
 
+/* Mobile drawer.
+ *
+ * This had no dark-mode rules at all, and the result was total rather than
+ * partial. `.popup-mobile-menu` sits inside <body>, which dark mode paints
+ * white, while the drawer panel was pinned to `--color-white` - so the nav
+ * inherited white text onto a white panel at 1.00:1 and the menu was not
+ * there at all. The close button had the same fault, a white disc on a white
+ * panel, so the way back out was invisible too.
+ *
+ * `.rbt-header .mainmenu-nav` is covered for dark mode; the drawer carries
+ * its own `.mainmenu-nav` outside the header, which is why none of that
+ * reached it.
+ */
+.active-dark-mode .popup-mobile-menu .inner-wrapper {
+  background-color: var(--color-darker);
+}
+
+/* The X is an SVG on `stroke="currentColor"`, so setting `color` is enough to
+ * recolour the glyph. `--color-bodyest` rather than white: the disc should
+ * read as a surface on the panel, and the glyph is what has to be legible -
+ * 9.38:1. */
+.active-dark-mode .popup-mobile-menu .inner-wrapper .inner-top .close-button {
+  background: var(--color-bodyest);
+  color: var(--color-white-dark);
+}
+
+.active-dark-mode .popup-mobile-menu .mainmenu li a {
+  color: var(--color-white-dark);
+}
+
+.active-dark-mode .popup-mobile-menu .mainmenu .has-dropdown .submenu li a {
+  color: var(--color-white-off);
+}
+
+.active-dark-mode .popup-mobile-menu .mainmenu li+li {
+  border-top-color: var(--dark-color-border);
+}
+
+/* `--color-primary` on `--color-darker` is 2.80:1, so the account entries lose
+ * their blue rather than keep it - the `.text-primary` utility on them and any
+ * `.active` item alike. They go white, which is what the header's own
+ * dropdown already does in dark mode. */
+.active-dark-mode .popup-mobile-menu .mainmenu li a.active,
+.active-dark-mode .popup-mobile-menu .mainmenu li a.text-primary {
+  color: var(--color-white) !important;
+}
+
 .active-dark-mode .rbt-btn.btn-border-gradient {
   color: var(--color-white-dark);
   box-shadow: var(--dark-shadow-3);
@@ -39076,8 +39123,14 @@ a.lz-card:hover .lz-num {
   border: none;
 }
 
+/* Lifted off the drawer panel. The panel is now `--color-darker`, which is
+ * exactly what this block used, so left alone the two would be the same
+ * colour and the card would disappear into its own background at 1.00:1.
+ * `--color-bodyest` keeps the raised-surface reading it has in light mode,
+ * where `#f8faff` sits on a white panel.
+ */
 .active-dark-mode .mobile-quick-actions {
-  background: var(--color-darker);
+  background: var(--color-bodyest);
   border-color: #333a4d;
 }
 
