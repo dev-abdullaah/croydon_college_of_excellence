@@ -15,10 +15,12 @@ use Illuminate\Support\Facades\Schema;
 use Mockery;
 use Stripe\Checkout\Session;
 use Stripe\Exception\ApiConnectionException;
+use Tests\Concerns\InteractsWithCourseContent;
 use Tests\TestCase;
 
 class PaidCoursesTest extends TestCase
 {
+    use InteractsWithCourseContent;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -3177,6 +3179,184 @@ class PaidCoursesTest extends TestCase
             (float) ($answer[1] ?? 0),
             (float) ($question[1] ?? 0),
             'the question should read as the louder of the two; they were the same size apart from .1rem'
+        );
+    }
+
+    public function test_the_paper_sidebar_rail_stays_clear_of_its_own_cards(): void
+    {
+        $course = $this->course('life-in-the-uk-course');
+        $user = User::factory()->create();
+
+        $this->markAsPaid($user, $course, 'cs_test_paper_rail');
+
+        $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 24);
+
+        $html = $this->actingAs($user)->get(route('learn.quizzes.play', [$course, $quiz]))
+            ->assertOk()
+            ->getContent();
+
+        // 24 questions, so the jump grid is four rows deep - the shape that made
+        // this visible rather than theoretical.
+        $this->assertSame(
+            24,
+            substr_count($html, 'data-goto'),
+            'expected a jump button per question, so the grid is the tall case'
+        );
+
+        // --- The cause: sticky on one card out of two siblings ---------------
+        // position:sticky makes a stacking context even at z-index:auto, so the
+        // pinned box paints above its in-flow siblings. Pinning the first of two
+        // cards left the second one scrolling up into the pinned card's band,
+        // where it disappeared underneath - taking the Finish button with it.
+        $this->assertDoesNotMatchRegularExpression(
+            '/<div class="lz-card[^"]*lz-aside"[^>]*style="[^"]*position:\s*sticky/s',
+            $html,
+            'the progress card is sticky again. Sticky belongs on one wrapper around the whole '
+                .'column, not on a single card sitting above its sibling - the sibling paints '
+                .'underneath and its Finish button becomes unreachable mid-paper.'
+        );
+
+        // No inline position anywhere in the rail. It used to be an inline style,
+        // which is why no stylesheet rule could reach it and the offset was 100px
+        // chosen against nothing measurable.
+        $this->assertDoesNotMatchRegularExpression(
+            '/<div class="col-lg-4 lz-rail-col">.*?style="[^"]*position:\s*sticky/s',
+            $html,
+            'the rail offset belongs in the stylesheet so it can be measured against the header'
+        );
+
+        // --- Both cards inside one sticky wrapper ---------------------------
+        preg_match('/<div class="lz-rail">(.*?)<\/div>\s*<\/div>\s*<\/div>\s*<\/div>/s', $html, $rail);
+
+        $this->assertNotEmpty(
+            $rail,
+            'expected both sidebar cards to sit inside a single .lz-rail wrapper, so they travel '
+                .'together as a unit and cannot overlap'
+        );
+
+        $this->assertStringContainsString(
+            'lz-aside',
+            $rail[1],
+            'the progress card should be inside the rail'
+        );
+
+        // The card the report was about, and the action it hides.
+        $this->assertMatchesRegularExpression(
+            '/minutes\s*&middot;\s*pass at/s',
+            $rail[1],
+            'the "N minutes - pass at X/Y" card should be inside the rail, not a sibling of it'
+        );
+
+        $this->assertStringContainsString(
+            'form="paper-form"',
+            $rail[1],
+            'the Finish button should be inside the rail, so it travels with the card that '
+                .'overlapped it'
+        );
+
+        // --- The rules the stylesheet has to honour --------------------------
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        preg_match('/^\.lz-rail\s*\{([^}]*)\}/m', $css, $rule);
+
+        $this->assertNotEmpty($rule, 'the rail needs a rule of its own');
+
+        $this->assertStringContainsString(
+            'position: sticky',
+            $rule[1],
+            'the whole rail is pinned, not one card within it'
+        );
+
+        // --- The offset has to clear the header it sits under ---------------
+        // --- The offset has to clear the header it sits under ---------------
+        // main.js adds .rbt-sticky to .rbt-header-wrapper past 200px of scroll,
+        // which pins the header at its natural height. That height is not declared
+        // anywhere - the wrapper sets only background and box-shadow, and the
+        // media queries below 1200px add padding rather than a height - so it is
+        // derived from the tallest thing inside it.
+        //
+        // The logo is the tallest child and the only hard cap in the header:
+        // `.rbt-header .logo a img { max-height: 90px }`. The container also adds
+        // 15px of padding top and bottom under 1200px, so the fixed header is at
+        // most 90 + 30 = 120px. The rail offset has to clear that, or the header
+        // pins over the top of the rail and covers the progress bar.
+        preg_match('/\.rbt-header \.logo a img\s*\{([^}]*)\}/', $css, $logo);
+        preg_match('/max-height:\s*([\d.]+)px/', $logo[1] ?? '', $logoHeight);
+
+        $this->assertNotEmpty(
+            $logoHeight,
+            'could not read the logo max-height, which is what sets the fixed header height'
+        );
+
+        // 10px root (html { font-size: 10px }), so rem * 10 = px.
+        preg_match('/^html\s*\{[^}]*font-size:\s*([\d.]+)px/m', $css, $root);
+        $remToPx = (float) ($root[1] ?? 10);
+
+        // The tallest padding the header ever takes on, from its media queries.
+        preg_match_all(
+            '/@media[^{]*\{[^@]*?\.rbt-header \.rbt-header-wrapper\s*\{[^}]*padding-top:\s*([\d.]+)px/s',
+            $css,
+            $paddings
+        );
+
+        $headerHeight = (float) $logoHeight[1] + 2 * (float) max($paddings[1] ?: [0]);
+
+        preg_match('/top:\s*var\(--lz-rail-top,\s*([\d.]+)rem\)/', $rule[1], $top);
+        preg_match('/--lz-rail-top:\s*([\d.]+)rem/', $rule[1], $topAlt);
+
+        $offset = (float) ($top[1] ?? $topAlt[1] ?? 0) * $remToPx;
+
+        $this->assertGreaterThan(0.0, $offset, 'the rail needs a readable top offset');
+
+        $this->assertGreaterThan(
+            $headerHeight,
+            $offset,
+            sprintf(
+                'the rail pins at %.0fpx but the fixed header reaches %.0fpx (a %spx logo plus %.0fpx of '
+                    .'padding). The header would pin over the top of the rail and cover the progress bar. '
+                    .'The old value was a hardcoded inline 100px, which cleared neither this nor its own '
+                    .'content properly.',
+                $offset,
+                $headerHeight,
+                $logoHeight[1],
+                2 * (float) max($paddings[1] ?: [0])
+            )
+        );
+
+        // --- It has to be scrollable, or the overflow just relocates the bug -
+        // Four rows of jump buttons plus the rules card is taller than the space
+        // under the header on a short viewport. Pinned with no cap, the Finish
+        // button goes off the bottom - the same unreachable action, differently
+        // caused.
+        $this->assertStringContainsString(
+            'max-height: calc(100vh',
+            $rule[1],
+            'the rail must be capped to the viewport, or its lower half - including the Finish '
+                .'button - becomes unreachable on a short screen'
+        );
+
+        $this->assertStringContainsString(
+            'overflow-y: auto',
+            $rule[1],
+            'a capped rail has to scroll internally'
+        );
+
+        // Wheeling over a scrollable rail must not chain-scroll the page out from
+        // under the reader, which is what overscroll-behavior:contain is for.
+        $this->assertStringContainsString(
+            'overscroll-behavior: contain',
+            $rule[1],
+            'without this, wheeling inside the rail scrolls the document past the questions'
+        );
+
+        // --- Below lg it has to stop being sticky ---------------------------
+        // Full-width on a phone, a pinned rail would cover the questions it is
+        // meant to accompany.
+        $this->assertMatchesRegularExpression(
+            '/@media\s*\(max-width:\s*991\.98px\)\s*\{\s*\.lz-rail\s*\{[^}]*position:\s*static/s',
+            $css,
+            'below lg the column is full width and the paper reads as one long stack, so the rail '
+                .'must return to ordinary flow'
         );
     }
 
