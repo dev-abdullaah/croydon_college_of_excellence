@@ -1347,6 +1347,167 @@ class PaidCoursesTest extends TestCase
         );
     }
 
+    /**
+     * The "Life in the UK" dropdown in the header.
+     *
+     * A worse version of the course-card bug, and worth pinning precisely
+     * because the cause is so easy to reintroduce: the theme's light-mode token
+     * for the title, `--color-heading`, is the same value dark mode paints the
+     * dropdown panel with, `--color-darker`. So the two course rows rendered
+     * #192335 on #192335. Any rule that reaches for `--color-heading` as "the
+     * dark text colour" will collide with the dark panel again.
+     *
+     * The hover case is asserted separately because it fails differently.
+     * Dark mode already sets `color: ... !important` on the hovered anchor, and
+     * it still cannot help: the title has its own explicit colour, and explicit
+     * always beats inherited however the ancestor is weighted. Only a rule on
+     * the title itself reaches it.
+     */
+    public function test_the_header_rich_submenu_follows_dark_mode(): void
+    {
+        $header = $this->get('/')->assertOk()->getContent();
+
+        $this->assertStringContainsString(
+            'submenu submenu-rich',
+            $header,
+            'the Life in the UK dropdown should still be a .submenu-rich'
+        );
+
+        // The two rows the report was about, unclassed apart from the span.
+        $this->assertMatchesRegularExpression(
+            '/<span class="submenu-rich-title">\s*📚 Life in the UK Course/su',
+            $header,
+            'expected the course row title in the header dropdown'
+        );
+
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        // Read the panel out of the dark rule rather than assuming the token.
+        preg_match(
+            '/^\.active-dark-mode \.rbt-header \.mainmenu-nav \.mainmenu li\.has-dropdown \.submenu\s*'
+                .'\{[^}]*background-color:\s*([^;]+);/m',
+            $css,
+            $panelRule
+        );
+
+        $this->assertNotEmpty($panelRule, 'the dropdown panel needs a dark background');
+
+        $panel = $this->flatten(trim($panelRule[1]), $this->cssColour($css, '--color-darker'), $css);
+
+        // This is the whole point, and it is a root cause rather than a symptom:
+        // the theme's light-mode token for the title, `--color-heading`, is the
+        // same value dark mode paints the panel with, `--color-darker`. Asserted
+        // so that if the two ever diverge - someone retones the heading colour -
+        // this fails and asks whether the rules below are still needed, instead
+        // of quietly leaving them there as a no-op that looks like coverage.
+        $heading = $this->cssColour($css, '--color-heading');
+
+        $this->assertLessThan(
+            1.5,
+            $this->contrast($heading, $panel),
+            sprintf(
+                'the light-mode title colour %s is now %.2f:1 against the dark panel %s. If that has been '
+                    .'fixed at the token level, the .submenu-rich dark-mode rules are redundant and should go.',
+                $heading,
+                $this->contrast($heading, $panel),
+                $panel
+            )
+        );
+
+        // --- The title and description, both read from the stylesheet --------
+        foreach ([
+            ['submenu-rich-title', 'var(--color-white)'],
+            ['submenu-rich-desc', 'var(--color-white-dark)'],
+        ] as [$class, $expected]) {
+            preg_match(
+                '/^\.active-dark-mode \.'.$class.'\s*\{[^}]*color:\s*([^;]+);/m',
+                $css,
+                $rule
+            );
+
+            $this->assertNotEmpty($rule, ".{$class} needs a dark-mode colour");
+
+            $colour = $this->flatten(trim($rule[1]), $panel, $css);
+
+            $this->assertGreaterThanOrEqual(
+                4.5,
+                $this->contrast($colour, $panel),
+                sprintf('.%s reads only %.2f:1 on the dark panel', $class, $this->contrast($colour, $panel))
+            );
+
+            // And on a hovered row, which dark mode repaints one step lighter.
+            // 1.19:1 before, because the title kept its own colour through the
+            // hover and explicit beats inherited.
+            $hover = $this->cssColour($css, '--color-bodyest');
+
+            $this->assertGreaterThanOrEqual(
+                4.5,
+                $this->contrast($colour, $hover),
+                sprintf(
+                    '.%s reads only %.2f:1 on a hovered row. Dark mode repaints the hover to %s but '
+                        .'cannot reach a child that sets its own colour.',
+                    $class,
+                    $this->contrast($colour, $hover),
+                    $hover
+                )
+            );
+
+            $this->assertStringContainsString(
+                $expected,
+                $rule[1],
+                'held explicitly so a later edit to the dark value is a decision, not a drift'
+            );
+        }
+
+        // --- The two account rows, on Bootstrap's .text-primary -------------
+        // Needs `!important` to be reached at all.
+        preg_match(
+            '/^\.active-dark-mode \.submenu-rich \.text-primary\s*\{[^}]*color:\s*([^;]+);/m',
+            $css,
+            $accent
+        );
+
+        $this->assertNotEmpty(
+            $accent,
+            "Bootstrap's .text-primary is !important with no dark-mode rule, so it wins by default"
+        );
+
+        $this->assertGreaterThanOrEqual(
+            4.5,
+            $this->contrast($this->flatten(trim($accent[1]), $panel, $css), $panel),
+            'the account rows stay #0d6efd, which is 3.50:1 on the panel'
+        );
+
+        // The `!important` is the whole mechanism, and asserting only the colour
+        // value misses it: a rule without it reads back perfectly well from the
+        // stylesheet while Bootstrap's own `.text-primary !important` outranks it
+        // in the browser and the rule does nothing at all.
+        $this->assertStringContainsString(
+            '!important',
+            $accent[0],
+            'this rule needs !important to reach Bootstrap\'s .text-primary, which is itself !important'
+        );
+
+        // --- The separator between the two groups --------------------------
+        // `rgba(0, 0, 0, .15)` on a dark panel is 1.06:1: the rule exists and
+        // the line is not there.
+        preg_match(
+            '/^\.active-dark-mode \.submenu-rich \.dropdown-divider\s*\{[^}]*border-top-color:\s*([^;]+);/m',
+            $css,
+            $divider
+        );
+
+        $this->assertNotEmpty($divider, 'the divider between the courses and the account link needs a dark-mode colour');
+
+        $rule_ = $this->flatten(trim($divider[1]), $panel, $css);
+
+        $this->assertGreaterThan(
+            1.10,
+            $this->contrast($rule_, $panel),
+            sprintf('the divider still composites to %.2f:1 on the panel, so it is not visible', $this->contrast($rule_, $panel))
+        );
+    }
+
     public function test_a_visitor_can_sign_in(): void
     {
         $user = User::factory()->create([
