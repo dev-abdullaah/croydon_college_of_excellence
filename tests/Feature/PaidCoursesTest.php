@@ -941,6 +941,54 @@ class PaidCoursesTest extends TestCase
         );
     }
 
+    /**
+     * Black text hardcoded into a block that dark mode repaints has to be
+     * corrected, or it disappears.
+     *
+     * `.text-black` is Bootstrap's `color: rgba(0,0,0,1) !important`. Dark
+     * mode turns `.bg-color-white` into `--color-darker`, so a paragraph
+     * carrying that class lands on a dark background while staying pure
+     * black - 1.33:1, invisible rather than dim. The Director's message does
+     * exactly this on all eight of its paragraphs.
+     *
+     * Because the utility is `!important`, the correction has to be
+     * `!important` too or it simply loses, which is the part a plausible
+     * looking stylesheet edit gets wrong.
+     */
+    public function test_hardcoded_black_text_is_corrected_inside_darkened_blocks(): void
+    {
+        $this->assertStringContainsString(
+            'text-black',
+            $this->get('/director-message')->assertOk()->getContent(),
+            "the Director's message still hardcodes black text into its paragraphs"
+        );
+
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        // Precondition: dark mode really does darken the block it sits in.
+        $this->assertMatchesRegularExpression(
+            '/^\.active-dark-mode \.bg-color-white\s*\{[^}]*background:\s*var\(--color-darker\)/m',
+            $css,
+            'dark mode repaints .bg-color-white as --color-darker'
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/^\.active-dark-mode \.bg-color-white \.text-black\s*\{[^}]*color:\s*var\(--color-white-off\)\s*!important/m',
+            $css,
+            'black text inside a darkened block must be inverted, and needs !important to '
+                .'beat the !important it is overriding'
+        );
+
+        // And the colour it lands on must actually be readable.
+        $darker = $this->cssColour($css, '--color-darker');
+
+        $this->assertGreaterThanOrEqual(
+            4.5,
+            $this->contrast($this->flatten('var(--color-white-off)', $darker, $css), $darker),
+            'the corrected text still does not clear AA on the darkened block'
+        );
+    }
+
     public function test_a_visitor_can_sign_in(): void
     {
         $user = User::factory()->create([
@@ -2467,16 +2515,29 @@ class PaidCoursesTest extends TestCase
     }
 
     /** Composite a possibly translucent colour over an opaque background. */
-    private function flatten(string $colour, string $background): string
+    private function flatten(string $colour, string $background, string $css = ''): string
     {
-        if (! preg_match('/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/i', $colour, $m)) {
-            return $this->expandHex($colour);
+        // `--color-white-off` is `#ffffffcb`, so a var() reference has to be
+        // followed and the alpha has to be honoured - dropping either would
+        // quietly measure the wrong colour.
+        if (preg_match('/var\(\s*(--[\w-]+)\s*\)/', $colour, $reference)) {
+            $colour = $this->cssColour($css, $reference[1]);
         }
 
-        $rgb = sprintf('#%02x%02x%02x', $m[1], $m[2], $m[3]);
-        $alpha = isset($m[4]) && $m[4] !== '' ? (float) $m[4] : 1.0;
+        if (preg_match('/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/i', $colour, $m)) {
+            $rgb = sprintf('#%02x%02x%02x', $m[1], $m[2], $m[3]);
+            $alpha = isset($m[4]) && $m[4] !== '' ? (float) $m[4] : 1.0;
 
-        return $this->blend($rgb, $background, $alpha);
+            return $this->blend($rgb, $background, $alpha);
+        }
+
+        $hex = ltrim($colour, '#');
+
+        if (strlen($hex) === 8) {
+            return $this->blend('#'.substr($hex, 0, 6), $background, hexdec(substr($hex, 6, 2)) / 255);
+        }
+
+        return $this->expandHex($colour);
     }
 
     /** $fg painted over $bg at $alpha, as hex. */
