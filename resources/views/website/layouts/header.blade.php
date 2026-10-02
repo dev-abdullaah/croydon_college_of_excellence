@@ -100,17 +100,45 @@
                             <li><a href="{{ url('/courses-regular') }}">COURSES</a></li>
                             <li><a href="{{ url('/courses-send') }}">SEND COURSES</a></li>
                             <li class="has-dropdown has-menu-child-item">
-                                <a>LIFE IN THE UK
+                                <a href="{{ route('courses.index') }}">LIFE IN THE UK
                                     <i class="feather-chevron-down"></i>
                                 </a>
-                                <ul class="submenu">
-                                    <li><a href="{{ route('courses.index') }}">ALL COURSES</a></li>
-                                    <li><a href="{{ route('courses.show', 'life-in-the-uk-course') }}">LIFE IN THE UK COURSE &mdash; &pound;99</a></li>
-                                    <li><a href="{{ route('courses.show', '24-mock-tests') }}">24 MOCK TESTS &mdash; &pound;49</a></li>
+                                <ul class="submenu submenu-rich">
+                                    <li>
+                                        <a href="{{ route('courses.show', 'life-in-the-uk-course') }}">
+                                            <span class="submenu-rich-title">
+                                                📚 Life in the UK Course &mdash; &pound;99
+                                            </span>
+                                            <span class="submenu-rich-desc">10 structured lessons, study cards, knowledge checks &amp; 6 mock tests</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="{{ route('courses.show', '24-mock-tests') }}">
+                                            <span class="submenu-rich-title">
+                                                ⌚ 24 Mock Tests Package &mdash; &pound;49
+                                            </span>
+                                            <span class="submenu-rich-desc">576 exam-standard questions, 45-min timer &amp; instant answer keys</span>
+                                        </a>
+                                    </li>
+                                    <li class="dropdown-divider my-2"></li>
                                     @auth
-                                        <li><a href="{{ route('dashboard') }}">MY ACCOUNT</a></li>
+                                        <li>
+                                            <a href="{{ route('dashboard') }}" class="text-primary fw-bold">
+                                                <span class="submenu-rich-title text-primary">
+                                                    👤 My Learning Dashboard
+                                                </span>
+                                                <span class="submenu-rich-desc">Access your lessons &amp; tests</span>
+                                            </a>
+                                        </li>
                                     @else
-                                        <li><a href="{{ route('login') }}">SIGN IN</a></li>
+                                        <li>
+                                            <a href="{{ route('login') }}" class="text-primary fw-bold">
+                                                <span class="submenu-rich-title text-primary">
+                                                    🔑 Sign In To Your Account
+                                                </span>
+                                                <span class="submenu-rich-desc">Sign in to continue your course &amp; tests</span>
+                                            </a>
+                                        </li>
                                     @endauth
                                 </ul>
                             </li>
@@ -122,17 +150,51 @@
 
                 <div class="header-right">
 
-                    <div class="rbt-btn-wrapper d-none d-xl-block">
-                        <a class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center"
-                            href="{{ url('/enroll-now') }}">
-                            <span>Enroll Now</span>
-                        </a>
+                    <div class="header-actions-group d-none d-xl-flex">
+                        @auth
+                            <a class="rbt-btn btn-gradient btn-header-icon" href="{{ route('dashboard') }}">
+                                <i class="feather-user"></i>
+                                <span>My Account</span>
+                            </a>
+                        @else
+                            <a class="rbt-btn btn-gradient btn-header-icon" href="{{ route('login') }}">
+                                <i class="feather-log-in"></i>
+                                <span>Sign In</span>
+                            </a>
+                        @endauth
+
+                        <div class="rbt-btn-wrapper">
+                            <a class="rbt-btn btn-border-gradient radius-round btn-header-course"
+                                href="{{ route('courses.index') }}">
+                                <span>Life in the UK Prep</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Mobile quick login button visible next to hamburger.
+                         The label used to carry `d-none d-sm-inline`, so below
+                         576px it collapsed to a bare icon with no name on it -
+                         the one control in the bar nobody could identify. The
+                         label now always shows; nowrap stops it wrapping when
+                         the bar is tight. -->
+                    <div class="d-flex align-items-center d-xl-none me-2">
+                        @auth
+                            <a href="{{ route('dashboard') }}" class="rbt-btn btn-gradient btn-header-account btn-header-icon">
+                                <i class="feather-user"></i>
+                                <span>Account</span>
+                            </a>
+                        @else
+                            <a href="{{ route('login') }}" class="rbt-btn btn-gradient btn-header-account btn-header-icon">
+                                <i class="feather-log-in"></i>
+                                <span>Sign In</span>
+                            </a>
+                        @endauth
                     </div>
 
                     <!-- Start Mobile-Menu-Bar -->
                     <div class="mobile-menu-bar d-block d-xl-none">
                         <div class="hamberger">
-                            <button class="hamberger-button rbt-round-btn">
+                            <button class="hamberger-button rbt-round-btn" aria-label="Open Mobile Menu">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24"
                                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                     stroke-linejoin="round">

@@ -54,23 +54,26 @@
 
                 <div class="offset-lg-1 col-lg-2 col-md-6 col-sm-6 col-12 mt--30">
                     <div class="footer-widget">
-                        <h5 class="ft-title">Useful Links</h5>
+                        <h5 class="ft-title">Life in the UK Prep</h5>
                         <ul class="ft-link">
                             <li>
-                                <a href="https://www.gov.uk/government/organisations/department-for-education">Department for Education</a>
+                                <a href="{{ route('courses.show', 'life-in-the-uk-course') }}">Life in the UK Course (£99)</a>
                             </li>
                             <li>
-                                <a href="https://set.et-foundation.co.uk/">SET</a>
+                                <a href="{{ route('courses.show', '24-mock-tests') }}">24 Mock Tests Pack (£49)</a>
                             </li>
                             <li>
-                                <a href="javascript:void(0)">Blog</a>
+                                <a href="{{ route('courses.index') }}">All Online Courses</a>
                             </li>
-                            <li>
-                                <a href="javascript:void(0)">Events</a>
-                            </li>
-                            <li>
-                                <a href="javascript:void(0)">FAQ</a>
-                            </li>
+                            @auth
+                                <li>
+                                    <a href="{{ route('dashboard') }}" class="fw-bold text-primary">My Learning Account</a>
+                                </li>
+                            @else
+                                <li>
+                                    <a href="{{ route('login') }}" class="fw-bold text-primary">Sign In To Your Account</a>
+                                </li>
+                            @endauth
                         </ul>
                     </div>
                 </div>
@@ -92,16 +95,10 @@
                                 <a href="{{ url('/our-policy') }}">Our Policies & Procedures</a>
                             </li>
                             <li>
-                                <a href="{{ url('/become-tutor') }}">Become an Tutor</a>
+                                <a href="{{ url('/become-tutor') }}">Become a Tutor</a>
                             </li>
                             <li>
-                                <a href="{{ route('courses.show', 'life-in-the-uk-course') }}">Life in the UK Course</a>
-                            </li>
-                            <li>
-                                <a href="{{ route('courses.show', '24-mock-tests') }}">24 Mock Tests</a>
-                            </li>
-                            <li>
-                                <a href="{{ route('login') }}">Sign In</a>
+                                <a href="{{ url('/gallery') }}">Gallery</a>
                             </li>
                         </ul>
                     </div>
