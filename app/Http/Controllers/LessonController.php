@@ -76,6 +76,37 @@ class LessonController extends Controller
     }
 
     /**
+     * Take back the note that this lesson was finished.
+     *
+     * Completion gates nothing, so un-reading it is safe: it drops the learner
+     * back to having this lesson outstanding on their course progress and
+     * changes no access. That is the point - someone revising for a test wants
+     * the lesson back in their list, not locked away.
+     *
+     * The delete is scoped to the signed-in learner as well as to the course and
+     * lesson the URL names. The lesson binding is already scoped to the course in
+     * the URL, so this cannot reach another course's lesson, but a delete that
+     * trusted the URL alone would be one careless change away from a buyer
+     * clearing somebody else's progress.
+     *
+     * Deleting nothing is not an error: the button can be double-clicked and a
+     * replayed request lands the same way, which is the same reasoning as the
+     * unique index keeping a double-clicked "mark as read" to one row.
+     */
+    public function unread(Request $request, Course $course, Lesson $lesson): RedirectResponse
+    {
+        LessonProgress::query()
+            ->for($request->user())
+            ->where('course_slug', $course->slug)
+            ->where('lesson_slug', $lesson->slug)
+            ->delete();
+
+        return redirect()
+            ->route('learn.lessons.show', [$course, $lesson->slug])
+            ->with('status', "Lesson {$lesson->number} marked as unread.");
+    }
+
+    /**
      * One page of a lesson's study cards.
      *
      * The cards are a plain array rather than database rows, so the pager is

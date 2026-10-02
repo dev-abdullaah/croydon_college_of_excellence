@@ -38551,6 +38551,28 @@ a.lz-card:hover .lz-num {
   color: var(--lz-muted) !important;
 }
 
+/* Bootstrap's .btn-outline-secondary, on the lesson reader's "Mark as unread"
+ * and the paper player's Back/Next.
+ *
+ * It paints --bs-secondary (#6c757d) at 3.16:1 on the dark card, below AA for
+ * a label and only just over the 3:1 a control border needs - so the button
+ * reads as a dim smudge rather than something to press. --lz-muted is the same
+ * token the rest of the card uses and comes out at 7.54:1.
+ *
+ * Hover is left alone deliberately: Bootstrap's own hover is white on #6c757d,
+ * which is 4.69:1 and already passes.
+ */
+.active-dark-mode .lz-card .btn-outline-secondary {
+  color: var(--lz-muted);
+  border-color: var(--lz-muted);
+}
+
+.active-dark-mode .lz-card .btn-outline-secondary:hover {
+  color: #ffffff;
+  background-color: var(--lz-surface-2);
+  border-color: var(--lz-text);
+}
+
 /* ---- Paper sidebar: deliberately not pinned -----------------------------
  *
  * No rule, on purpose. The progress card and the rules card scroll away with

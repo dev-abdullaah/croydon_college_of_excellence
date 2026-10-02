@@ -193,6 +193,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->middleware('throttle:30,1')
                 ->name('lessons.complete');
 
+            // Undo the above. A POST rather than a DELETE because this is a plain
+            // form with no script behind it, and the reader works with scripting
+            // off as well as on - a real DELETE would need a method-spoofing field
+            // that is only ever submitted by JavaScript.
+            Route::post('/lessons/{lesson}/unread', [LessonController::class, 'unread'])
+                ->middleware('throttle:30,1')
+                ->name('lessons.unread');
+
             Route::get('/quizzes/{quiz}', [QuizController::class, 'play'])->name('quizzes.play');
 
             // The only write a paper takes. Answers are held in the browser

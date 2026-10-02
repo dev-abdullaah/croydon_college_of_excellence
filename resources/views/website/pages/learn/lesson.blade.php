@@ -91,7 +91,7 @@
                     <p class="mb-0 text-muted" style="font-size:1.45rem;">
                         @if ($completedAt)
                             Marked complete on {{ $completedAt?->format('j M Y') }}.
-                            You can read it again as often as you like.
+                            Mark it unread if you want it back in your progress list.
                         @else
                             Mark this lesson as read to track your progress across the course.
                         @endif
@@ -100,9 +100,20 @@
             </div>
             <div>
                 @if ($completedAt)
-                    <span class="badge bg-success px-3 py-2" style="font-size:1.3rem;">
-                        <i class="feather-check me-1"></i> Done
-                    </span>
+                    {{--
+                        This used to be an inert green "Done" badge. The state is
+                        already said twice above - the tile turns green and the
+                        heading reads "Lesson complete" - so the badge was a dead
+                        end where the one useful thing belongs: taking the note
+                        back. Completion gates nothing here, so there is nothing
+                        to be careful about and nothing to unlock.
+                    --}}
+                    <form method="POST" action="{{ route('learn.lessons.unread', [$course, $lesson->slug]) }}">
+                        @csrf
+                        <button type="submit" class="btn btn-lg btn-outline-secondary">
+                            Mark as unread
+                        </button>
+                    </form>
                 @else
                     <form method="POST" action="{{ route('learn.lessons.complete', [$course, $lesson->slug]) }}">
                         @csrf
