@@ -3182,6 +3182,145 @@ class PaidCoursesTest extends TestCase
         );
     }
 
+    public function test_the_learn_buttons_are_readable_in_dark_mode(): void
+    {
+        $course = $this->course('life-in-the-uk-course');
+        $user = User::factory()->create();
+
+        $this->markAsPaid($user, $course, 'cs_test_learn_buttons');
+
+        [$lesson] = $this->makeLessons($course, 1);
+
+        $this->actingAs($user)->post(route('learn.lessons.complete', [$course, $lesson]));
+
+        // The unread button only appears once the lesson is read, so this is the
+        // state the new button actually ships in.
+        $html = $this->actingAs($user)->get(route('learn.lessons.show', [$course, $lesson]))
+            ->assertOk()
+            ->assertSee('Mark as unread')
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/<button[^>]*class="[^"]*btn-outline-secondary[^"]*"[^>]*>\s*Mark as unread/s',
+            $html,
+            'the unread control should be a real submit button, not a link - the reader works '
+                .'with scripting off, and only a form submission survives that'
+        );
+
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        // --- The rule has to exist, and on the right selector -----------------
+        // Scoped to .lz-card rather than lifted onto .btn-outline-secondary
+        // globally: this is the lesson reader and the paper player's nav, not a
+        // sitewide restyle.
+        preg_match(
+            '/\.active-dark-mode\s+\.lz-card\s+\.btn-outline-secondary\s*(?:,\s*[^{]*)?\{([^}]*)\}/',
+            $css,
+            $rule
+        );
+
+        $this->assertNotEmpty($rule, 'expected a dark-mode rule for .btn-outline-secondary on an lz-card');
+
+        // The label specifically, not just any colour in the block.
+        $this->assertMatchesRegularExpression(
+            '/(?:^|[\s;])color:\s*var\(--lz-muted\)/',
+            $rule[1],
+            'the outline label should take --lz-muted. Bootstrap paints --bs-secondary, which is '
+                .'3.16:1 on the dark card - below AA for a label and barely over the 3:1 a control '
+                .'border needs, so the button reads as a smudge rather than something to press.'
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/(?:^|[\s;])border-color:\s*var\(--lz-muted\)/',
+            $rule[1],
+            'a border left at --bs-secondary is the same 3.16:1, so the button has no visible edge'
+        );
+
+        // --- And it has to actually measure -----------------------------------
+        // Asserting the token is named is not the same as asserting it reads.
+        // flattenDark, not flatten: flatten resolves var() against the first
+        // match in the file, which for these tokens is the light :root value, so
+        // it would hand back #ffffff for a card painting #27272e.
+        $card = $this->flattenDark('var(--lz-surface)', $css);
+
+        $label = $this->flattenDark('var(--lz-muted)', $css, $card);
+
+        $this->assertGreaterThanOrEqual(
+            4.5,
+            $this->contrast($label, $card),
+            sprintf(
+                'the outline button label resolves to %s on a card of %s, which must clear 4.5:1. '
+                    .'It does not.',
+                $label,
+                $card
+            )
+        );
+
+        // Hover: Bootstrap's own is white on #6c757d, which passes, but the rule
+        // here replaces it, so the replacement has to be checked too.
+        preg_match(
+            '/\.active-dark-mode\s+\.lz-card\s+\.btn-outline-secondary:hover\s*\{([^}]*)\}/',
+            $css,
+            $hover
+        );
+
+        $this->assertNotEmpty($hover, 'the hover state needs a rule, since the base one overrides it');
+
+        preg_match('/(?:^|[\s;])color:\s*([^;]+);/', $hover[1], $hoverColour);
+
+        $hoverFlat = str_contains($hoverColour[1] ?? '', 'var(')
+            ? $this->flattenDark($hoverColour[1], $css, $this->flattenDark('var(--lz-surface-2)', $css, $card))
+            : $this->expandHex(trim($hoverColour[1] ?? ''));
+
+        $hoverBg = $this->flattenDark('var(--lz-surface-2)', $css, $card);
+
+        $this->assertGreaterThanOrEqual(
+            4.5,
+            $this->contrast($hoverFlat, $hoverBg),
+            sprintf('on hover the label resolves to %s on %s, which must clear 4.5:1.', $hoverFlat, $hoverBg)
+        );
+
+        // --- The dark value is a real override -------------------------------
+        // Not "the light block does not mention the token" - it does, that is
+        // where the light value lives. What matters is that the two differ, so
+        // the rule above is doing something rather than restating daylight.
+        $darkBlock = $this->darkTokenBlock($css);
+
+        preg_match('/--lz-muted:\s*([^;]+);/', $this->lzTokenBlock($css), $lightMuted);
+        preg_match('/--lz-muted:\s*([^;]+);/', $darkBlock, $darkMuted);
+
+        $this->assertNotEmpty($darkMuted, 'expected --lz-muted to be overridden for dark mode');
+
+        $this->assertNotSame(
+            trim($lightMuted[1] ?? ''),
+            trim($darkMuted[1] ?? ''),
+            sprintf(
+                '--lz-muted is %s in both themes, so the dark override is a no-op and the outline '
+                    .'button falls back to the light value on a dark card.',
+                trim($lightMuted[1] ?? '?')
+            )
+        );
+
+        // And the light theme's own pairing must still clear AA, or scoping the fix to
+        // dark mode would have traded a dark failure for a light one. This uses
+        // flatten(), not flattenDark(): flatten resolves var() against the first
+        // match in the file, which for these tokens is the light :root value -
+        // which is exactly what is wanted here. flattenDark would resolve against
+        // the dark block and silently re-measure the pairing above.
+        $lightCard = $this->flatten('var(--lz-surface)', '#ffffff', $css);
+        $lightLabel = $this->flatten('var(--lz-muted)', $lightCard, $css);
+
+        $this->assertGreaterThanOrEqual(
+            4.5,
+            $this->contrast($lightLabel, $lightCard),
+            sprintf(
+                'the light theme pairs %s on %s, which must clear 4.5:1 on its own merits',
+                $lightLabel,
+                $lightCard
+            )
+        );
+    }
+
     public function test_the_paper_sidebar_scrolls_away_with_the_page(): void
     {
         $course = $this->course('life-in-the-uk-course');

@@ -183,6 +183,151 @@ class LearningAreaTest extends TestCase
         ]);
     }
 
+    public function test_a_lesson_can_be_marked_as_unread(): void
+    {
+        $course = $this->course();
+        $buyer = $this->buyer($course);
+        [$lesson] = $this->makeLessons($course, 1);
+
+        $this->actingAs($buyer)->post(route('learn.lessons.complete', [$course, $lesson]));
+
+        $this->assertDatabaseHas('lesson_progress', [
+            'user_id' => $buyer->id,
+            'course_slug' => $course->slug,
+            'lesson_slug' => $lesson,
+        ]);
+
+        $this->actingAs($buyer)
+            ->from(route('learn.lessons.show', [$course, $lesson]))
+            ->post(route('learn.lessons.unread', [$course, $lesson]))
+            ->assertRedirect(route('learn.lessons.show', [$course, $lesson]));
+
+        $this->assertDatabaseMissing('lesson_progress', [
+            'user_id' => $buyer->id,
+            'course_slug' => $course->slug,
+            'lesson_slug' => $lesson,
+        ]);
+    }
+
+    public function test_marking_a_lesson_unread_means_it_counts_as_unread_again(): void
+    {
+        $course = $this->course();
+        $buyer = $this->buyer($course);
+        [$lesson] = $this->makeLessons($course, 1);
+
+        $this->actingAs($buyer)->post(route('learn.lessons.complete', [$course, $lesson]));
+        $this->actingAs($buyer)->post(route('learn.lessons.unread', [$course, $lesson]));
+
+        // The course progress list is drawn from the same table, so a row that
+        // survives the delete would leave the lesson marked read there while
+        // the lesson page claimed otherwise.
+        $this->assertSame([], LessonProgress::readSlugsFor($buyer, $course->slug)->all());
+
+        // And the reader offers "Mark as read" rather than "Mark as unread".
+        $this->actingAs($buyer)
+            ->get(route('learn.lessons.show', [$course, $lesson]))
+            ->assertOk()
+            ->assertSee('Mark as read')
+            ->assertDontSee('Mark as unread');
+    }
+
+    public function test_a_lesson_offers_mark_as_unread_only_once_it_is_read(): void
+    {
+        $course = $this->course();
+        $buyer = $this->buyer($course);
+        [$lesson] = $this->makeLessons($course, 1);
+
+        $this->actingAs($buyer)
+            ->get(route('learn.lessons.show', [$course, $lesson]))
+            ->assertOk()
+            ->assertSee('Mark as read')
+            ->assertDontSee('Mark as unread');
+
+        $this->actingAs($buyer)->post(route('learn.lessons.complete', [$course, $lesson]));
+
+        $this->actingAs($buyer)
+            ->get(route('learn.lessons.show', [$course, $lesson]))
+            ->assertOk()
+            ->assertSee('Mark as unread')
+            ->assertDontSee('Mark as read');
+    }
+
+    public function test_marking_an_already_unread_lesson_as_unread_does_nothing(): void
+    {
+        $course = $this->course();
+        $buyer = $this->buyer($course);
+        [$lesson] = $this->makeLessons($course, 1);
+
+        $url = route('learn.lessons.unread', [$course, $lesson]);
+
+        // Never read in the first place, and then un-read twice. Neither is an
+        // error: the button can be double-clicked and a request can be replayed,
+        // which is the same reasoning as the unique index keeping a double-clicked
+        // "mark as read" to one row.
+        $this->actingAs($buyer)->post($url)->assertRedirect();
+        $this->actingAs($buyer)->post($url)->assertRedirect();
+        $this->actingAs($buyer)->post($url)->assertRedirect();
+
+        $this->assertSame(0, LessonProgress::where('user_id', $buyer->id)->count());
+    }
+
+    public function test_marking_a_lesson_unread_leaves_the_other_lessons_alone(): void
+    {
+        $course = $this->course();
+        $buyer = $this->buyer($course);
+        [$first, $second] = $this->makeLessons($course, 2);
+
+        $this->actingAs($buyer)->post(route('learn.lessons.complete', [$course, $first]));
+        $this->actingAs($buyer)->post(route('learn.lessons.complete', [$course, $second]));
+
+        $this->actingAs($buyer)->post(route('learn.lessons.unread', [$course, $first]));
+
+        $this->assertSame(1, LessonProgress::where('user_id', $buyer->id)->count());
+        $this->assertDatabaseHas('lesson_progress', [
+            'user_id' => $buyer->id,
+            'course_slug' => $course->slug,
+            'lesson_slug' => $second,
+        ]);
+    }
+
+    public function test_marking_a_lesson_unread_leaves_another_learner_alone(): void
+    {
+        $course = $this->course();
+        [$lesson] = $this->makeLessons($course, 1);
+
+        $one = $this->buyer($course);
+        $two = $this->buyer($course);
+
+        // Both have read it. One takes it back; the other's progress must survive,
+        // because the delete is scoped to the signed-in learner and not just to
+        // the course and lesson the URL names.
+        $this->actingAs($one)->post(route('learn.lessons.complete', [$course, $lesson]));
+        $this->actingAs($two)->post(route('learn.lessons.complete', [$course, $lesson]));
+
+        $this->actingAs($one)->post(route('learn.lessons.unread', [$course, $lesson]));
+
+        $this->assertSame(0, LessonProgress::where('user_id', $one->id)->count());
+        $this->assertSame(1, LessonProgress::where('user_id', $two->id)->count());
+    }
+
+    public function test_marking_a_lesson_unread_in_a_course_you_do_not_own_is_refused(): void
+    {
+        $course = $this->course();
+        [$lesson] = $this->makeLessons($course, 1);
+
+        $owner = $this->buyer($course);
+        $stranger = $this->buyer($this->course('24-mock-tests'));
+
+        $this->actingAs($owner)->post(route('learn.lessons.complete', [$course, $lesson]));
+
+        $this->actingAs($stranger)
+            ->post(route('learn.lessons.unread', [$course, $lesson]))
+            ->assertForbidden();
+
+        // Refused, and no collateral damage to the actual owner.
+        $this->assertSame(1, LessonProgress::where('user_id', $owner->id)->count());
+    }
+
     public function test_marking_a_lesson_read_twice_does_not_duplicate_it(): void
     {
         $course = $this->course();
