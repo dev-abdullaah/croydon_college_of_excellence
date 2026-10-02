@@ -820,6 +820,69 @@ class PaidCoursesTest extends TestCase
         );
     }
 
+    /**
+     * Hero paragraphs have to be legible against the gradient, not just
+     * against white.
+     *
+     * `.bg-gradient-9` paints purple-to-blue and then washes the top of the
+     * section towards white with a `::after` overlay, so the background under
+     * a hero paragraph changes with its position: very nearly white at the top,
+     * substantially the gradient by the time the text has finished. `body`
+     * sets `color: var(--color-body)` (#6b7385) - a grey picked to sit quietly
+     * on white - which fell to 2.74:1 across the band these paragraphs occupy,
+     * under the 4.5:1 WCAG AA wants for body text, and muddy rather than
+     * deliberately secondary.
+     *
+     * So this reads the colour back out of the stylesheet and measures it,
+     * rather than asserting the rule exists. Checking for presence would pass
+     * just as happily on a colour that fails.
+     */
+    public function test_hero_paragraphs_are_legible_against_the_gradient_they_sit_on(): void
+    {
+        // Sanity: the markup this rule exists for is actually rendered.
+        $this->assertMatchesRegularExpression(
+            '/bg-gradient-9[\s\S]*?section-title[\s\S]*?<p class="mt--10 mb-0">/',
+            $this->get('/login')->assertOk()->getContent(),
+            'the login hero should render a section-title paragraph on the gradient'
+        );
+
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        $selector = '/\.bg-gradient-9 \.section-title p\s*\{[^}]*color:\s*(rgba?\([^)]*\)|#[0-9a-fA-F]{3,8})/';
+
+        $this->assertMatchesRegularExpression(
+            $selector,
+            $css,
+            'gradient heroes need an explicit paragraph colour; they inherit --color-body from body'
+        );
+
+        preg_match($selector, $css, $matches);
+        $colour = $matches[1];
+        $worst = $this->worstHeroContrast($colour);
+
+        $this->assertGreaterThanOrEqual(
+            4.5,
+            $worst,
+            sprintf(
+                'hero paragraph colour %s reaches only %.2f:1 against the gradient; WCAG AA body text needs 4.5:1',
+                $colour,
+                $worst
+            )
+        );
+
+        // Equal specificity to the dark-mode rule further down the file, so
+        // this one has to come first or it would break dark mode instead of
+        // the other way round.
+        preg_match('/^\.bg-gradient-9 \.section-title p\s*\{/m', $css, $hero, PREG_OFFSET_CAPTURE);
+        preg_match('/^\.active-dark-mode \.section-title p\s*\{/m', $css, $dark, PREG_OFFSET_CAPTURE);
+
+        $this->assertGreaterThan(
+            $hero[0][1],
+            $dark[0][1],
+            'dark mode paints these paragraphs its own colour and must win on source order'
+        );
+    }
+
     public function test_a_visitor_can_sign_in(): void
     {
         $user = User::factory()->create([
@@ -2300,5 +2363,101 @@ class PaidCoursesTest extends TestCase
         $timestamp = time();
 
         return 't='.$timestamp.',v1='.hash_hmac('sha256', $timestamp.'.'.$payload, $secret);
+    }
+
+    /**
+     * Lowest contrast ratio a hero paragraph can hit anywhere in the band its
+     * `.section-title` occupies, given its colour.
+     *
+     * The section-title is the first content inside a `.rbt-conatct-area`,
+     * which carries `.rbt-section-gap`'s 40px top padding, so the text sits in
+     * the top 40% of the section. That band is walked at 1% steps against
+     * both ends of the gradient, with the `::after` white wash applied at the
+     * same 0%-to-10% alpha ramp the stylesheet uses.
+     */
+    private function worstHeroContrast(string $colour): float
+    {
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        $worst = INF;
+
+        foreach (['--color-secondary', '--color-primary'] as $variable) {
+            $end = $this->cssColour($css, $variable);
+
+            for ($percent = 0; $percent <= 40; $percent++) {
+                $background = $this->blend('#ffffff', $end, 1.0 - 0.9 * ($percent / 100));
+                $foreground = $this->flatten($colour, $background);
+                $worst = min($worst, $this->contrast($foreground, $background));
+            }
+        }
+
+        return $worst;
+    }
+
+    /** Resolve a `--color-*` custom property from the stylesheet. */
+    private function cssColour(string $css, string $variable): string
+    {
+        preg_match('/'.preg_quote($variable, '/').':\s*(#[0-9a-fA-F]{3,8})/', $css, $matches);
+
+        return $this->expandHex($matches[1] ?? '#000000');
+    }
+
+    /** Composite a possibly translucent colour over an opaque background. */
+    private function flatten(string $colour, string $background): string
+    {
+        if (! preg_match('/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/i', $colour, $m)) {
+            return $this->expandHex($colour);
+        }
+
+        $rgb = sprintf('#%02x%02x%02x', $m[1], $m[2], $m[3]);
+        $alpha = isset($m[4]) && $m[4] !== '' ? (float) $m[4] : 1.0;
+
+        return $this->blend($rgb, $background, $alpha);
+    }
+
+    /** $fg painted over $bg at $alpha, as hex. */
+    private function blend(string $fg, string $bg, float $alpha): string
+    {
+        $out = '';
+
+        foreach ([0, 2, 4] as $offset) {
+            $f = hexdec(substr($fg, 1 + $offset, 2));
+            $b = hexdec(substr($bg, 1 + $offset, 2));
+            $out .= str_pad(dechex((int) round($f * $alpha + $b * (1 - $alpha))), 2, '0', STR_PAD_LEFT);
+        }
+
+        return '#'.$out;
+    }
+
+    /** WCAG 2.1 relative luminance. */
+    private function luminance(string $hex): float
+    {
+        $channels = array_map(function (int $value) {
+            $c = $value / 255;
+
+            return $c <= 0.03928 ? $c / 12.92 : (($c + 0.055) / 1.055) ** 2.4;
+        }, [hexdec(substr($hex, 1, 2)), hexdec(substr($hex, 3, 2)), hexdec(substr($hex, 5, 2))]);
+
+        return 0.2126 * $channels[0] + 0.7152 * $channels[1] + 0.0722 * $channels[2];
+    }
+
+    private function contrast(string $a, string $b): float
+    {
+        $la = $this->luminance($a);
+        $lb = $this->luminance($b);
+
+        return (max($la, $lb) + 0.05) / (min($la, $lb) + 0.05);
+    }
+
+    /** `#abc` -> `#aabbcc`, so the luminance maths always gets six digits. */
+    private function expandHex(string $hex): string
+    {
+        $hex = ltrim($hex, '#');
+
+        if (strlen($hex) === 3) {
+            $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
+        }
+
+        return '#'.substr($hex, 0, 6);
     }
 }
