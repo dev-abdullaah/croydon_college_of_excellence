@@ -23,11 +23,32 @@
                             account: read the lessons and take the practice tests. Pay once,
                             with no subscription.
                         </p>
+
+                        <!-- Feature highlights pill badges -->
+                        <div class="d-flex flex-wrap justify-content-center gap-2 mt--20">
+                            <span class="badge bg-light text-secondary px-3 py-2">
+                                <i class="feather-book-open text-primary me-1"></i> 10 Structured Syllabus Lessons
+                            </span>
+                            <span class="badge bg-light text-secondary px-3 py-2">
+                                <i class="feather-clock text-primary me-1"></i> 24 Timed Full-Length Mock Tests
+                            </span>
+                            <span class="badge bg-light text-secondary px-3 py-2">
+                                <i class="feather-check-circle text-primary me-1"></i> Instant Feedback &amp; Explanations
+                            </span>
+                            <span class="badge bg-light text-secondary px-3 py-2">
+                                <i class="feather-shield text-primary me-1"></i> 100% One-Off Payment &middot; No Subscription
+                            </span>
+                        </div>
+
+                        <!-- Returning Student Banner -->
+                        @include('website.partials.enrollment_banner', ['compact' => true])
                     </div>
                 </div>
             </div>
 
-            <div class="row g-5 mt--10">
+            {{-- The anchor the "See The Courses" button in the banner above
+                 scrolls to for a signed in learner with no course yet. --}}
+            <div id="course-list" class="row g-5 mt--10">
                 @foreach ($courses as $course)
                     <div class="col-lg-6 col-md-6 col-12 sal-animate" data-sal="slide-up"
                         data-sal-delay="{{ $loop->index * 120 }}" data-sal-duration="800">
