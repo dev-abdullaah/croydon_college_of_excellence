@@ -2780,6 +2780,448 @@ class PaidCoursesTest extends TestCase
         $response->assertSee('Nothing is downloaded.', escape: false);
     }
 
+    public function test_the_lesson_reading_paper_follows_dark_mode(): void
+    {
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        // The dark card surface, read from the dark-mode token set rather than
+        // hardcoded, so this keeps measuring if the surface is retoned.
+        $this->assertNotSame(
+            '',
+            $darkBlock = $this->darkTokenBlock($css),
+            'dark mode has to redefine the --lz-* tokens. Painting the surfaces '
+                .'class by class while leaving the tokens light is what broke this page.'
+        );
+
+        preg_match('/--lz-surface:\s*([^;]+);/', $darkBlock, $surface);
+
+        $card = $this->flattenDark(trim($surface[1]), $css);
+
+        // --- Root cause, asserted directly -----------------------------------
+        // Light mode reads its tokens from :root. If the dark surface is the same
+        // value as any of them, the override below is redundant and this fails
+        // rather than letting it sit there as a no-op that looks like coverage.
+        foreach (['--lz-text', '--lz-muted', '--lz-accent'] as $variable) {
+            $light = $this->cssColour($css, $variable);
+
+            $this->assertLessThan(
+                4.5,
+                $this->contrast($light, $card),
+                sprintf(
+                    'the light-mode %s value %s is now %.2f:1 on the dark card %s. If the lesson surfaces have '
+                        .'been fixed at the token level, the .active-dark-mode --lz-* block is redundant and should go.',
+                    $variable,
+                    $light,
+                    $this->contrast($light, $card),
+                    $card
+                )
+            );
+        }
+
+        // --- Every colour token a rule consumes has a dark value ------------
+        // This is the assertion that would have caught the report. The old dark
+        // block patched six classes and eleven rules read a token directly, so
+        // the arithmetic was always going to come out wrong; checking the two
+        // sets against each other fails the moment a thirteenth consumer arrives
+        // without a dark value.
+        //
+        // --lz-accent-fill is the one exemption, and it is the point of it: that
+        // token exists so the filled chips can keep white text, which only works
+        // while the value stays saturated. "Dark mode forgot to lighten this one"
+        // is the correct behaviour, so it is named rather than worked around.
+        $themeInvariant = ['accent-fill'];
+
+        preg_match_all('/--lz-([a-z-]+):\s*(#[0-9a-fA-F]{3,8}|rgba?\([^;]+\));/', $this->lzTokenBlock($css), $declared);
+        $consumed = array_unique($declared[1]);
+
+        foreach ($consumed as $token) {
+            if (in_array($token, $themeInvariant, true)) {
+                $this->assertStringContainsString(
+                    '--lz-'.$token.':',
+                    $this->lzTokenBlock($css),
+                    sprintf('--lz-%s is consumed but never declared', $token)
+                );
+
+                continue;
+            }
+
+            $this->assertStringContainsString(
+                '--lz-'.$token.':',
+                $darkBlock,
+                sprintf('--lz-%s is consumed by a light-mode rule and has no value under .active-dark-mode', $token)
+            );
+        }
+
+        // --- What the reader actually sees, measured -------------------------
+        // Every text token gets the same treatment, rather than naming the two the
+        // report happened to mention. Pass/fail marks are text on a soft fill
+        // inside the same card, they had the same defect, and nothing in the
+        // layout makes them less visible than a question.
+        //
+        // The floor is well above AA on purpose. The light values measured
+        // 1.06:1, so "clears AA" is barely a guard - these should read clearly,
+        // not merely technically.
+        $floors = [
+            '--lz-text' => ['the question', 13.0],
+            '--lz-muted' => ['the answer', 7.0],
+            '--lz-pass' => ['the pass mark', 5.0],
+            '--lz-fail' => ['the fail mark', 4.5],
+        ];
+
+        foreach ($floors as $variable => [$what, $floor]) {
+            preg_match('/'.preg_quote($variable, '/').':\s*([^;]+);/', $darkBlock, $dark);
+
+            // Where the token has a `-soft` companion, that fill is what actually
+            // sits behind the text - measuring against the bare card would flatter
+            // the ratio by up to a full step. The companions only exist for the
+            // accent and pass/fail tokens; text and muted sit straight on the card.
+            $companion = preg_quote($variable, '/').'-soft';
+            $hasCompanion = (bool) preg_match('/'.$companion.':/', $this->lzTokenBlock($css));
+
+            $backdrop = $card;
+
+            if ($hasCompanion) {
+                preg_match('/'.$companion.':\s*([^;]+);/', $darkBlock, $soft);
+
+                $this->assertNotEmpty(
+                    $soft,
+                    sprintf(
+                        '%s (%s) is consumed over a %s fill. That fill is the backdrop the text sits on '
+                            .'and it needs a dark value of its own.',
+                        $what,
+                        $variable,
+                        $variable.'-soft'
+                    )
+                );
+
+                $backdrop = $this->flattenDark(trim($soft[1]), $css, $card);
+            }
+
+            $colour = $this->flattenDark(trim($dark[1]), $css, $backdrop);
+            $ratio = $this->contrast($colour, $backdrop);
+
+            $this->assertGreaterThanOrEqual(
+                4.5,
+                $ratio,
+                sprintf(
+                    '%s (%s) reads only %.2f:1 on %s',
+                    $what,
+                    $variable,
+                    $ratio,
+                    $hasCompanion ? 'its soft fill '.$backdrop : 'the dark card'
+                )
+            );
+
+            $this->assertGreaterThanOrEqual(
+                $floor,
+                $ratio,
+                sprintf(
+                    '%s (%s) passes AA at %.2f:1 but is too flat to read comfortably',
+                    $what,
+                    $variable,
+                    $ratio
+                )
+            );
+        }
+
+        // --- The filled chips keep white text --------------------------------
+        // --lz-accent lightens for text on the soft fill, but white on that value
+        // is 2.14:1. Every rule that fills with the accent and paints white text
+        // on top has to read --lz-accent-fill, which stays saturated.
+        //
+        // The fill is read from :root, not from the dark block, because it is
+        // theme-invariant by design. The accent is read from the dark block,
+        // because the split between them is the thing being checked.
+        preg_match('/--lz-accent-fill:\s*([^;]+);/', $this->lzTokenBlock($css), $fill);
+        preg_match('/--lz-accent:\s*([^;]+);/', $darkBlock, $accent);
+
+        $this->assertNotEmpty($fill, 'the filled accent chips need a fill token that white text survives');
+
+        $white = $this->contrast('#ffffff', $this->flatten(trim($fill[1]), $card, $css));
+        $this->assertGreaterThanOrEqual(
+            4.5,
+            $white,
+            sprintf('white on --lz-accent-fill %s is only %.2f:1', trim($fill[1]), $white)
+        );
+
+        // And the assertion that the two are genuinely different jobs: had they
+        // stayed one value, either the text chips or the filled ones would fail.
+        $this->assertNotSame(
+            trim($accent[1]),
+            trim($fill[1]),
+            'if the accent text colour and the accent fill are the same value, one of them has to be unreadable'
+        );
+
+        // Checked on the *background* declaration, not on whether the token
+        // appears anywhere in the rule. A chip whose background was reverted to
+        // var(--lz-accent) while its border-color kept --lz-accent-fill satisfies
+        // a looser check on the whole body, which is how this kind of half-revert
+        // ships unnoticed.
+        // Driven by the token's real usages rather than a hand-written selector
+        // list. A list is a snapshot, and the two rules that matter most - the
+        // hovered lesson-card badge and the active page link - were not on it.
+        // Deriving from the stylesheet means a fifth filled chip is covered
+        // because it exists, not because someone remembered.
+        preg_match_all('/([^{}]*)\{([^{}]*)\}/', $css, $rules, PREG_SET_ORDER);
+
+        $filled = 0;
+        $resolved = $this->flatten(trim($fill[1]), $card, $css);
+
+        foreach ($rules as [, $selector, $body]) {
+            // Only rules that put a fill behind text. Using the token for a
+            // border alone is not what this is about.
+            preg_match('/[\s;]background:\s*([^;]+);/', $body, $background);
+
+            if (! $background || ! str_contains($background[1], 'var(--lz-accent-fill)')) {
+                continue;
+            }
+
+            // The guard is anchored on a declaration boundary for the same
+            // reason: a bare `color:` also matches inside `border-color:`.
+            if (! preg_match('/[\s;]color:\s*(#[0-9a-fA-F]{3,8})/', $body, $text)) {
+                continue;
+            }
+
+            $filled++;
+
+            // expandHex first. luminance() slices six digits straight out of the
+            // string, so a shorthand `#fff` reads as `#ff0000` and white-on-blue
+            // silently measures as red-on-blue, at 1.43:1. That is what made the
+            // unmutated stylesheet fail this check the first time it ran.
+            $this->assertGreaterThanOrEqual(
+                4.5,
+                $this->contrast($this->expandHex($text[1]), $resolved),
+                sprintf(
+                    '%s{%s} paints %s on --lz-accent-fill %s. If the fill has been lightened to track '
+                        .'--lz-accent (%s), it needs a token of its own rather than sharing one.',
+                    trim($selector),
+                    '',
+                    $text[1],
+                    trim($fill[1]),
+                    trim($accent[1] ?? '')
+                )
+            );
+        }
+
+        // Otherwise the loop above proves nothing: it would have skipped every
+        // rule it saw and still reported success. Four is the hover badge, the
+        // picked-option chip, the current-page jump button and the active link.
+        $this->assertGreaterThanOrEqual(
+            4,
+            $filled,
+            'expected at least four rules to fill with --lz-accent-fill behind hex text. Finding fewer '
+                .'means a filled surface is reading the lightened accent instead, where white text is 2.14:1.'
+        );
+
+        // --- Pagination ------------------------------------------------------
+        // `$items->links()` emits Bootstrap 5's markup, because AppServiceProvider
+        // calls Paginator::useBootstrapFive(). That is a different class tree from
+        // the theme's .rbt-pagination, which already has seven dark-mode rules, so
+        // the two paginations on this site look nothing alike. Bootstrap's
+        // .page-link is `background-color: #fff` - a row of white boxes on a dark
+        // card.
+        preg_match(
+            '/^\.active-dark-mode \.lz-card \.pagination \.page-link\s*\{([^}]*)\}/m',
+            $css,
+            $pageLink
+        );
+
+        $this->assertNotEmpty(
+            $pageLink,
+            "Bootstrap's .page-link is background-color: #fff and needs a dark-mode rule of its own"
+        );
+
+        preg_match('/background:\s*([^;]+);/', $pageLink[1], $pageBackground);
+        // Anchored on a declaration boundary: a bare `color:` also matches inside
+        // `border-color:`, and that silently measured the border instead.
+        preg_match('/[\s;]color:\s*([^;]+);/', $pageLink[1], $pageColour);
+
+        $pageSurface = $this->flattenDark(trim($pageBackground[1]), $css, $card);
+
+        $this->assertSame(
+            $card,
+            $pageSurface,
+            'the page links should sit on the card surface, not float as white boxes inside it'
+        );
+
+        $linkRatio = $this->contrast($this->flattenDark(trim($pageColour[1]), $css, $pageSurface), $pageSurface);
+
+        $this->assertGreaterThanOrEqual(
+            4.5,
+            $linkRatio,
+            sprintf('an inactive page link reads only %.2f:1', $linkRatio)
+        );
+
+        // The active link fills, so it gets the saturated token for the same
+        // reason the chips do.
+        $this->assertMatchesRegularExpression(
+            '/^\.active-dark-mode \.lz-card \.pagination \.page-item\.active \.page-link\s*\{[^}]*var\(\s*--lz-accent-fill\s*\)/m',
+            $css,
+            'the active page link is white on a fill, so it needs --lz-accent-fill rather than the lightened accent'
+        );
+
+        // Bootstrap ships no dark pagination at all, so there is nothing to
+        // out-specify and no !important to reach. Asserting the selector shape
+        // is what proves the cascade actually lands: (0,4,0) against (0,1,0).
+        $this->assertStringNotContainsString(
+            '!important',
+            $pageLink[1],
+            'nothing in Bootstrap\'s pagination is !important, so this should win on specificity alone'
+        );
+
+        // --- .text-muted, which does need it --------------------------------
+        preg_match('/^\.active-dark-mode \.lz-card \.text-muted\s*\{([^}]*)\}/m', $css, $muted);
+
+        $this->assertNotEmpty(
+            $muted,
+            'the "Lesson 3 of 10" and "Page 1 of 4" lines are Bootstrap\'s .text-muted, which has no dark value'
+        );
+
+        $this->assertStringContainsString(
+            '!important',
+            $muted[1],
+            'Bootstrap\'s own .text-muted is !important, so without it this rule is dead'
+        );
+
+        $mutedRatio = $this->contrast($this->flattenDark(trim($muted[1]), $css, $card), $card);
+
+        $this->assertGreaterThanOrEqual(
+            4.5,
+            $mutedRatio,
+            sprintf('the muted meta line reads only %.2f:1', $mutedRatio)
+        );
+    }
+
+    public function test_the_lesson_question_and_answer_text_is_readable(): void
+    {
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        // `html { font-size: 10px }`, so a rem here is a tenth of its face value.
+        // 1.55rem was 15.5px, which is small for exam content the reader is
+        // meant to be studying rather than skimming.
+        preg_match('/^html\s*\{[^}]*font-size:\s*([\d.]+)px/m', $css, $root);
+
+        $this->assertNotEmpty($root, 'expected an explicit root font-size to scale these against');
+
+        $base = (float) $root[1];
+
+        foreach ([
+            // The answer and the explanation are supporting text under a bold
+            // question, so they take a step down rather than matching exactly -
+            // hierarchy, not a slab. Both still have to clear a legible size.
+            ['.lz-item .lz-q', 'the question', 18.0],
+            ['.lz-item .lz-a', 'the answer', 17.0],
+            ['.lz-opt', 'a quiz option, which is the same question once it is playable', 18.0],
+            ['.lz-explain', 'the explanation, which is the answer written out', 17.0],
+        ] as [$selector, $what, $floor]) {
+            // All matched rules, and only the first match used. A single selector
+            // has several rules in this stylesheet - `.lz-explain` also appears in
+            // a `.is-pass`/`is-fail` grouping - so `preg_match` with an offset-free
+            // pattern returns whichever the engine reached first and the rest go
+            // unchecked. Whichever one is picked, a `font-size` must be found: if
+            // the size lived in the rule being skipped, this would report a
+            // missing size and ask for the reason, rather than passing silently.
+            preg_match_all(
+                '/'.str_replace(' ', '\s+', preg_quote($selector, '/')).'\s*\{([^}]*)\}/',
+                $css,
+                $matches
+            );
+
+            $this->assertNotEmpty(
+                $matches[1],
+                sprintf('expected %s in the stylesheet', $selector)
+            );
+
+            $sizes = [];
+
+            foreach ($matches[1] as $body) {
+                if (preg_match('/font-size:\s*([\d.]+)rem/', $body, $size)) {
+                    $sizes[] = (float) $size[1];
+                }
+            }
+
+            // Any rule that does set a size must clear the floor. Checking the
+            // whole set rather than the first hit is what catches a later,
+            // narrower rule quietly reinstating the old size.
+            foreach ($sizes as $rem) {
+                $pixels = $rem * $base;
+
+                $this->assertGreaterThanOrEqual(
+                    $floor,
+                    $pixels,
+                    sprintf(
+                        '%s (%s) renders at %.1fpx on a %dpx root, under the %.1fpx floor. 1.55rem was '
+                            .'15.5px, which is small for exam content meant to be studied rather than skimmed.',
+                        $what,
+                        $selector,
+                        $pixels,
+                        (int) $base,
+                        $floor
+                    )
+                );
+            }
+
+            $this->assertNotEmpty(
+                $sizes,
+                sprintf('%s (%s) sets no rem font-size, so its rendered size is unchecked', $what, $selector)
+            );
+        }
+
+        // The answer is supporting text under a bold question, so it takes a
+        // size step down rather than matching it exactly - hierarchy, not a
+        // flat slab. Both still clear their own floor.
+        preg_match('/^\.lz-item \.lz-q\s*\{[^}]*font-size:\s*([\d.]+)rem/m', $css, $question);
+        preg_match('/^\.lz-item \.lz-a\s*\{[^}]*font-size:\s*([\d.]+)rem/m', $css, $answer);
+
+        $this->assertGreaterThan(
+            (float) ($answer[1] ?? 0),
+            (float) ($question[1] ?? 0),
+            'the question should read as the louder of the two; they were the same size apart from .1rem'
+        );
+    }
+
+    /** The block that declares the `--lz-*` tokens, comments and all. */
+    private function lzTokenBlock(string $css): string
+    {
+        // Anchored on `--lz-radius`, which is declared once. By the time this
+        // section is reached the file holds several `:root` blocks, so matching
+        // on `:root` would pick whichever came last.
+        preg_match('/\{([^{}]*--lz-radius:[^{}]*)\}/', $css, $root);
+
+        return $root[1] ?? '';
+    }
+
+    /** The `.active-dark-mode` block that redefines the `--lz-*` tokens. */
+    private function darkTokenBlock(string $css): string
+    {
+        // Anchored on `--lz-surface`, not on `.active-dark-mode {` alone: the file
+        // holds other single-declaration `.active-dark-mode` blocks and matching
+        // the first of those would read an unrelated rule's body.
+        preg_match('/^\.active-dark-mode\s*\{([^}]*--lz-surface:[^}]*)\}/m', $css, $block);
+
+        return $block[1] ?? '';
+    }
+
+    /**
+     * Resolve a `var(--lz-*)` reference the way the browser would in dark mode.
+     *
+     * `flatten()` resolves against the first match in the file, which for these
+     * tokens is the light `:root` declaration - so handed a dark-mode rule
+     * directly it would hand back `#ffffff` for a card that paints `#27272e`.
+     */
+    private function flattenDark(string $colour, string $css, string $background = '#ffffff'): string
+    {
+        $dark = $this->darkTokenBlock($css);
+
+        if (preg_match('/var\(\s*(--lz-[\w-]+)\s*\)/', $colour, $reference)) {
+            preg_match('/'.preg_quote($reference[1], '/').':\s*([^;]+);/', $dark, $token);
+
+            $colour = trim($token[1] ?? $this->cssColour($css, $reference[1]));
+        }
+
+        return $this->flatten($colour, $background, $css);
+    }
+
     /* -----------------------------------------------------------------
      | Helpers
      | ----------------------------------------------------------------- */
