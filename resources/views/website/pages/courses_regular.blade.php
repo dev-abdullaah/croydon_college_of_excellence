@@ -464,41 +464,41 @@
                             <div class="course-grid-3">
                                 <div class="rbt-card variation-01 rbt-hover">
                                     <div class="rbt-card-img">
-                                        <a href="{{ url('/regular-uk-life') }}">
-                                            <img src="{{ asset('assets/images/course/life_uk_course.png') }}">
+                                        <a href="{{ route('courses.index') }}">
+                                            <img src="{{ asset('assets/images/course/life_uk_course.png') }}" alt="Life in the UK">
                                             <div class="rbt-badge-3 bg-white">
-                                                <span class="discountValue">40%</span>
-                                                <span>Off</span>
+                                                <span class="discountValue">Online</span>
+                                                <span>Prep</span>
                                             </div>
                                         </a>
                                     </div>
                                     <div class="rbt-card-body">
                                         <div class="rbt-card-top">
                                             <h4 class="rbt-card-title">
-                                                <a href="{{ url('/regular-uk-life') }}">
-                                                    Life in the UK
+                                                <a href="{{ route('courses.index') }}">
+                                                    Life in the UK &amp; 24 Mock Tests
                                                 </a>
                                             </h4>
                                         </div>
                                         <ul class="rbt-meta">
                                             <li>
                                                 <i class="feather-book"></i>
-                                                Welcome to Life in the UK Course at CCE!
+                                                10 Lessons &middot; 24 Timed Mock Papers
                                             </li>
                                         </ul>
-                                        <p class="rbt-card-text">We Focus On British History, Govt. and Law, Culture and Traditions and Everyday Life</p>
+                                        <p class="rbt-card-text">Complete syllabus covering British History, Govt. and Law, Culture and 576 Practice Questions.</p>
 
                                         <div class="rbt-card-bottom">
                                             <div class="rbt-btn-wrapper">
                                                 <a class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center"
-                                                    href="{{ url('/enroll-now') }}">
-                                                    <span>Enroll Now</span>
+                                                    href="{{ route('courses.index') }}">
+                                                    <span>View All Packages</span>
                                                 </a>
                                             </div>
                                             <div class="rbt-btn-wrapper">
                                                 <a class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center"
-                                                    href="{{ url('/regular-uk-life') }}">
-                                                    <span>View Details</span>
+                                                    href="{{ route('courses.show', 'life-in-the-uk-course') }}">
+                                                    <span>Full Course (£99)</span>
                                                 </a>
                                             </div>
                                         </div>

@@ -25,9 +25,34 @@
             <div class="col-lg-12">
                 <div class="course-details-content">
 
-                    <br>
+                    <!-- Online Course & Mock Tests Callout -->
+                    <div class="alert alert-primary p-4 radius-10 mt--30 mb--30" style="background: linear-gradient(135deg, #f0f4ff, #e8f0fe); border: 1.5px solid #c7d7fe;">
+                        <div class="row align-items-center">
+                            <div class="col-lg-8">
+                                <span class="badge bg-primary mb-2">ONLINE PREPARATION &amp; MOCK TESTS</span>
+                                <h4 class="title mb-2">Self-Study Online: 10 Lessons &amp; 24 Full-Length Mock Tests</h4>
+                                <p class="mb-0 text-muted">
+                                    Prepare directly on our digital learning platform. Read structured lessons, test yourself with 576 practice questions, and review your scores instantly.
+                                </p>
+                            </div>
+                            <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                                <a href="{{ route('courses.index') }}" class="rbt-btn btn-gradient radius-round btn-sm mb-2 w-100 justify-content-center text-center">
+                                    <span>Browse Online Courses</span>
+                                </a>
+                                @auth
+                                    <a href="{{ route('dashboard') }}" class="btn btn-sm btn-outline-primary w-100">
+                                        <i class="feather-user me-1"></i> Go to My Account
+                                    </a>
+                                @else
+                                    <a href="{{ route('login') }}" class="btn btn-sm btn-outline-primary w-100">
+                                        <i class="feather-log-in me-1"></i> Sign In To Your Account
+                                    </a>
+                                @endauth
+                            </div>
+                        </div>
+                    </div>
 
-                    <div class="col-xl-12 col-md-12 col-sm-12 col-12 mt--30">
+                    <div class="col-xl-12 col-md-12 col-sm-12 col-12">
                         <div class="rbt-service rbt-service-2 variation-2 color-box bg-color-white-off radius-10">
                             <div class="rbt-course-feature-inner radius-10">
                                 <div class="section-title">

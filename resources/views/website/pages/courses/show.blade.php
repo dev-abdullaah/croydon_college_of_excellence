@@ -25,7 +25,16 @@
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-10">
-
+                <div class="mb--30 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <a href="{{ route('courses.index') }}" class="text-primary fw-bold">
+                        <i class="feather-arrow-left me-1"></i> Back to All Life in the UK Courses
+                    </a>
+                    @guest
+                        <a href="{{ route('login') }}" class="text-muted small">
+                            <i class="feather-user me-1"></i> Existing student? Sign in
+                        </a>
+                    @endguest
+                </div>
 
                 <div class="rbt-service rbt-service-2 radius-10">
                     <h3 class="title">{{ $course->name }}</h3>
@@ -126,6 +135,69 @@
                         </div>
                     @endif
                 </div>
+
+                @if ($course->slug === 'life-in-the-uk-course')
+                    <div class="rbt-card variation-01 bg-color-extra2 p-4 radius-10 mt--40">
+                        <h4 class="title mb-3">10 Structured Lessons Overview</h4>
+                        <div class="row g-3 small">
+                            <div class="col-md-6">
+                                <div class="bg-white p-3 radius-10 border h-100">
+                                    <strong class="d-block mb-1 text-primary">Core Knowledge &amp; History:</strong>
+                                    <ul class="list-unstyled mb-0">
+                                        <li>&bull; Lesson 1: Values and Principles of the UK</li>
+                                        <li>&bull; Lesson 2: What is the UK?</li>
+                                        <li>&bull; Lesson 3: Early Britain &amp; Medieval Period</li>
+                                        <li>&bull; Lesson 4: A Global Power &amp; Empire</li>
+                                        <li>&bull; Lesson 5: Modern Britain in the 20th Century</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="bg-white p-3 radius-10 border h-100">
+                                    <strong class="d-block mb-1 text-primary">Society, Government &amp; Mock Tests:</strong>
+                                    <ul class="list-unstyled mb-0">
+                                        <li>&bull; Lesson 6: Britain Since 1945</li>
+                                        <li>&bull; Lesson 7: Modern, Thriving Society &amp; Culture</li>
+                                        <li>&bull; Lesson 8: UK Government, The Law &amp; Your Role</li>
+                                        <li>&bull; Lessons 9-10: Getting Involved &amp; Everyday Life</li>
+                                        <li>&bull; <strong>Plus: 6 Classroom Mock Tests with teacher answer keys</strong></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3 text-center">
+                            <span class="text-muted small">Need only mock tests? Check out our <a href="{{ route('courses.show', '24-mock-tests') }}">24 Mock Tests Package (£49)</a>.</span>
+                        </div>
+                    </div>
+                @elseif ($course->slug === '24-mock-tests')
+                    <div class="rbt-card variation-01 bg-color-extra2 p-4 radius-10 mt--40">
+                        <h4 class="title mb-3">24 Mock Tests Package Details</h4>
+                        <p class="small text-muted mb-3">Designed specifically to give you the exam technique and stamina to pass the real 45-minute Home Office test:</p>
+                        <div class="row g-3 small">
+                            <div class="col-md-4">
+                                <div class="bg-white p-3 radius-10 border text-center h-100">
+                                    <h5 class="title mb-1 text-primary">576 Questions</h5>
+                                    <p class="mb-0 text-muted">24 distinct practice papers sampling all 10 handbook syllabus topics.</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="bg-white p-3 radius-10 border text-center h-100">
+                                    <h5 class="title mb-1 text-primary">45-Minute Timer</h5>
+                                    <p class="mb-0 text-muted">Real exam countdown timer with instant scoring upon submission.</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="bg-white p-3 radius-10 border text-center h-100">
+                                    <h5 class="title mb-1 text-primary">Teacher Keys</h5>
+                                    <p class="mb-0 text-muted">Clear explanations for every question so you learn from mistakes.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3 text-center">
+                            <span class="text-muted small">Need the full lesson study cards? Check out our <a href="{{ route('courses.show', 'life-in-the-uk-course') }}">Life in the UK Course with 10 Lessons (£99)</a>.</span>
+                        </div>
+                    </div>
+                @endif
 
             </div>
         </div>
