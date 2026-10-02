@@ -13101,7 +13101,7 @@ ul.rbt-dropdown-menu.currency-menu li .sub-menu {
 .rbt-header .mainmenu-nav .mainmenu>li>a {
   color: var(--color-heading);
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   padding: 0 17px;
   display: flex;
   align-items: center;
@@ -13180,7 +13180,7 @@ ul.rbt-dropdown-menu.currency-menu li .sub-menu {
 }
 
 .rbt-header .mainmenu-nav .mainmenu li.has-dropdown .submenu li a {
-  font-weight: 500;
+  font-weight: 600;
   padding: 10px 20px;
   font-size: 14px;
   display: block;
@@ -14603,7 +14603,7 @@ fieldset:disabled {
 }
 
 .rbt-btn {
-  padding: 0 26px;
+  padding: 0 20px;
   background: var(--color-primary);
   height: 45px;
   line-height: 45px;
@@ -37929,89 +37929,121 @@ Course Sidebar
 }
 
 /* ==========================================================================
-   Learning area (course material)
+   Learning area — Life in the UK lessons & mock tests
    --------------------------------------------------------------------------
-   Study cards, paper player, question jump grid and results. Scoped under
-   `.lz-` so nothing here can reach the rest of the theme. Buttons and
-   pagination use the theme's own `.rbt-btn` and Bootstrap's `.page-link`.
+   Complete redesign: lesson hub, study card reader, quiz player and results.
+   Scoped under `.lz-` so nothing here can reach the rest of the theme.
    ========================================================================== */
 
-.lz-card {
-  background: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  box-shadow: var(--shadow-1);
-  transition: box-shadow .2s ease, border-color .2s ease, transform .15s ease;
+/* ---- Design tokens ------------------------------------------------------- */
+:root {
+  --lz-radius: 16px;
+  --lz-radius-sm: 10px;
+  --lz-accent: #2f57ef;
+  --lz-accent-soft: rgba(47, 87, 239, .08);
+  --lz-accent-mid: rgba(47, 87, 239, .18);
+  --lz-pass: #1f9254;
+  --lz-pass-soft: rgba(31, 146, 84, .09);
+  --lz-fail: #c92a2a;
+  --lz-fail-soft: rgba(201, 42, 42, .07);
+  --lz-surface: #ffffff;
+  --lz-surface-2: #f8f8fc;
+  --lz-border: #e6e3f1;
+  --lz-text: #192335;
+  --lz-muted: #6b7385;
+  --lz-shadow: 0 4px 24px rgba(47, 87, 239, .07), 0 1px 4px rgba(0,0,0,.05);
+  --lz-shadow-hover: 0 8px 32px rgba(47, 87, 239, .14), 0 2px 8px rgba(0,0,0,.08);
+  --lz-transition: .18s cubic-bezier(.4, 0, .2, 1);
 }
 
-/* Clickable cards (links wrapping .lz-card) lift slightly on hover.
-   The wrapper anchor must be display:block (d-block) for this to apply. */
+/* ---- Base card ---------------------------------------------------------- */
+
+.lz-card {
+  background: var(--lz-surface);
+  border: 1.5px solid var(--lz-border);
+  border-radius: var(--lz-radius);
+  box-shadow: var(--lz-shadow);
+  transition: box-shadow var(--lz-transition), border-color var(--lz-transition), transform var(--lz-transition);
+}
+
 a.lz-card:hover,
 a[class*="lz-card"]:hover {
-  box-shadow: var(--shadow-3);
-  border-color: rgba(47, 87, 239, .35);
-  transform: translateY(-2px);
+  box-shadow: var(--lz-shadow-hover);
+  border-color: var(--lz-accent-mid);
+  transform: translateY(-3px);
   text-decoration: none;
 }
 
-/* The two main card grids: lessons and papers on the course index. */
+/* ---- Course hub layout -------------------------------------------------- */
+
 .lz-index-grid .lz-card {
   height: 100%;
   display: flex;
   flex-direction: column;
 }
 
-/* ---- Study cards -------------------------------------------------------- */
+/* Number badge — shared by lesson hub cards and study-card reader */
+.lz-num {
+  flex: 0 0 auto;
+  min-width: 3.2rem;
+  height: 3.2rem;
+  padding: 0 .6rem;
+  border-radius: 50%;
+  background: var(--lz-accent-soft);
+  color: var(--lz-accent);
+  font-weight: 800;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--lz-transition), color var(--lz-transition);
+}
+
+a.lz-card:hover .lz-num {
+  background: var(--lz-accent);
+  color: #fff;
+}
+
+/* ---- Paper cards (course hub) ------------------------------------------ */
+
+.lz-paper-card {
+  border-left: 4px solid var(--lz-accent);
+}
+
+/* ---- Study card items --------------------------------------------------- */
 
 .lz-item {
   display: flex;
-  gap: .9rem;
-  padding: 1.1rem 0;
-  border-bottom: 1px solid var(--color-border);
+  align-items: flex-start;
+  gap: 1.1rem;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--lz-border);
 }
 
 .lz-item:last-child {
   border-bottom: 0;
 }
 
-/* 2.6rem is 26px and 1.3rem is 13px, because this theme sets
-   `html { font-size: 10px }`. That is the same pair `.lz-key` already uses.
-   This was 2.1rem/0.82rem: a 21px circle holding an 8.2px numeral, a ratio
-   that left the number looking lost in the middle of its own circle.
-
-   min-width rather than width, because a lesson has 100 study cards and this
-   has to hold "100". A fixed 2.6rem clipped the third digit; with
-   border-radius: 50% a box wider than it is tall comes out as a slightly oval
-   chip, which is the right shape once there are three digits to hold. */
-.lz-num {
-  flex: 0 0 auto;
-  min-width: 2.6rem;
-  height: 2.6rem;
-  padding: 0 .5rem;
-  border-radius: 50%;
-  background: rgba(47, 87, 239, .1);
-  color: var(--color-primary);
-  font-weight: 700;
-  font-size: 1.7rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* The badge sits in a flex row with the question/answer.
-   align-items: flex-start makes it line up with the first line of text
-   (the question) instead of floating in the middle of the whole card. */
-.lz-item {
-  display: flex;
-  align-items: flex-start;
-  gap: .9rem;
-  padding: 1.1rem 0;
-  border-bottom: 1px solid var(--color-border);
+.lz-item:hover {
+  background: var(--lz-surface-2);
+  border-radius: var(--lz-radius-sm);
+  margin: 0 -.8rem;
+  padding-left: .8rem;
+  padding-right: .8rem;
 }
 
 .lz-item .lz-q {
-  font-weight: 600;
-  margin-bottom: .3rem;
+  font-weight: 700;
+  font-size: 1.55rem;
+  color: var(--lz-text);
+  margin-bottom: .4rem;
+  line-height: 1.5;
+}
+
+.lz-item .lz-a {
+  color: var(--lz-muted);
+  font-size: 1.5rem;
+  line-height: 1.6;
 }
 
 .lz-item .lz-a::before {
@@ -38019,129 +38051,119 @@ a[class*="lz-card"]:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.4rem;
-  height: 1.4rem;
-  margin-right: .55rem;
-  border-radius: 4px;
-  background: #eef2ff;
-  color: var(--color-primary);
-  font-size: 1.2rem;
-  font-weight: 700;
+  width: 1.8rem;
+  height: 1.8rem;
+  margin-right: .6rem;
+  border-radius: 5px;
+  background: var(--lz-accent-soft);
+  color: var(--lz-accent);
+  font-size: 1.15rem;
+  font-weight: 800;
   vertical-align: 2px;
 }
 
-/* ---- Quiz options ------------------------------------------------------- */
+/* ---- Quiz question options ---------------------------------------------- */
 
 .lz-opt {
   display: flex;
-  /* Centre, not flex-start.
-     The key and the answer were lining up along the top of the row while the
-     answer itself sat wherever its own line box put it. On a one-line option
-     that reads as roughly centred by luck; on the two and three line options
-     that some papers have, the letter floats at the top of a tall row with
-     nothing beside it. */
   align-items: center;
-  gap: .8rem;
+  gap: 1rem;
   width: 100%;
   text-align: left;
-  padding: .9rem 1.1rem;
-  margin-bottom: .7rem;
-  border: 2px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-white);
+  padding: 1.1rem 1.3rem;
+  margin-bottom: .8rem;
+  border: 2px solid var(--lz-border);
+  border-radius: var(--lz-radius-sm);
+  background: var(--lz-surface);
   cursor: pointer;
-  transition: border-color .15s, background-color .15s;
+  font-size: 1.5rem;
+  transition: border-color var(--lz-transition), background-color var(--lz-transition), box-shadow var(--lz-transition);
 }
 
 .lz-opt:hover {
-  border-color: rgba(47, 87, 239, .5);
+  border-color: var(--lz-accent-mid);
+  box-shadow: 0 2px 10px var(--lz-accent-soft);
 }
 
 .lz-opt input {
-  /* No margin-top nudge any more: that existed to pull the radio down off the
-     top edge while the row was flex-start aligned, and it would now push it
-     below centre. */
   flex: 0 0 auto;
-  width: 1.15rem;
-  height: 1.15rem;
-  accent-color: var(--color-primary);
+  width: 1.2rem;
+  height: 1.2rem;
+  accent-color: var(--lz-accent);
   cursor: pointer;
 }
 
-/* 2.6rem is 26px and 1.3rem is 13px, because this theme sets
-   `html { font-size: 10px }`. Both were scaled together on purpose: the letter
-   was 8px inside an 18px chip, a ratio that left it looking lost in the middle
-   of its own box, so enlarging the type alone would have burst the chip and the
-   chip alone would have left the type as small as it was. */
+/* Letter chip (A / B / C / D) */
 .lz-key {
-  flex: 0 0 2.6rem;
-  height: 2.6rem;
-  border-radius: 7px;
-  background: #f1f3f7;
-  color: var(--color-heading);
-  font-weight: 700;
-  font-size: 1.3rem;
+  flex: 0 0 2.8rem;
+  height: 2.8rem;
+  border-radius: 8px;
+  background: var(--lz-surface-2);
+  border: 1.5px solid var(--lz-border);
+  color: var(--lz-text);
+  font-weight: 800;
+  font-size: 1.35rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background var(--lz-transition), color var(--lz-transition), border-color var(--lz-transition);
 }
 
-/*
- * `.is-picked` is written by the server from the answer already stored on the
- * attempt, so without this the row only highlighted after "Save & next"
- * reloaded the page and the chosen option looked like it had done nothing.
- * `:has()` styles the row the instant the radio is clicked, matching what
- * the server will render once the answer is saved.
- */
+/* Selected option */
 .lz-opt.is-picked,
 .lz-opt:has(input:checked) {
-  border-color: var(--color-primary);
-  background: rgba(47, 87, 239, .05);
+  border-color: var(--lz-accent);
+  background: var(--lz-accent-soft);
+  box-shadow: 0 2px 12px var(--lz-accent-soft);
 }
 
 .lz-opt.is-picked .lz-key,
 .lz-opt:has(input:checked) .lz-key {
-  background: var(--color-primary);
-  color: var(--color-white);
+  background: var(--lz-accent);
+  border-color: var(--lz-accent);
+  color: #fff;
 }
 
+/* Correct answer (results page) */
 .lz-opt.is-right {
-  border-color: #1f9254;
-  background: rgba(31, 146, 84, .07);
+  border-color: var(--lz-pass);
+  background: var(--lz-pass-soft);
 }
 
 .lz-opt.is-right .lz-key {
-  background: #1f9254;
-  color: var(--color-white);
+  background: var(--lz-pass);
+  border-color: var(--lz-pass);
+  color: #fff;
 }
 
+/* Wrong choice (results page) */
 .lz-opt.is-wrong {
-  border-color: #c92a2a;
-  background: rgba(201, 42, 42, .06);
+  border-color: var(--lz-fail);
+  background: var(--lz-fail-soft);
 }
 
 .lz-opt.is-wrong .lz-key {
-  background: #c92a2a;
-  color: var(--color-white);
+  background: var(--lz-fail);
+  border-color: var(--lz-fail);
+  color: #fff;
 }
 
+/* Unchosen options — dim so correct/wrong stand out */
 .lz-opt.is-muted {
-  opacity: .62;
+  opacity: .5;
 }
 
-/* ---- Question jump grid ------------------------------------------------- */
+/* ---- Quiz player -------------------------------------------------------- */
 
-/* The quiz player.
- *
- * A paper is a single form holding every question. By default nothing is
- * hidden, so a browser without scripting shows the whole paper and posts it in
- * one go. The script marks the document as playing, and from then on only the
- * current question is shown and the controls that steer it appear.
+/*
+ * By default the whole paper is visible and posts in one go (no-JS fallback).
+ * The script adds .is-playing to body, switching to one-question mode.
  */
-.lz-question+.lz-question {
+.lz-question + .lz-question {
   margin-top: 1.5rem;
 }
 
+/* Progress bar and jump grid hidden until JS activates */
 .lz-nav,
 .lz-aside .progress,
 .lz-aside .lz-jump {
@@ -38154,6 +38176,12 @@ a[class*="lz-card"]:hover {
 
 .is-playing .lz-question.is-current {
   display: block;
+  animation: lz-fadein .18s ease;
+}
+
+@keyframes lz-fadein {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .is-playing .lz-nav,
@@ -38162,16 +38190,10 @@ a[class*="lz-card"]:hover {
 }
 
 /*
-| Was in the rule above, alongside .lz-nav and .progress, all three of which do
-| want `display: block`. The navigator does not.
-|
-| Three classes here beat the one class on `.lz-jump`, so the moment the paper
-| started playing the flex was silently replaced by block - and `gap` does
-| nothing to a block box. The buttons fell back to wrapping as inline-level text
-| with only line-height between rows, which is why they ended up touching. The
-| gap below was never being applied at all; the buttons were small enough to
-| nearly fill each line that it went unnoticed.
-*/
+ * Three classes here beat the one class on `.lz-jump`, so the moment the paper
+ * started playing the flex was silently replaced by block and `gap` did nothing.
+ * Kept separate so specificity is correct.
+ */
 .is-playing .lz-aside .lz-jump {
   display: flex;
 }
@@ -38180,71 +38202,139 @@ a[class*="lz-card"]:hover {
   margin-top: 1.5rem;
 }
 
+/* ---- Question number badge (inside play card) --------------------------- */
+
+.lz-q-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .35rem .9rem;
+  border-radius: 99px;
+  background: var(--lz-accent-soft);
+  color: var(--lz-accent);
+  font-weight: 700;
+  font-size: 1.3rem;
+}
+
+/* ---- Jump-to-question grid --------------------------------------------- */
+
 .lz-jump {
   display: flex;
   flex-wrap: wrap;
   gap: .5rem;
 }
 
-/* 4rem is 40px here, because this theme sets `html { font-size: 10px }`.
-   These are navigation controls reached for one-handed while working through a
-   paper, and at 2.3rem - 23px, with 8px type - they were smaller than the
-   buttons beside them and well under a comfortable touch target. 40px is the
-   smallest size that is reliably hittable without looking, and the number
-   still fits without crowding a two-digit question. */
+/* 40px touch target — reliably hittable one-handed */
 .lz-jump button {
-  width: 4rem;
-  height: 4rem;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-white);
+  width: 4.2rem;
+  height: 4.2rem;
+  border-radius: 9px;
+  border: 1.5px solid var(--lz-border);
+  background: var(--lz-surface);
   font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--color-heading);
+  font-weight: 700;
+  color: var(--lz-text);
+  cursor: pointer;
+  transition: background var(--lz-transition), border-color var(--lz-transition), color var(--lz-transition), transform var(--lz-transition);
+}
+
+.lz-jump button:hover {
+  border-color: var(--lz-accent-mid);
+  transform: scale(1.07);
 }
 
 .lz-jump button.done {
-  background: rgba(31, 146, 84, .12);
-  border-color: rgba(31, 146, 84, .35);
-  color: #1f9254;
+  background: var(--lz-pass-soft);
+  border-color: rgba(31, 146, 84, .4);
+  color: var(--lz-pass);
 }
 
 .lz-jump button.here {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--color-white);
+  background: var(--lz-accent);
+  border-color: var(--lz-accent);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(47, 87, 239, .28);
 }
 
 /* ---- Result page -------------------------------------------------------- */
 
+/* Large score display */
 .lz-score {
-  font-size: 3.4rem;
-  font-weight: 800;
+  font-size: 4.8rem;
+  font-weight: 900;
   line-height: 1;
+  letter-spacing: -.02em;
+}
+
+/* Pass / fail hero band */
+.lz-result-hero {
+  border-radius: var(--lz-radius);
+  padding: 2.8rem 2.4rem;
+  display: flex;
+  align-items: center;
+  gap: 2.4rem;
+  flex-wrap: wrap;
+}
+
+.lz-result-hero.is-pass {
+  background: var(--lz-pass-soft);
+  border: 2px solid rgba(31, 146, 84, .2);
+}
+
+.lz-result-hero.is-fail {
+  background: var(--lz-fail-soft);
+  border: 2px solid rgba(201, 42, 42, .15);
+}
+
+.lz-result-circle {
+  width: 9.6rem;
+  height: 9.6rem;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 4px solid currentColor;
+}
+
+.is-pass .lz-result-circle { color: var(--lz-pass); }
+.is-fail .lz-result-circle { color: var(--lz-fail); }
+
+.lz-result-pct {
+  font-size: 2.6rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.lz-result-label {
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-top: .3rem;
 }
 
 .lz-mark {
   display: inline-flex;
   align-items: center;
   gap: .4rem;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 1.35rem;
 }
 
-.lz-mark-yes {
-  color: #1f9254;
-}
+.lz-mark-yes { color: var(--lz-pass); }
+.lz-mark-no  { color: var(--lz-fail); }
 
-.lz-mark-no {
-  color: #c92a2a;
-}
-
+/* Explanation box */
 .lz-explain {
-  margin-top: .55rem;
-  padding: .6rem .8rem;
-  border-left: 3px solid var(--color-border);
-  background: #d0ffdf;
-  border-radius: 0 6px 6px 0;
-  font-size: 1.5rem;
+  margin-top: .7rem;
+  padding: .85rem 1.1rem;
+  border-left: 4px solid var(--lz-pass);
+  background: linear-gradient(135deg, rgba(31,146,84,.07) 0%, rgba(31,146,84,.03) 100%);
+  border-radius: 0 8px 8px 0;
+  font-size: 1.45rem;
+  color: var(--lz-text);
 }
 
 /* ---- Dark mode ---------------------------------------------------------- */
@@ -38257,9 +38347,27 @@ a[class*="lz-card"]:hover {
   color: var(--color-white);
 }
 
+.active-dark-mode .lz-key {
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.12);
+  color: var(--color-white);
+}
+
 .active-dark-mode .lz-explain {
-  background: #23262f;
-  border-left-color: rgba(255, 255, 255, .2);
+  background: rgba(31, 146, 84, .12);
+  border-left-color: var(--lz-pass);
+}
+
+.active-dark-mode .lz-result-hero.is-pass {
+  background: rgba(31, 146, 84, .13);
+}
+
+.active-dark-mode .lz-result-hero.is-fail {
+  background: rgba(201, 42, 42, .12);
+}
+
+.active-dark-mode .lz-item:hover {
+  background: rgba(255,255,255,.03);
 }
 
 /* ==========================================================================
@@ -38666,3 +38774,238 @@ a[class*="lz-card"]:hover {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+/* ==========================================================================
+   Life in the UK & Student Navigation Enhancements
+   ========================================================================== */
+
+/* Header Action Group */
+.header-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-header-login {
+  background: var(--color-primary);
+  color: #ffffff;
+  border: none;
+  padding: 0 18px;
+  height: 42px;
+  line-height: 42px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.25s ease;
+}
+
+.btn-header-login:hover {
+  background: var(--color-primary-100);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(47, 87, 239, .35);
+}
+
+.btn-header-course {
+  height: 42px;
+  line-height: 42px;
+  padding: 0 20px;
+  font-size: 13.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* Header buttons that pair a feather icon with a label.
+ *
+ * The shared `.rbt-btn i` rule pads the icon on its *left* and nudges it down
+ * with `top: 2px`. Feather glyphs are an icon font, so the glyph starts at the
+ * left edge of its box: the padding lands before the icon instead of between
+ * icon and label, and the offset drops the icon below centre. Both defects show
+ * on the desktop My Account button, which reaches `.rbt-btn` with nothing to
+ * correct it - it reads as "MyAccount" sitting two pixels low.
+ *
+ * So the spacing and the alignment go here, and the size modifiers below stay
+ * about size only. */
+.btn-header-icon {
+  gap: 7px;
+}
+
+.btn-header-icon i {
+  padding-left: 0;
+  top: 0;
+}
+
+/* Account/Login button beside the hamburger, below 1200px only. */
+.btn-header-account {
+  height: 36px;
+  line-height: 36px;
+  padding: 0 10px;
+  font-size: 15px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.btn-header-account i {
+  font-size: 15px;
+}
+
+/* Account page: page heading and the Sign Out button share one row at every
+ * width. The two used to be a col-md-8 / col-md-4 pair, which the grid stacks
+ * below 768px, so the button ended up on a line of its own. Flex keeps them
+ * together and the heading is the part that gives way, because `--h3` is a flat
+ * 34px with no responsive step-down. `min-width: 0` lets the heading shrink
+ * below its intrinsic width so its words wrap internally rather than pushing
+ * the button off the row.
+ *
+ * The button is left alone on purpose: `.btn-lg` sizing is Bootstrap's, this
+ * stylesheet must not restate it, and the account page's own tests require
+ * Sign Out to stay the size it is. It fits once the heading has stepped down. */
+.account-bar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.account-bar .title {
+  margin-bottom: 0;
+  min-width: 0;
+  font-size: 28px;
+}
+
+.account-bar form {
+  flex: 0 0 auto;
+}
+
+.account-bar form button {
+  white-space: nowrap;
+}
+
+@media only screen and (max-width: 767px) {
+  .account-bar {
+    gap: 12px;
+  }
+
+  .account-bar .title {
+    font-size: 22px;
+  }
+}
+
+.nav-uk-badge {
+  background: linear-gradient(135deg, #2f57ef, #b966e7);
+  color: #ffffff !important;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-left: 6px;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+  display: inline-block;
+  text-transform: uppercase;
+}
+
+/* Rich Submenu for Life in the UK
+ * Same 600 weight as every other nav label (`.mainmenu>li>a` and the About Us
+ * submenu), and the same 14px as the About Us submenu. The top level is 16px,
+ * so dropping to 14px here is what lets the longer labels and descriptions fit
+ * without wrapping. */
+.mainmenu .submenu.submenu-rich {
+  min-width: 320px;
+  padding: 12px 16px;
+}
+
+.submenu-rich li a {
+  padding: 8px 10px !important;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.submenu-rich li a:hover {
+  background: #f0f4ff;
+}
+
+.submenu-rich-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-heading);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.submenu-rich-desc {
+  font-size: 15px;
+  color: var(--color-body);
+  display: block;
+  font-weight: 400;
+  text-transform: none;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+/* Mobile Quick Access Bar */
+.mobile-quick-actions {
+  background: #f8faff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  margin: 15px 0 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobile-quick-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+}
+
+.mobile-quick-btn-primary {
+  background: linear-gradient(90deg, #2f57ef, #b966e7);
+  color: #ffffff !important;
+}
+
+.mobile-quick-btn-secondary {
+  background: #ffffff;
+  color: var(--color-heading) !important;
+  border: 1px solid #cbd5e1;
+}
+
+/* Dark mode adjustments */
+.active-dark-mode .btn-header-login {
+  background: #2a2f3e;
+  color: #e8eaf0;
+  border: none;
+}
+
+.active-dark-mode .mobile-quick-actions {
+  background: var(--color-darker);
+  border-color: #333a4d;
+}
+
+.active-dark-mode .mobile-quick-btn-secondary {
+  background: #1e2230;
+  color: #ffffff !important;
+  border-color: #333a4d;
+}
+
+
