@@ -247,7 +247,7 @@ class EmailVerificationCodeTest extends TestCase
         $code = $user->issueVerificationCode();
 
         $this->assertNotSame($code, $user->fresh()->verification_code_hash);
-        $this->assertSame(hash('sha256', $code), $user->fresh()->verification_code_hash);
+        $this->assertSame($this->digest($user, $code), $user->fresh()->verification_code_hash);
 
         // And it must not be reachable through serialisation, which is how it
         // would end up in an API response or a queued payload.
@@ -256,6 +256,80 @@ class EmailVerificationCodeTest extends TestCase
             $code,
             json_encode($user->fresh()->toArray(), JSON_THROW_ON_ERROR),
         );
+    }
+
+    /**
+     * The stored value is a keyed HMAC, not a bare hash of the code.
+     *
+     * A plain `hash('sha256', $code)` is not much of a secret for six digits.
+     * There are a million possible codes, so anybody holding a copy of the
+     * users table - a backup, a replica, an over-broad SQL grant, and none of
+     * those need write access - can hash all a million and look for a match in
+     * under a second. Keying it with the application key, which never leaves
+     * the server, means the table on its own is worth nothing.
+     *
+     * This test is what makes the difference visible: it asserts the stored
+     * value is *not* the bare hash, so a later "simplification" back to
+     * hash('sha256', ...) fails here rather than in production.
+     */
+    public function test_the_stored_code_cannot_be_reversed_without_the_application_key(): void
+    {
+        $user = User::factory()->unverified()->create();
+        $code = $user->issueVerificationCode();
+
+        $stored = $user->fresh()->verification_code_hash;
+
+        $this->assertNotSame(hash('sha256', $code), $stored, 'A bare SHA-256 is brute-forceable.');
+        $this->assertSame(
+            hash_hmac('sha256', $user->id.'|'.$code, config('app.key')),
+            $stored,
+        );
+
+        // The key is bound in twice: the account id is in the message, so two
+        // accounts sent the same six digits do not produce the same row value
+        // and one account's code cannot be validated against another's.
+        $other = User::factory()->unverified()->create();
+
+        $this->assertNotSame(
+            $user->verificationCodeDigestForTest($code),
+            $other->verificationCodeDigestForTest($code),
+        );
+
+        // And a different key gives a different digest, which is the whole
+        // point of using one.
+        $this->assertNotSame(
+            $stored,
+            hash_hmac('sha256', $user->id.'|'.$code, 'a-different-app-key'),
+        );
+    }
+
+    /**
+     * The HMAC change must not have broken the lockout, which is the other
+     * thing standing between a code and a guessed address.
+     */
+    public function test_wrong_codes_are_still_counted_and_locked_out(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->unverified()->create();
+        $code = $user->issueVerificationCode();
+
+        $max = (int) config('auth.verification_code.max_attempts', 5);
+
+        for ($i = 0; $i < $max; $i++) {
+            $this->post('/email/verify', ['email' => $user->email, 'code' => '000000'])
+                ->assertSessionHasErrors('code');
+        }
+
+        $this->assertTrue($user->fresh()->verificationCodeLocked());
+        $this->assertNull($user->fresh()->email_verified_at);
+
+        // A correct code is refused too, because the lockout is on the code
+        // rather than on the count of wrong answers alone.
+        $this->post('/email/verify', ['email' => $user->email, 'code' => $code])
+            ->assertSessionHasErrors('code');
+
+        $this->assertNull($user->fresh()->email_verified_at);
     }
 
     public function test_an_expired_code_is_refused(): void
@@ -591,8 +665,8 @@ class EmailVerificationCodeTest extends TestCase
         Notification::assertSentTo(
             $user,
             EmailVerificationCode::class,
-            function (EmailVerificationCode $notification) use ($issued, &$captured) {
-                if (hash('sha256', $notification->code) === $issued) {
+            function (EmailVerificationCode $notification) use ($user, $issued, &$captured) {
+                if ($this->digest($user, $notification->code) === $issued) {
                     $captured = $notification->code;
                 }
 
@@ -719,10 +793,23 @@ class EmailVerificationCodeTest extends TestCase
     private function forceCode(User $user, string $code): void
     {
         $user->forceFill([
-            'verification_code_hash' => hash('sha256', $code),
+            'verification_code_hash' => $this->digest($user, $code),
             'verification_code_sent_at' => now(),
             'verification_code_attempts' => 0,
             'verification_code_locked_until' => null,
         ])->save();
+    }
+
+    /**
+     * The stored form of a code, worked out the same way the model does.
+     *
+     * Deliberately not `$user->verificationCodeMatches()`, which would make
+     * these assertions circular: the test has to state independently what the
+     * stored value ought to be, or it proves only that the model agrees with
+     * itself.
+     */
+    private function digest(User $user, string $code): string
+    {
+        return hash_hmac('sha256', $user->id.'|'.$code, config('app.key'));
     }
 }

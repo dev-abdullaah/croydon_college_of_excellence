@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\IntendedCourse;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -137,6 +138,23 @@ class EmailVerificationController extends Controller
         $request->session()->regenerate();
         $request->session()->forget('verification.email');
 
+        /*
+         | The last step of the purchase. Somebody who clicked Buy, made an
+         | account and typed in a code is not looking for a dashboard - they
+         | are two clicks from having paid. Dropping them on the dashboard
+         | would mean the course they chose had silently disappeared from
+         | where they started.
+         |
+         | resolveIfUnowned re-reads the slug from the database and checks it
+         | against their purchases, so a course that was deactivated while they
+         | were in their inbox, or one they bought on another device, falls
+         | through to the dashboard rather than to a review page.
+         */
+        if ($course = IntendedCourse::resolveIfUnowned($user)) {
+            return redirect()->route('checkout.review', $course)
+                ->with('success', 'Your email address is verified. You are one step from starting '.$course->name.'.');
+        }
+
         return redirect()->route('dashboard')
             ->with('success', 'Your email address is verified. Welcome to Croydon College of Excellence.');
     }
@@ -178,8 +196,10 @@ class EmailVerificationController extends Controller
          | send mail, and a locked-out account is skipped as well: otherwise
          | asking again is how the attempt counter gets thrown away.
          */
+        $sent = false;
+
         if ($user instanceof User && ! $user->hasVerifiedEmail() && ! $user->verificationCodeLocked()) {
-            $user->sendEmailVerificationCodeNotification();
+            $sent = $user->sendVerificationCodeIfDue();
         }
 
         // Remember it, so the code page that follows does not have to ask
@@ -187,6 +207,25 @@ class EmailVerificationController extends Controller
         // code page has to render something either way, and remembering a
         // typed address reveals nothing that typing it did not.
         $request->session()->put('verification.email', $validated['email']);
+
+        /*
+         | The wording is identical whether or not an address has an account,
+         * and that is deliberate and load-bearing: this form is the one place
+         | in the flow that takes an email address, so any difference in what
+         | comes back - a different message, a different length of pause - is
+         | a way to find out who has registered here.
+         |
+         | That is also why the cooldown message is not used as an "or else".
+         | It says "a code was sent a moment ago", which is only true when we
+         | know an account exists, and it is shown only when we have just
+         | suppressed a send we know would otherwise have happened. For every
+         | other address the neutral wording below is used unchanged, so the
+         | two cannot be told apart by an outsider.
+         */
+        if ($sent === false && $user instanceof User && ! $user->hasVerifiedEmail()) {
+            return redirect()->route('verification.notice')
+                ->with('info', 'A code was sent a moment ago. Please check your inbox and spam folder, or try again in a minute.');
+        }
 
         return redirect()->route('verification.notice')
             ->with('success', 'If that address needs verifying, a fresh code is on its way.');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\IntendedCourse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -18,24 +19,64 @@ use Illuminate\View\View;
  */
 class RegisterController extends Controller
 {
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('website.pages.auth.register');
+        return view('website.pages.auth.register', [
+            // Shown beside the form so somebody arriving here from a Buy
+            // button can see what the account is for before making it. The
+            // slug is re-resolved through the database, so this can only ever
+            // be a course on this site, and null if there is no such course.
+            'intendedCourse' => IntendedCourse::resolve(),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
+        /*
+         | Deliberately no `unique:users,email` rule.
+         |
+         | The rule was doing the right thing for the wrong reason: it stopped
+         | a second row with the same address, but it also said "that email is
+         | taken" to somebody who had simply not finished signing up last time.
+         | Abandoning a half-made account is not fraud, and the person coming
+         | back to finish it is exactly the person this page should help.
+         |
+         | So the address is checked for shape only, and what happens next
+         | depends on the state of the account it belongs to.
+         */
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'email' => ['required', 'string', 'email', 'max:255'],
             'password' => ['required', 'confirmed', Password::defaults()],
         ], [
             'password.confirmed' => 'The two passwords do not match.',
         ]);
 
+        $email = $validated['email'];
+
+        $existing = User::where('email', $email)->first();
+
+        if ($existing && $existing->hasVerifiedEmail()) {
+            /*
+             | A finished account. Say only that the account exists and send
+             | them to sign in, rather than anything about its state: the fact
+             | that an address is registered is not something a stranger should
+             | be able to discover by typing addresses into this form.
+             |
+             | The intended course is left in the session, so signing in
+             | continues straight to it.
+             */
+            return redirect()->route('login')
+                ->with('info', 'You already have an account with this email. Please log in.');
+        }
+
+        if ($existing) {
+            return $this->resumeRegistration($request, $existing, $validated);
+        }
+
         $user = User::create([
             'name' => $validated['name'],
-            'email' => $validated['email'],
+            'email' => $email,
             'password' => Hash::make($validated['password']),
         ]);
 
@@ -54,8 +95,6 @@ class RegisterController extends Controller
          | before they have shown they own the address is what let an account
          | be created against an address its owner never sees.
          */
-        // Minted and mailed here. See the note above: firing Registered instead
-        // would send Laravel's link notification, not this code.
         $user->sendEmailVerificationCodeNotification();
 
         // Only for rendering the notice, so the guest who has just registered
@@ -63,6 +102,46 @@ class RegisterController extends Controller
         // the address again.
         $request->session()->put('verification.email', $user->email);
         $request->session()->put('verification.email_locked', true);
+
+        return redirect()->route('verification.notice')
+            ->with('success', 'Almost there. Check your inbox for the code that confirms your email address.');
+    }
+
+    /**
+     * Come back to an account that was created but never verified.
+     *
+     * This is the "forgot to finish signing up" path. The password is reset to
+     * what has just been typed, and a fresh code goes out, so the person ends
+     * up in the same place a new customer would be: holding a working
+     * password, one code away from being verified.
+     *
+     * The `email_verified_at` check on entry is the security boundary, and it
+     * is not a matter of trusting the caller. Reaching this method with a
+     * verified account would let anybody who knows an address overwrite the
+     * password on a live account, and take it over. The only accounts that get
+     * here are ones that have never proved they own the address, so there is
+     * nothing to take over - an address nobody has claimed is not an account
+     * anybody can lose.
+     */
+    private function resumeRegistration(Request $request, User $user, array $validated): RedirectResponse
+    {
+        $user->forceFill([
+            'name' => $validated['name'],
+            'password' => Hash::make($validated['password']),
+        ])->save();
+
+        // A code may already be on its way from the abandoned attempt, in
+        // which case another email helps nobody. The cooldown message is
+        // honest about that: no promise that a code was just sent.
+        $sent = $user->sendVerificationCodeIfDue();
+
+        $request->session()->put('verification.email', $user->email);
+        $request->session()->put('verification.email_locked', true);
+
+        if (! $sent) {
+            return redirect()->route('verification.notice')
+                ->with('info', 'A code was sent a moment ago. Please check your inbox and spam folder, or try again in a minute.');
+        }
 
         return redirect()->route('verification.notice')
             ->with('success', 'Almost there. Check your inbox for the code that confirms your email address.');

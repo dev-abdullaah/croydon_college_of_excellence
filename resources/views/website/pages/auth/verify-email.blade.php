@@ -19,7 +19,9 @@
 <div class="bg-color-white rbt-section-gap">
     <div class="container">
         <div class="row justify-content-center">
-            <div class="col-lg-6 col-md-8">
+            <div class="col-lg-8 col-md-10">
+
+                @include('website.partials.checkout-steps', ['step' => 'verify'])
 
                 <div class="rbt-service rbt-service-2 radius-10">
                     {{--

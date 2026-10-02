@@ -9,7 +9,12 @@
             <div class="col-lg-12">
                 <div class="section-title text-center">
                     <h2 class="title">Create Your Account</h2>
-                    <p class="mt--10 mb-0">One account keeps every course and mock test pack you buy.</p>
+                    <p class="mt--10 mb-0">
+                        One account keeps every course and mock test pack you buy.
+                        @if ($intendedCourse)
+                            You are one step away from {{ $intendedCourse->name }}.
+                        @endif
+                    </p>
                 </div>
             </div>
         </div>
@@ -19,8 +24,33 @@
 <div class="bg-color-white rbt-section-gap">
     <div class="container">
         <div class="row justify-content-center">
-            <div class="col-lg-6 col-md-8">
+            <div class="col-lg-8 col-md-10">
 
+                @include('website.partials.checkout-steps', ['step' => 'register'])
+
+                {{--
+                    The course they came for, next to the form.
+
+                    Shown because arriving here from a Buy button and being
+                    asked to make an account with no mention of what it is for
+                    is how a page like this loses people. The slug is resolved
+                    from the database, so this is only ever a real active course
+                    on this site, and it is absent when somebody came here
+                    directly rather than from a purchase.
+                --}}
+                @if ($intendedCourse)
+                    <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-3 mb--30"
+                        role="status">
+                        <div>
+                            <i class="feather-book-open me-2"></i>
+                            <strong>{{ $intendedCourse->name }}</strong>
+                            &mdash; {{ $intendedCourse->formattedPrice() }}, one-off payment
+                        </div>
+                        <a href="{{ route('courses.show', $intendedCourse) }}" class="btn btn-sm btn-link p-0">
+                            See what is included
+                        </a>
+                    </div>
+                @endif
 
                 <div class="rbt-service rbt-service-2 radius-10">
                     <form method="POST" action="{{ route('register') }}" novalidate>
