@@ -45,6 +45,8 @@ class Purchase extends Model
         'paid_at',
         'refunded_at',
         'failure_reason',
+        'terms_accepted_at',
+        'terms_version',
     ];
 
     /**
@@ -59,6 +61,11 @@ class Purchase extends Model
             'metadata' => 'array',
             'paid_at' => 'datetime',
             'refunded_at' => 'datetime',
+            // When the customer agreed to the terms, and which version of them
+            // they agreed to. Recorded on the pending row the moment the
+            // consent tick box was accepted, so the acceptance exists even if
+            // the payment later fails or is abandoned.
+            'terms_accepted_at' => 'datetime',
         ];
     }
 

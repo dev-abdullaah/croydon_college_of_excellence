@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\StripeService;
 use Database\Seeders\CourseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
 use Stripe\Checkout\Session;
@@ -38,28 +39,12 @@ class PaidCoursesTest extends TestCase
         $this->seed(CourseSeeder::class);
     }
 
-    /**
-     * Describe a live site, where the paywall is on.
-     *
-     * The paywall is off by default so the material can be built and marked
-     * before anything is sold. Every test here is about what a paying or
-     * would-be-paying customer sees, so it opts back in explicitly.
-     */
-    private function requirePurchase(): static
-    {
-        config(['course-content.require_purchase' => true]);
-
-        return $this;
-    }
-
     /* -----------------------------------------------------------------
      | Catalogue and homepage
      | ----------------------------------------------------------------- */
 
     public function test_homepage_advertises_both_courses_with_prices(): void
     {
-        $this->requirePurchase();
-
         $this->get('/')
             ->assertOk()
             ->assertSee('Prepare For The Official Life in the UK Test')
@@ -99,8 +84,6 @@ class PaidCoursesTest extends TestCase
 
     public function test_the_catalogue_page_lists_both_courses_with_prices(): void
     {
-        $this->requirePurchase();
-
         $this->get('/courses')
             ->assertOk()
             ->assertSee('Choose The Course You Need')
@@ -661,7 +644,7 @@ class PaidCoursesTest extends TestCase
         $this->fakeStripe($captured);
 
         $this->actingAs($user)
-            ->post('/checkout/life-in-the-uk-course')
+            ->post('/checkout/life-in-the-uk-course', ['consent' => '1'])
             ->assertRedirect('https://checkout.stripe.com/c/pay/cs_test_life-in-the-uk-course');
 
         // The line item came from configuration, never from the request body.
@@ -684,6 +667,272 @@ class PaidCoursesTest extends TestCase
     }
 
     /**
+     * The session must expire, and inside the window Stripe accepts.
+     *
+     * Without expires_at, a Checkout Session lives for 24 hours, which is a
+     * long time for a page that is holding a card form and a price that could
+     * change. Stripe rejects expires_at outside 30 minutes to 24 hours, so the
+     * bounds are worth pinning as well as the default.
+     */
+    public function test_a_checkout_session_is_given_a_bounded_expiry(): void
+    {
+        $user = User::factory()->create();
+
+        $captured = [];
+        $this->fakeStripe($captured);
+
+        $this->actingAs($user)
+            ->post('/checkout/24-mock-tests', ['consent' => '1'])
+            ->assertRedirect();
+
+        $this->assertArrayHasKey('expires_at', $captured);
+
+        $seconds = $captured['expires_at'] - now()->getTimestamp();
+        $minutes = (int) round($seconds / 60);
+
+        $this->assertSame(60, $minutes, 'The default session lifetime is 60 minutes.');
+        $this->assertGreaterThanOrEqual(30 * 60, $seconds, 'Stripe refuses anything under 30 minutes.');
+        $this->assertLessThanOrEqual(24 * 60 * 60, $seconds, 'Stripe refuses anything over 24 hours.');
+
+        // A setting outside Stripe's range is clamped rather than sent, because
+        // the alternative is the API rejecting the request at the one moment
+        // the customer is trying to pay.
+        config(['courses.checkout_expiry_minutes' => 5]);
+
+        $captured = [];
+        $this->fakeStripe($captured);
+
+        $this->actingAs($user)
+            ->post('/checkout/24-mock-tests', ['consent' => '1'])
+            ->assertRedirect();
+
+        $this->assertGreaterThanOrEqual(30 * 60, $captured['expires_at'] - now()->getTimestamp());
+    }
+
+    /**
+     * The acceptance of the terms is recorded, and it is the version that was
+     * on the page at the time.
+     *
+     * This is the only evidence that anybody agreed to anything, and it is
+     * written when the box is ticked rather than when the money arrives - so
+     * an acceptance that leads to an abandoned or failed payment is still on
+     * file.
+     */
+    public function test_the_consent_is_recorded_against_the_purchase(): void
+    {
+        config(['courses.terms_version' => '2026-01']);
+
+        $user = User::factory()->create();
+        $course = $this->course('life-in-the-uk-course');
+
+        // The live lookup is what makes the second press of the button reuse
+        // the open session instead of replacing it, and which of those two
+        // happens is what this test is about.
+        $created = 0;
+        $this->fakeStripeWithLiveLookup($created);
+
+        $this->actingAs($user)
+            ->post('/checkout/life-in-the-uk-course', ['consent' => '1'])
+            ->assertRedirect();
+
+        $purchase = Purchase::firstOrFail();
+
+        $this->assertNotNull($purchase->terms_accepted_at);
+        $this->assertSame('2026-01', $purchase->terms_version);
+
+        // Re-opening the same pending session is not a fresh agreement, so the
+        // original timestamp has to survive rather than being overwritten.
+        $firstAccepted = $purchase->terms_accepted_at;
+
+        $this->travel(1)->minutes();
+
+        $this->actingAs($user)
+            ->post('/checkout/'.$course->slug, ['consent' => '1'])
+            ->assertRedirect();
+
+        $reused = $purchase->fresh();
+
+        $this->assertSame(1, $created, 'The second press should have reused the open session.');
+        $this->assertTrue(
+            $firstAccepted->equalTo($reused->terms_accepted_at),
+            'The moment the terms were accepted must not move when the checkout is re-opened.',
+        );
+        $this->assertSame('2026-01', $reused->terms_version);
+    }
+
+    /**
+     * A purchase must not be opened without the consent being given.
+     *
+     * A checkout session created without it would record an acceptance that
+     * never happened, on a purchase of digital content that cannot be handed
+     * back. Stripe is not faked here: reaching it at all would be the bug.
+     */
+    public function test_a_checkout_without_consent_is_refused(): void
+    {
+        $user = User::factory()->create();
+        $course = $this->course('life-in-the-uk-course');
+
+        $captured = [];
+        $this->fakeStripe($captured);
+
+        $response = $this->actingAs($user)
+            ->post('/checkout/'.$course->slug);
+
+        // The refusal goes back to the review page, which is the page with the
+        // box on it, rather than to a bare error screen or - far worse - out
+        // to Stripe.
+        $response->assertSessionHasErrors('consent')
+            ->assertRedirect(route('checkout.review', $course));
+
+        $this->actingAs($user)
+            ->get(route('checkout.review', $course))
+            ->assertOk()
+            ->assertSee('Check Your Order');
+
+        $this->assertSame([], $captured, 'No Stripe session may be created without consent.');
+        $this->assertSame(0, Purchase::count());
+    }
+
+    /**
+     * Two clicks on Pay make one payment, not two.
+     *
+     * The first click opens a Stripe session. The second finds the pending
+     * purchase, asks Stripe whether that session is still open, and is handed
+     * the same URL back. Two sessions for one attempt means two ways to pay
+     * for one course, and the customer who completes the wrong one has paid
+     * for something they can no longer reach.
+     */
+    public function test_a_second_click_reuses_the_open_stripe_session(): void
+    {
+        $user = User::factory()->create();
+        $course = $this->course('life-in-the-uk-course');
+
+        $created = 0;
+
+        $this->fakeStripeWithLiveLookup($created);
+
+        $first = $this->actingAs($user)->post('/checkout/'.$course->slug, ['consent' => '1']);
+        $second = $this->actingAs($user)->post('/checkout/'.$course->slug, ['consent' => '1']);
+
+        $first->assertRedirect('https://checkout.stripe.com/c/pay/cs_test_life-in-the-uk-course');
+        $second->assertRedirect('https://checkout.stripe.com/c/pay/cs_test_life-in-the-uk-course');
+
+        $this->assertSame(1, $created, 'Only one Stripe Checkout Session may be created.');
+        $this->assertSame(1, Purchase::count(), 'And only one pending purchase row.');
+    }
+
+    /**
+     * A session Stripe has since closed is not sent anybody back to.
+     *
+     * The customer would be dropped onto Stripe's expired-session page, which
+     * is a dead end with no way forward except back. A fresh session is opened
+     * instead, so the button always leads somewhere.
+     */
+    public function test_an_expired_stripe_session_is_replaced_rather_than_reused(): void
+    {
+        $user = User::factory()->create();
+        $course = $this->course('life-in-the-uk-course');
+
+        // A pending row inside the checkout lifetime whose session is gone.
+        Purchase::create([
+            'user_id' => $user->id,
+            'course_id' => $course->id,
+            'stripe_checkout_session_id' => 'cs_test_dead',
+            'amount' => $course->price,
+            'currency' => $course->currency,
+            'status' => Purchase::STATUS_PENDING,
+        ]);
+
+        $created = 0;
+        $this->fakeStripeWithLiveLookup($created, existingStatus: 'expired');
+
+        $this->actingAs($user)
+            ->post('/checkout/'.$course->slug, ['consent' => '1'])
+            ->assertRedirect('https://checkout.stripe.com/c/pay/cs_test_life-in-the-uk-course');
+
+        $this->assertSame(1, $created);
+        $this->assertSame(2, Purchase::count());
+    }
+
+    /**
+     * A session that turns out to have been paid is recorded, not duplicated.
+     *
+     * The customer finished the payment on some other page and came back to
+     * press Pay again. The pending row is worth asking about, Stripe says it
+     * is paid, and the access is granted through exactly the same idempotent
+     * path the webhook uses - so the webhook arriving afterwards updates that
+     * row rather than creating a second purchase.
+     */
+    public function test_a_pending_session_that_turns_out_to_be_paid_is_recorded_not_duplicated(): void
+    {
+        $user = User::factory()->create();
+        $course = $this->course('life-in-the-uk-course');
+
+        Purchase::create([
+            'user_id' => $user->id,
+            'course_id' => $course->id,
+            'stripe_checkout_session_id' => 'cs_test_paid_elsewhere',
+            'amount' => $course->price,
+            'currency' => $course->currency,
+            'status' => Purchase::STATUS_PENDING,
+        ]);
+
+        $created = 0;
+        $this->fakeStripeWithLiveLookup(
+            $created,
+            existingStatus: 'complete',
+            existingPaymentStatus: 'paid',
+            user: $user,
+            course: $course,
+        );
+
+        $this->actingAs($user)
+            ->post('/checkout/'.$course->slug, ['consent' => '1'])
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertSame(0, $created, 'No new session is opened for a course that has been paid.');
+        $this->assertSame(1, Purchase::count());
+        $this->assertTrue($user->fresh()->hasPurchased($course));
+    }
+
+    /**
+     * Two clicks arriving together still make one session.
+     *
+     * The reuse check is a read followed by a write, so without the lock both
+     * clicks can see "no open session" and both create one. This fires the
+     * two requests with the lock already held, which is what concurrency looks
+     * like from the service's point of view.
+     */
+    public function test_a_concurrent_second_click_cannot_open_a_second_session(): void
+    {
+        $user = User::factory()->create();
+        $course = $this->course('life-in-the-uk-course');
+
+        $created = 0;
+        $this->fakeStripeWithLiveLookup($created);
+
+        // Take the lock the way a second request arriving mid-flight would.
+        $lock = Cache::lock("checkout:{$user->id}:{$course->id}", 10);
+        $this->assertTrue($lock->get());
+
+        $this->actingAs($user)
+            ->post('/checkout/'.$course->slug, ['consent' => '1'])
+            ->assertRedirect(route('checkout.review', $course));
+
+        $this->assertSame(0, $created, 'The locked-out request must not reach Stripe.');
+        $this->assertSame(0, Purchase::count());
+
+        $lock->release();
+
+        // Once released, the same request succeeds.
+        $this->actingAs($user)
+            ->post('/checkout/'.$course->slug, ['consent' => '1'])
+            ->assertRedirect('https://checkout.stripe.com/c/pay/cs_test_life-in-the-uk-course');
+
+        $this->assertSame(1, $created);
+    }
+
+    /**
      * A Stripe Price that is not configured must say so, on screen.
      *
      * The suite fakes the gateway and sets both price ids, so it never sees
@@ -700,15 +949,16 @@ class PaidCoursesTest extends TestCase
 
         $response = $this->actingAs($user)
             ->from('/')
-            ->post('/checkout/life-in-the-uk-course');
+            ->post('/checkout/life-in-the-uk-course', ['consent' => '1']);
 
-        // It goes back to where the button lives...
-        $response->assertRedirect('/');
+        // It goes back to the order review, which is the page the Pay button is
+        // on, so the message is read next to the thing that failed...
+        $response->assertRedirect(route('checkout.review', 'life-in-the-uk-course'));
         $response->assertSessionHas('error');
 
         // ...and the message is actually rendered on that page.
         $this->actingAs($user)
-            ->get('/')
+            ->get('/checkout/life-in-the-uk-course/review')
             ->assertOk()
             ->assertSee('Online payments are temporarily unavailable');
 
@@ -725,6 +975,7 @@ class PaidCoursesTest extends TestCase
         $this->fakeStripe($captured);
 
         $this->actingAs($user)->post('/checkout/24-mock-tests', [
+            'consent' => '1',
             'price' => 1,
             'amount' => 1,
             'currency' => 'usd',
@@ -742,7 +993,9 @@ class PaidCoursesTest extends TestCase
         $this->markAsPaid($user, $this->course('24-mock-tests'), 'cs_test_existing');
 
         // Stripe is deliberately not faked here: reaching Stripe would be a bug.
-        $this->actingAs($user)->post('/checkout/24-mock-tests')->assertRedirect('/my-account');
+        $this->actingAs($user)
+            ->post('/checkout/24-mock-tests', ['consent' => '1'])
+            ->assertRedirect('/my-account');
 
         $this->assertSame(1, Purchase::count());
     }
@@ -753,7 +1006,11 @@ class PaidCoursesTest extends TestCase
         $this->course('24-mock-tests')->update(['is_active' => false]);
 
         $this->actingAs($user)
-            ->post('/checkout/24-mock-tests')
+            ->post('/checkout/24-mock-tests', ['consent' => '1'])
+            ->assertNotFound();
+
+        $this->actingAs($user)
+            ->get('/checkout/24-mock-tests/review')
             ->assertNotFound();
     }
 
@@ -1023,8 +1280,6 @@ class PaidCoursesTest extends TestCase
 
     public function test_a_signed_in_user_without_the_purchase_gets_a_403(): void
     {
-        $this->requirePurchase();
-
         $user = User::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
@@ -1043,8 +1298,6 @@ class PaidCoursesTest extends TestCase
 
     public function test_the_course_does_not_unlock_the_mock_test_package(): void
     {
-        $this->requirePurchase();
-
         $user = User::factory()->create();
         $course = $this->course('life-in-the-uk-course');
         $mocks = $this->course('24-mock-tests');
@@ -1059,8 +1312,6 @@ class PaidCoursesTest extends TestCase
 
     public function test_the_mock_test_package_does_not_unlock_the_course(): void
     {
-        $this->requirePurchase();
-
         $user = User::factory()->create();
         $course = $this->course('life-in-the-uk-course');
         $mocks = $this->course('24-mock-tests');
@@ -1113,7 +1364,15 @@ class PaidCoursesTest extends TestCase
         $this->assertSame(0, Purchase::count());
     }
 
-    public function test_the_success_page_confirms_once_the_purchase_is_recorded(): void
+    /**
+     * A confirmed payment lands on My Account, with the course highlighted.
+     *
+     * The course is not announced on this page. It is somewhere they can go
+     * and read, and the dashboard already renders every paid purchase, so
+     * making them wait on a confirmation screen to be told what they just
+     * bought is a step between them and the thing they paid for.
+     */
+    public function test_a_confirmed_payment_redirects_to_the_account_page_with_the_course_highlighted(): void
     {
         $user = User::factory()->create();
         $course = $this->course('life-in-the-uk-course');
@@ -1122,9 +1381,127 @@ class PaidCoursesTest extends TestCase
 
         $this->actingAs($user)
             ->get('/checkout/success?session_id=cs_test_confirmed')
+            ->assertRedirect(route('dashboard'))
+            ->assertSessionHas('success', 'Payment received. Your course is ready below.')
+            ->assertSessionHas('highlight_course', 'life-in-the-uk-course');
+
+        $this->actingAs($user)->get('/my-account')
             ->assertOk()
-            ->assertSee('Payment Confirmed')
-            ->assertSee('Life in the UK Course');
+            ->assertSee('New')
+            ->assertSee('Payment received. This is yours.')
+            ->assertSee('Start learning');
+    }
+
+    /**
+     * Nothing on the success page claims a receipt was emailed.
+     *
+     * Whether Stripe sends one is a setting in the Stripe dashboard, not
+     * something this application controls or can observe. Promising a receipt
+     * that may never arrive is how somebody who has just paid a hundred pounds
+     * ends up emailing us to ask where it is.
+     */
+    public function test_the_success_page_does_not_claim_a_receipt_was_emailed(): void
+    {
+        $user = User::factory()->create();
+
+        $this->markAsPaid($user, $this->course('life-in-the-uk-course'), 'cs_test_no_receipt');
+
+        $response = $this->actingAs($user)
+            ->get('/checkout/success?session_id=cs_test_no_receipt')
+            ->assertRedirect(route('dashboard'));
+
+        $response->assertSessionMissing('success_receipt');
+
+        $this->actingAs($user)->get('/my-account')
+            ->assertOk()
+            ->assertDontSee('receipt has been sent', escape: false)
+            ->assertDontSee('A receipt has been sent', escape: false);
+    }
+
+    /**
+     * The waiting page really does wait, and stops.
+     *
+     * "This page updates automatically" used to be printed on a page that did
+     * not update, which is worse than saying nothing: it tells somebody who
+     * has just paid that they should sit and watch. The meta refresh is what
+     * makes the sentence true, and the counter is what stops it going on for
+     * ever if the webhook never arrives.
+     */
+    public function test_the_waiting_page_refreshes_until_the_maximum_attempt_then_stops(): void
+    {
+        $user = User::factory()->create();
+
+        $this->stubStripeLookupToFail();
+
+        // Still waiting: it refreshes, and says so.
+        $this->actingAs($user)
+            ->get('/checkout/success?session_id=cs_test_pending')
+            ->assertOk()
+            ->assertSee('We Are Confirming Your Payment')
+            ->assertSee('http-equiv="refresh"', escape: false)
+            ->assertSee('Still checking', escape: false)
+            ->assertSee('(1 of 10)', escape: false)
+            ->assertSee('attempt=2', escape: false);
+
+        // The last attempt: no further refresh, and a message that gets help
+        // rather than spinning.
+        $final = $this->actingAs($user)
+            ->get('/checkout/success?session_id=cs_test_pending&attempt=10')
+            ->assertOk()
+            ->assertSee('This Is Taking Longer Than Usual')
+            ->assertSee('info@croydoncollegeofexcellence.co.uk')
+            ->assertSee(route('dashboard'), escape: false);
+
+        $this->assertStringNotContainsString('http-equiv="refresh"', $final->getContent());
+        $this->assertFalse($user->fresh()->hasPurchased('life-in-the-uk-course'));
+    }
+
+    /**
+     * The attempt counter is a counter, not a control.
+     *
+     * It decides whether one more request is made and nothing else - no
+     * access, no purchase, no page that would say so. It is clamped to the
+     * configured maximum so a hand-typed query string cannot set a browser
+     * looping against Stripe forever.
+     */
+    public function test_the_attempt_counter_cannot_be_pushed_past_the_maximum(): void
+    {
+        $user = User::factory()->create();
+
+        $this->stubStripeLookupToFail();
+
+        $this->actingAs($user)
+            ->get('/checkout/success?session_id=cs_test_pending&attempt=9999')
+            ->assertOk()
+            ->assertSee('This Is Taking Longer Than Usual');
+
+        // Absurd or negative values are treated as the first attempt, not
+        // echoed into the page.
+        $this->actingAs($user)
+            ->get('/checkout/success?session_id=cs_test_pending&attempt=-5')
+            ->assertOk()
+            ->assertSee('(1 of 10)', escape: false);
+    }
+
+    /**
+     * The success route is throttled, because it is the one page that is
+     * designed to be loaded repeatedly.
+     */
+    public function test_the_success_page_is_throttled(): void
+    {
+        $user = User::factory()->create();
+
+        $this->stubStripeLookupToFail();
+
+        for ($i = 0; $i < 30; $i++) {
+            $this->actingAs($user)
+                ->get('/checkout/success?session_id=cs_test_'.$i)
+                ->assertOk();
+        }
+
+        $this->actingAs($user)
+            ->get('/checkout/success?session_id=cs_test_over_the_limit')
+            ->assertStatus(429);
     }
 
     public function test_the_success_page_validates_the_session_id(): void
@@ -1143,13 +1520,18 @@ class PaidCoursesTest extends TestCase
 
         $this->markAsPaid($owner, $this->course('life-in-the-uk-course'), 'cs_test_someone_elses');
 
-        $this->stubStripeLookupToFail();
+        // Stripe confirms the payment, for its real owner. The other person
+        // must still see the waiting page, not a purchase.
+        $created = 0;
+        $this->fakeStripeWithLiveLookup($created, existingStatus: 'complete', existingPaymentStatus: 'paid');
 
         $this->actingAs($other)
             ->get('/checkout/success?session_id=cs_test_someone_elses')
             ->assertOk()
             ->assertSee('We Are Confirming Your Payment')
-            ->assertDontSee('Payment Confirmed');
+            ->assertDontSee('Payment received');
+
+        $this->assertFalse($other->fresh()->hasPurchased('life-in-the-uk-course'));
     }
 
     public function test_a_cancelled_payment_is_never_recorded_as_paid(): void
@@ -1173,7 +1555,11 @@ class PaidCoursesTest extends TestCase
             ->get('/checkout/cancel')
             ->assertOk()
             ->assertSee('Try 24 Mock Tests Package Again')
-            ->assertSee(action([CheckoutController::class, 'store'], '24-mock-tests'), escape: false);
+            // The retry goes to checkout.start, not straight to the payment
+            // form: start is the one place that knows whether this person still
+            // needs consent, a payment, or nothing at all.
+            ->assertSee(route('checkout.start', '24-mock-tests'), escape: false)
+            ->assertDontSee(action([CheckoutController::class, 'store'], '24-mock-tests'), escape: false);
 
         // Consumed, so a later visit to the cancel page does not repeat it.
         $this->actingAs($user)
@@ -1195,86 +1581,61 @@ class PaidCoursesTest extends TestCase
     }
 
     /* -----------------------------------------------------------------
-     | The paywall being switched off
+     | No paywall switch
      |
-     | While the lessons and papers are being built, the paywall is off and
-     | any signed-in account can open everything. Stripe may not even be
-     | configured. These tests pin that down, because the danger is a live
-     | site quietly shipping in this state.
+     | The paywall used to be switchable while the lessons and papers were
+     | being built and marked, which meant a site could quietly ship with
+     | every course open to any signed-in account. There is no switch now:
+     | a completed Stripe payment is the only thing that opens the material.
+     | These tests hold that line in place.
      | ----------------------------------------------------------------- */
 
-    public function test_with_the_paywall_off_any_signed_in_account_can_open_the_learning_area(): void
-    {
-        $this->assertFalse(config('course-content.require_purchase'));
-
-        $user = User::factory()->create();
-
-        $this->actingAs($user)
-            ->get(route('learn.index', $this->course('life-in-the-uk-course')))
-            ->assertOk();
-
-        $this->actingAs($user)
-            ->get(route('learn.index', $this->course('24-mock-tests')))
-            ->assertOk();
-    }
-
-    public function test_with_the_paywall_off_a_guest_is_still_sent_to_login(): void
+    public function test_a_guest_is_sent_to_login_and_not_shown_a_paywall_bypass(): void
     {
         // A sitting is a database row keyed to a user, so a guest cannot be
-        // let in to take a quiz. Turning the paywall off relaxes the purchase
-        // check only, never the sign-in.
+        // let in to take a quiz, and there is no longer any state in which
+        // one could be waved through.
         $this->get(route('learn.index', $this->course('life-in-the-uk-course')))
             ->assertRedirect(route('login'));
     }
 
-    public function test_with_the_paywall_off_no_stripe_configuration_is_needed(): void
-    {
-        config([
-            'stripe.key' => null,
-            'stripe.secret' => null,
-            'stripe.prices.course' => null,
-            'stripe.prices.mock_tests' => null,
-        ]);
-
-        $user = User::factory()->create();
-
-        $this->actingAs($user)
-            ->get(route('learn.index', $this->course('life-in-the-uk-course')))
-            ->assertOk();
-    }
-
-    public function test_with_the_paywall_off_the_cta_sends_a_customer_straight_to_the_lessons(): void
+    public function test_a_signed_in_account_without_a_purchase_cannot_open_either_course(): void
     {
         $user = User::factory()->create();
 
-        $this->actingAs($user)
-            ->get('/courses/life-in-the-uk-course')
-            ->assertOk()
-            ->assertSee('Start Learning')
-            ->assertDontSee('Buy Now')
-            ->assertDontSee('Stripe');
+        foreach (['life-in-the-uk-course', '24-mock-tests'] as $slug) {
+            $this->actingAs($user)
+                ->get(route('learn.index', $this->course($slug)))
+                ->assertForbidden();
+        }
     }
 
-    public function test_with_the_paywall_off_a_guest_is_asked_to_sign_in_rather_than_buy(): void
+    public function test_the_course_page_asks_everybody_without_the_course_to_buy_it(): void
     {
         $this->get('/courses/life-in-the-uk-course')
             ->assertOk()
-            ->assertSee('Sign In To Start')
-            ->assertDontSee('Buy Now');
+            ->assertSee('Buy Now')
+            ->assertDontSee('Start Learning');
+
+        $this->actingAs(User::factory()->create())
+            ->get('/courses/life-in-the-uk-course')
+            ->assertOk()
+            ->assertSee('Buy Now')
+            ->assertDontSee('Start Learning');
     }
 
-    public function test_payments_doctor_warns_that_the_paywall_is_off(): void
+    public function test_a_guest_is_offered_the_buy_button_rather_than_a_free_sign_in(): void
     {
-        $this->artisan('payments:doctor')
-            ->expectsOutputToContain('THE PAYWALL IS OFF')
-            ->assertSuccessful();
+        $this->get('/courses/life-in-the-uk-course')
+            ->assertOk()
+            ->assertSee('Buy Now')
+            ->assertDontSee('Sign In To Start');
     }
 
-    public function test_payments_doctor_does_not_warn_once_the_paywall_is_on(): void
+    public function test_payments_doctor_states_that_access_needs_a_payment(): void
     {
-        $this->requirePurchase();
-
         $this->artisan('payments:doctor')
+            ->expectsOutputToContain('every course needs a completed payment')
             ->doesntExpectOutputToContain('THE PAYWALL IS OFF')
             ->assertSuccessful();
     }
@@ -1390,14 +1751,62 @@ class PaidCoursesTest extends TestCase
             ->assertSuccessful();
     }
 
-    public function test_a_guest_is_sent_to_login_before_checking_out(): void
+    /**
+     * A guest on a course page gets one Buy button, not a login form.
+     *
+     * The page used to fork on whether somebody was signed in, and a guest was
+     * given "Sign In To Buy" - which sent them to a sign-in form with the
+     * course already forgotten, so afterwards there was nothing to come back
+     * to. The single button is a link into the journey, which remembers the
+     * course across every step of it.
+     */
+    public function test_a_guest_is_offered_one_buy_button_that_leads_into_the_journey(): void
     {
-        $this->requirePurchase();
-
         $this->get('/courses/life-in-the-uk-course')
             ->assertOk()
-            ->assertSee('Sign In To Buy')
-            ->assertSee('Life in the UK Course');
+            ->assertSee('Life in the UK Course')
+            ->assertSee('Buy Now &mdash; £99', escape: false)
+            ->assertSee(route('checkout.start', 'life-in-the-uk-course'), escape: false)
+            ->assertSee('Already have an account?')
+            ->assertSee(route('login'), escape: false);
+
+        // And that journey really does begin by remembering the course.
+        $this->get(route('checkout.start', 'life-in-the-uk-course'))
+            ->assertRedirect(route('register'))
+            ->assertSessionHas('checkout.intended_course', 'life-in-the-uk-course');
+    }
+
+    /**
+     * Every Buy button in the site is a link into the journey.
+     *
+     * A POST form to checkout.store behind `auth` was the reason a guest lost
+     * their course. The one place that may still post there is the review
+     * page, which is behind auth and verified and carries the consent box -
+     * anywhere else, a Buy button is doing this wrong.
+     */
+    public function test_no_buy_button_still_posts_straight_at_checkout(): void
+    {
+        $allowed = 'pages/checkout/review.blade.php';
+        $offenders = [];
+
+        foreach ($this->allBladeViews() as $path) {
+            if (str_contains(file_get_contents($path), 'checkout.store') && ! str_ends_with($path, $allowed)) {
+                $offenders[] = basename(dirname($path)).'/'.basename($path);
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $offenders,
+            'These views still post straight at checkout.store: '.implode(', ', $offenders)
+        );
+
+        // And the Buy buttons point at the start of the journey.
+        $this->get('/')
+            ->assertSee(route('checkout.start', 'life-in-the-uk-course'), escape: false);
+
+        $this->get('/courses')
+            ->assertSee(route('checkout.start', '24-mock-tests'), escape: false);
     }
 
     /* -----------------------------------------------------------------
@@ -1487,6 +1896,73 @@ class PaidCoursesTest extends TestCase
 
         $mock->shouldReceive('retrieveCheckoutSession')
             ->andThrow(new ApiConnectionException('No such checkout session'));
+
+        $this->app->instance(StripeService::class, $mock);
+    }
+
+    /**
+     * A fake Stripe that can also answer questions about an existing session.
+     *
+     * Reusing an open Checkout Session means asking Stripe what state the old
+     * one is in, which the plain fake above does not model. This one does:
+     * `existingStatus` and `existingPaymentStatus` decide what Stripe says
+     * about a session it is already holding, and `$created` counts the new
+     * sessions opened, which is how the "only one session per purchase
+     * attempt" tests see what happened.
+     *
+     * Passing the buyer and the course makes the answered session carry the
+     * metadata Stripe would really have on it, which matters whenever the
+     * answer is about money: a session that reports itself as paid is written
+     * into the database, and it can only be attached to a purchase if it says
+     * who it belongs to. Without them the fake reports a payment for nobody.
+     *
+     * @param  string  $existingStatus  Stripe's `status` for a session it already has.
+     * @param  string  $existingPaymentStatus  Stripe's `payment_status` for the same.
+     */
+    protected function fakeStripeWithLiveLookup(
+        int &$created,
+        string $existingStatus = 'open',
+        string $existingPaymentStatus = 'unpaid',
+        ?User $user = null,
+        ?Course $course = null
+    ): void {
+        $onCreate = function (array $params) use (&$created) {
+            $created++;
+        };
+
+        $mock = $this->stripeMock($onCreate);
+
+        $mock->shouldReceive('retrieveCheckoutSession')->andReturnUsing(
+            function (string $sessionId) use ($existingStatus, $existingPaymentStatus, $user, $course) {
+                $session = [
+                    'id' => $sessionId,
+                    'object' => 'checkout.session',
+                    'status' => $existingStatus,
+                    'payment_status' => $existingPaymentStatus,
+                    'url' => "https://checkout.stripe.com/c/pay/{$sessionId}",
+                ];
+
+                if ($user && $course) {
+                    $session += [
+                        'client_reference_id' => (string) $user->id,
+                        'metadata' => [
+                            'user_id' => (string) $user->id,
+                            'course_id' => (string) $course->id,
+                            'course_slug' => $course->slug,
+                        ],
+                        'customer_details' => [
+                            'email' => $user->email,
+                            'name' => $user->name,
+                        ],
+                        'amount_total' => $course->price,
+                        'currency' => $course->currency,
+                        'payment_intent' => 'pi_test_'.$sessionId,
+                    ];
+                }
+
+                return Session::constructFrom($session);
+            }
+        );
 
         $this->app->instance(StripeService::class, $mock);
     }

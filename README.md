@@ -1,5 +1,15 @@
 # Task: Add Paid "Life in the UK" Courses, Stripe Payments, Lessons and Mock Tests to an Existing Laravel Project
 
+> **Note — this file is the original brief, kept as a record.** It describes the
+> checkout flow as originally specified (a guest clicking Buy is redirected to
+> register/login, and checkout starts from an explicit POST). The flow was since
+> streamlined into a single journey: **Buy → Create account → Verify email →
+> Check your order → Pay**, where the Buy button is a link to `checkout.start`
+> that routes the visitor to whichever step they are actually on, and a
+> **check-your-order** page with a required consent tick box sits in front of
+> Stripe. For how the site works today, see
+> [`docs/PAID_COURSES.md`](docs/PAID_COURSES.md).
+
 You are working on an existing Laravel project. Review the whole codebase, then integrate two paid courses with secure account-first checkout, Stripe payments, a learner dashboard, protected lessons, and interactive quizzes/mock tests built from the `.docx` files in `course-files/`.
 
 ## 0. Working Rules

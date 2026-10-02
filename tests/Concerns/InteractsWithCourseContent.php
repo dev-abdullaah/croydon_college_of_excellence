@@ -72,21 +72,6 @@ trait InteractsWithCourseContent
     }
 
     /**
-     * Turn the paywall back on for a test.
-     *
-     * The paywall is off by default so the lessons and papers can be built and
-     * marked before anything is sold. A test that is about access control has
-     * to describe a live site, so it opts back in explicitly rather than
-     * depending on whatever the machine happens to be set to.
-     */
-    protected function requirePurchase(): static
-    {
-        config(['course-content.require_purchase' => true]);
-
-        return $this;
-    }
-
-    /**
      * One lesson from the fixture, as the site would hand it to a view.
      */
     protected function lesson(Course $course, string $slug): ?Lesson

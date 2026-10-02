@@ -47,9 +47,9 @@ class LearningAreaTest extends TestCase
      | Access to the learning area must be exactly as strict as access to
      | the downloads. A URL is never enough.
      |
-     | The paywall is off by default while the material is being built, so
-     | every test below turns it back on explicitly. That way these tests
-     | still describe a live site even on a machine with the flag down.
+     | A completed Stripe payment is the only thing that opens the material
+     | and there is no switch that relaxes it, so these tests describe the
+     | site as it actually behaves.
      | ----------------------------------------------------------------- */
 
     public function test_a_guest_is_sent_to_login(): void
@@ -59,32 +59,8 @@ class LearningAreaTest extends TestCase
         $this->get(route('learn.index', $course))->assertRedirect(route('login'));
     }
 
-    public function test_the_paywall_is_off_by_default_so_the_material_can_be_built_and_marked(): void
-    {
-        $this->assertFalse(config('course-content.require_purchase'));
-
-        $user = User::factory()->create();
-
-        $this->actingAs($user)
-            ->get(route('learn.index', $this->course()))
-            ->assertOk();
-    }
-
-    public function test_switching_the_paywall_on_locks_an_ordinary_account_out(): void
-    {
-        $this->requirePurchase();
-
-        $user = User::factory()->create();
-
-        $this->actingAs($user)
-            ->get(route('learn.index', $this->course()))
-            ->assertForbidden();
-    }
-
     public function test_a_visitor_without_the_purchase_gets_a_403(): void
     {
-        $this->requirePurchase();
-
         $user = User::factory()->create();
 
         $this->actingAs($user)
@@ -94,8 +70,6 @@ class LearningAreaTest extends TestCase
 
     public function test_an_unpaid_purchase_does_not_unlock_the_learning_area(): void
     {
-        $this->requirePurchase();
-
         $user = User::factory()->create();
         $course = $this->course();
 
@@ -114,8 +88,6 @@ class LearningAreaTest extends TestCase
 
     public function test_buying_the_course_does_not_unlock_the_mock_pack(): void
     {
-        $this->requirePurchase();
-
         $buyer = $this->buyer($this->course());
 
         $this->actingAs($buyer)
@@ -125,8 +97,6 @@ class LearningAreaTest extends TestCase
 
     public function test_buying_the_mock_pack_does_not_unlock_the_course_lessons(): void
     {
-        $this->requirePurchase();
-
         $buyer = $this->buyer($this->course('24-mock-tests'));
 
         $this->actingAs($buyer)

@@ -3,8 +3,11 @@
 
     Prices and content come from the Course model (seeded from
     config/catalog.php), never from anything the browser sends. The buy
-    buttons are POST forms protected by CSRF: the slug in the URL is resolved
-    against the database and the Stripe Price is looked up server side.
+    buttons are links to checkout.start, which remembers the course and
+    routes the visitor to whichever step they still need: an account, a
+    verification code, the order review, or the payment itself. The slug in
+    the URL is resolved against the database and the Stripe Price is looked
+    up server side.
 --}}
 @if ($courses->isNotEmpty())
     <!-- Start Paid Courses Area -->
@@ -16,8 +19,9 @@
                         <span class="subtitle bg-primary-opacity">LIFE IN THE UK</span>
                         <h2 class="title">Prepare For The Official Life in the UK Test</h2>
                         <p class="mt--20 mb-0">
-                            Self-study courseware written by our tutors, delivered instantly as a secure download.
-                            Pay once and keep access for life.
+                            Self-study courseware written by our tutors. Learn online in your own
+                            account: read the lessons and take the practice tests. Pay once,
+                            with no subscription.
                         </p>
                     </div>
                 </div>
@@ -61,39 +65,21 @@
                             </ul>
 
                             <div class="mt-auto pt-4">
-                                @auth
-                                    @if ($course->hasAccessFor(auth()->user()))
-                                        <a href="{{ $course->requiresPurchase() ? route('dashboard') : route('learn.index', $course) }}"
-                                            class="rbt-btn btn-gradient btn-sm w-100 justify-content-center text-center">
-                                            <span>{{ $course->requiresPurchase() ? 'View In My Account' : 'Start Learning' }}</span>
-                                        </a>
-                                    @else
-                                        <form method="POST" action="{{ route('checkout.store', $course) }}">
-                                            @csrf
-                                            <button type="submit"
-                                                class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center">
-                                                <span>Buy {{ $course->name }} &mdash; {{ $course->formattedPrice() }}</span>
-                                            </button>
-                                        </form>
-                                    @endif
+                                @if ($course->hasAccessFor(auth()->user()))
+                                    <a href="{{ route('dashboard') }}"
+                                        class="rbt-btn btn-gradient btn-sm w-100 justify-content-center text-center">
+                                        <span>View In My Account</span>
+                                    </a>
                                 @else
-                                    @if ($course->requiresPurchase())
-                                        <form method="POST" action="{{ route('checkout.store', $course) }}">
-                                            @csrf
-                                            <button type="submit"
-                                                class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center">
-                                                <span>Buy {{ $course->name }} &mdash; {{ $course->formattedPrice() }}</span>
-                                            </button>
-                                        </form>
-                                    @else
-                                        {{-- The paywall is off, but a sitting is tied to
-                                             an account, so sign in rather than sell. --}}
-                                        <a href="{{ route('login') }}"
-                                            class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center">
-                                            <span>Sign In To Start Learning</span>
-                                        </a>
-                                    @endif
-                                @endauth
+                                    {{-- A link, not a form. checkout.start is
+                                         the entry point for the whole journey
+                                         and it knows whether this visitor needs
+                                         an account, a code, or only a payment. --}}
+                                    <a href="{{ route('checkout.start', $course) }}"
+                                        class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center">
+                                        <span>Buy {{ $course->name }} &mdash; {{ $course->formattedPrice() }}</span>
+                                    </a>
+                                @endif
 
                                 <div class="mt-3 text-center">
                                     <a href="{{ route('courses.show', $course) }}">See full details</a>

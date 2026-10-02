@@ -135,14 +135,38 @@ Route::get('/courses/{course}', [CheckoutController::class, 'show'])->name('cour
 |--------------------------------------------------------------------------
 */
 
+/*
+| New entry point: remembers the chosen course and routes the visitor to
+| the right step (register, verify, review, or dashboard).
+| Public, rate limited, never creates a payment.
+*/
+Route::get('/buy/{course}', [CheckoutController::class, 'start'])
+    ->middleware('throttle:30,1')
+    ->name('checkout.start');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/my-account', [DashboardController::class, 'index'])->name('dashboard');
+
+    /*
+    | Review page: shows the course, price, features, consent tick box,
+    | and a Pay button that POSTs to checkout.store.
+    */
+    Route::get('/checkout/{course}/review', [CheckoutController::class, 'review'])
+        ->name('checkout.review');
 
     Route::post('/checkout/{course}', [CheckoutController::class, 'store'])
         ->middleware('throttle:20,1')
         ->name('checkout.store');
 
-    Route::get('/checkout/success', [CheckoutController::class, 'success'])->name('checkout.success');
+    /*
+     | The success page re-checks Stripe on a timer, so it is the one page in
+     | the flow that is loaded repeatedly by design. The throttle is generous
+     | enough for the refreshes it makes (ten of them, every three seconds) and
+     | still stops the URL being used to hammer Stripe from a script.
+     */
+    Route::get('/checkout/success', [CheckoutController::class, 'success'])
+        ->middleware('throttle:30,1')
+        ->name('checkout.success');
     Route::get('/checkout/cancel', [CheckoutController::class, 'cancel'])->name('checkout.cancel');
 
     /*

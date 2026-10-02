@@ -40,23 +40,53 @@ the papers sat and marked. **Nothing is sold or served as a file.** See
 
 ```
   Homepage / course page
-          │  POST /checkout/{slug}          (CSRF protected, auth required)
+          │  GET /buy/{slug}                 (public, CSRF-free, no payment)
           ▼
-  CheckoutController ──► PurchaseService ──► StripeService ──► Stripe Checkout
-          │                                          │
-          │ writes a `pending` purchase             │ customer pays
-          ▼                                          ▼
-     purchases table                        POST /stripe/webhook
-                                                     │  verified signature
-                                                     ▼
-                                          StripeWebhookController
-                                                     │
-                                                     ▼
-                                          PurchaseService → purchases.status = paid
-                                                     │
-                                                     ▼
-                                     User::hasPurchased() → learning area unlocked
+  CheckoutController::start ──► session: the course SLUG only
+          │
+          ├─ guest ................. create account ──► verify email
+          ├─ signed in, unverified .. verify email
+          └─ signed in, verified .... checkout.review
+                                            │
+                                            │  POST /checkout/{slug}  (+ consent=1)
+                                            ▼
+                                   CheckoutController::store
+                                            │
+                                            ▼
+                                   PurchaseService ──► StripeService ──► Stripe Checkout
+                                            │  writes a `pending` purchase    │ customer pays
+                                            │  + terms_accepted_at           ▼
+                                            │                         POST /stripe/webhook
+                                            │                                  │ verified signature
+                                            │                                  ▼
+                                            │                          StripeWebhookController
+                                            │                                  │
+                                            ▼                                  ▼
+                                    purchases table ◄──────── PurchaseService → status = paid
+                                            │
+                                            ▼
+                                   User::hasPurchased() → learning area unlocked
 ```
+
+### The journey, end to end
+
+A visitor never has to know which step they are on. The Buy button is a link, and
+the server works out where the visitor actually is:
+
+| Step | URL | What happens |
+| --- | --- | --- |
+| Buy | `GET /buy/{course}` (`checkout.start`) | Remembers the course **slug** and routes on: guest → create account; unverified → verify; verified → check your order; already owns it → My Account |
+| Create account | `GET /register` | Shows the chosen course beside the form. The account is created but proves nothing until the code is entered |
+| Verify email | `GET /email/verify` | A six-digit code is mailed. Entering it logs the customer in and carries them on |
+| Check your order | `GET /checkout/{course}/review` (`checkout.review`) | Course, price and features from the database, plus the consent tick box |
+| Pay | `POST /checkout/{course}` (`checkout.store`) | Refused without consent. Otherwise a Stripe Checkout Session and a redirect out to Stripe |
+| Return | `GET /checkout/success` | As soon as Stripe says paid → **My Account**, with the new course highlighted. Otherwise a waiting page that re-checks itself |
+| Cancel | `GET /checkout/cancel` | No payment was taken, with a retry that returns to `checkout.start` for the same course |
+
+`checkout.start` is a safe `GET`: it writes one slug to the session and never
+creates a payment. The journey also works for people who already have an
+account — signing in with an intended course lands them on the check-your-order
+page instead of the dashboard.
 
 Two rules run through the whole design:
 
@@ -175,6 +205,50 @@ variables (Hostinger/SkyPanel control panel → PHP version → environment
 variables, or your web server / CI config) rather than writing them into a file
 on disk.
 
+### Checkout flow settings (`config/courses.php`)
+
+The journey's tunables live in `config/courses.php`. Each has a working default,
+so the site runs with no configuration at all; the environment variable is only
+there for when you want to change one without a deploy.
+
+| Key | Env override | Default | What it controls |
+| --- | --- | --- | --- |
+| `checkout_expiry_minutes` | `COURSES_CHECKOUT_EXPIRY_MINUTES` | `60` | How long a Stripe Checkout Session stays open. **Clamped to 30–1440 minutes**, because Stripe rejects anything outside that range and a mistyped value should be corrected here rather than turned into a failed payment at the moment somebody is trying to buy |
+| `code_resend_cooldown_seconds` | `COURSES_CODE_RESEND_COOLDOWN` | `60` | Minimum gap between verification emails. Applies to sign-up, to signing in with an unverified account, and to the resend form |
+| `success_refresh_interval_seconds` | — | `3` | How often the return-from-Stripe page re-checks while it waits for the webhook |
+| `success_refresh_max_attempts` | — | `10` | How many times it re-checks before it stops and shows the support details. The `attempt` query parameter is clamped to this |
+| `prune_unverified_days` | — | `7` | How long an account can stay unverified before `users:prune-unverified` may remove it |
+| `terms_version` | — | `null` | Stored alongside `terms_accepted_at`. **Set this to something like `'2026-01'`** so a later change of wording can be traced |
+| `consent_text` | — | *(see below)* | The wording of the tick box on the check-your-order page |
+
+`consent_text` is the single place the consent wording lives. It is deliberately
+one config value rather than text buried in a template, because **the wording
+needs legal review before launch** — see the note at the end of this section.
+
+### Cleaning up abandoned sign-ups
+
+Account creation is the first step of buying, so every abandoned sign-up leaves
+a row behind that will never be verified and never used:
+
+```bash
+php artisan users:prune-unverified --dry-run   # report only, deletes nothing
+php artisan users:prune-unverified             # do it
+php artisan users:prune-unverified --days=1    # clear a backlog after downtime
+```
+
+Scheduled daily in `routes/console.php`, so it only runs if the scheduler does:
+
+```bash
+* * * * * cd /path/to/project && php artisan schedule:run >> /dev/null 2>&1
+```
+
+It deletes an account only if **all** of these are true: the email was never
+verified, the account is older than the window, and there are no purchase rows
+of any status — a pending purchase is enough to keep it, because somebody who
+started paying is not a leftover. Each row is re-checked immediately before it
+goes, so an account that was verified or paid for in the last second survives.
+The log line carries counts only, never email addresses.
+
 ---
 
 ## 4. Database
@@ -230,7 +304,18 @@ There is no `course_documents` table: no course has files attached to it.
 `id`, `user_id`, `course_id`, `stripe_checkout_session_id` (**unique**),
 `stripe_payment_intent_id` (**unique**), `stripe_customer_id`, `stripe_event_id`,
 `customer_email`, `customer_name`, `amount` (pence), `currency`, `status`,
-`metadata` (JSON), `paid_at`, `refunded_at`, `failure_reason`, timestamps.
+`metadata` (JSON), `paid_at`, `refunded_at`, `failure_reason`,
+`terms_accepted_at`, `terms_version`, timestamps.
+
+`terms_accepted_at` and `terms_version` are added by
+`2026_10_02_011801_add_terms_accepted_to_purchases_table.php`. They record the
+consent tick box on the check-your-order page, and are written **when the box is
+ticked rather than when the money arrives** — so an acceptance that leads to an
+abandoned or failed payment is still on file. `terms_version` comes from
+`config('courses.terms_version')`, which is how you can show later which wording
+somebody agreed to. Both columns are nullable and are only set when consent was
+actually given; re-opening a checkout never moves `terms_accepted_at`, because
+that would misrepresent when the customer agreed.
 
 Both Stripe id columns are unique **when present**; MySQL and PostgreSQL allow
 any number of `NULL`s in a unique index, which is what allows a checkout
@@ -624,15 +709,19 @@ Any future expiry date, any CVC and any postcode will do.
 1. `php artisan serve` (port 8000) in one terminal, `stripe listen` in another.
 2. Open <http://localhost:8000/>, scroll to **Prepare For The Official Life in
    the UK Test**.
-3. Press **Buy Life in the UK Course — £99**.
-4. You are bounced to sign in or create an account first (POST
-   `/checkout/{slug}` is behind `auth`). Register, then buy.
-5. Pay with `4242 4242 4242 4242`.
-6. Stripe returns you to `/checkout/success`. The page asks Stripe about the
-   session; because the payment genuinely completed, the purchase is confirmed
-   there even if the webhook has not landed yet.
-7. You land on **My account** with the course listed and an *Open the course*
-   button. Press it to reach the lessons and papers.
+3. Press **Buy Life in the UK Course — £99**. As a guest this goes to **Create
+   Account**, with the course shown beside the form — you are not sent to a
+   login page with the course forgotten.
+4. Create the account, then type the six-digit code from the email. You are
+   logged in automatically and land on **Check Your Order**.
+5. Tick the consent box and press **Pay £99 securely with Stripe**.
+6. Pay with `4242 4242 4242 4242`.
+7. Stripe returns you to `/checkout/success`. The page asks Stripe about the
+   session; because the payment genuinely completed, you are redirected to
+   **My Account** with the course highlighted and a **Start learning** button —
+   even if the webhook has not landed yet. If Stripe has not answered yet the
+   page waits and re-checks by itself, a few seconds at a time, for up to ten
+   attempts, and then says so calmly rather than spinning for ever.
 
 Confirm it from the database:
 
@@ -642,8 +731,16 @@ php artisan tinker
 ```
 
 You should see `status => "paid"`, a `stripe_checkout_session_id`, a
-`stripe_payment_intent_id`, `amount => 9900`, `currency => "gbp"` and a
-`paid_at` timestamp.
+`stripe_payment_intent_id`, `amount => 9900`, `currency => "gbp"`,
+`paid_at`, and the `terms_accepted_at` / `terms_version` recorded when the box
+was ticked.
+
+### Not ticking the box
+
+Press **Pay** without ticking consent and you are sent straight back to **Check
+Your Order** with the reason attached. **No Stripe session is created and no
+purchase row is written**, because a session opened without it would record an
+acceptance that never happened.
 
 ### Walking through a failed payment
 
@@ -771,6 +868,18 @@ purchases are unaffected.
   else. The amount, currency and Stripe Price id are all read from the database
   and `config/stripe.php`. Posting `price=1` changes nothing — there is a test
   for exactly that.
+* **Consent is required before a payment exists.** The tick box on
+  check-your-order is validated as `accepted` before `beginCheckout()` is
+  called, so no Stripe session and no `purchases` row can be created without
+  it. What was agreed, and which version of the wording, is written to
+  `terms_accepted_at` / `terms_version`.
+* **The session holds slugs, never URLs.** The chosen course is remembered under
+  `checkout.intended_course` as a slug and re-resolved against active courses
+  on the server. Storing a URL would make the session a redirect target that
+  anybody could plant; a slug cannot be pointed anywhere.
+* **One payment per attempt.** A second press of Pay reuses the open Stripe
+  Checkout Session instead of opening a second one, guarded by a per-user,
+  per-course cache lock so two clicks arriving together still make one session.
 * **No secret ever reaches a view or a log.** `STRIPE_SECRET` is read only by
   `StripeService`. Logs record ids, slugs and amounts, never keys or full
   card data. Stripe handles the card, so no card details touch this server.
@@ -796,6 +905,25 @@ purchases are unaffected.
   a deliberately vague message so the form cannot be used to discover which
   email addresses have accounts.
 * **Session hygiene.** The session id is regenerated on sign in and sign out.
+
+### The emailed verification code
+
+The six-digit code is not stored. `User::issueVerificationCode()` writes
+
+```php
+hash_hmac('sha256', $this->getKey().'|'.$code, config('app.key'))
+```
+
+and `verificationCodeMatches()` compares with `hash_equals`. Binding the account
+id into the message means two accounts sent the same six digits do not produce
+the same stored value, and keying it with the app key means the stored value
+cannot be reversed from a database dump alone — six digits is only a million
+candidates, which a plain SHA-256 is trivially brute-forced offline.
+
+This needs **no schema change and no migration**. It does mean that **codes
+issued before the deploy stop working**, because they were stored under the old
+plain-hash scheme. They expire in 15 minutes anyway, so a deploy is a good
+moment to do it; anyone mid-sign-up is asked for a new code.
 
 ### Deploying the webhook securely
 
@@ -845,11 +973,15 @@ Everything added or changed for this feature:
 **Configuration**
 * `config/stripe.php` — keys, webhook secret, Price ids, currency
 * `config/catalog.php` — the two courses: copy, prices, file mapping
+* `config/courses.php` — checkout expiry, resend cooldown, success-page refresh,
+  prune window, terms version, consent wording
 * `.env.example` / `.env` — the `STRIPE_*` block
 
 **Database**
 * `database/migrations/2024_01_01_000001_create_courses_table.php`
 * `database/migrations/2024_01_01_000003_create_purchases_table.php`
+* `database/migrations/2026_10_02_011801_add_terms_accepted_to_purchases_table.php`
+  — `terms_accepted_at`, `terms_version`
 * `database/migrations/2024_01_01_000004_create_stripe_webhook_events_table.php`
 * `database/migrations/2024_01_01_000009_create_lesson_progress_table.php`
 * `database/migrations/2024_01_01_000010_create_quiz_attempts_table.php`
@@ -882,12 +1014,15 @@ Everything added or changed for this feature:
 * `app/Support/DocxReader.php` — paragraph text out of a Word file
 * `app/Support/ZipReader.php` — reads the zip container, no `ext-zip` needed
 * `app/Support/CourseFiles.php` — the two content file paths
+* `app/Support/IntendedCourse.php` — the chosen course across the journey:
+  remembers the **slug**, resolves it to an active `Course`, forgets it
 * `config/course-content.php` — where the store looks for the files
 * `app/Services/QuizAttemptService.php` — starting, answering, marking a paper
 * `app/Services/LearningService.php` — the course hub and the lesson reader
 
 **HTTP**
-* `app/Http/Controllers/CheckoutController.php` — course page, checkout, return trip
+* `app/Http/Controllers/CheckoutController.php` — course page, `checkout.start`
+  routing, the review page, the checkout POST, and the return trip
 * `app/Http/Controllers/StripeWebhookController.php` — signature verification, event ledger
 * `app/Http/Controllers/CourseLearnController.php` — the course hub
 * `app/Http/Controllers/LessonController.php` — reading a lesson, marking it read
@@ -914,16 +1049,22 @@ Everything added or changed for this feature:
 * `resources/views/website/pages/learn/play.blade.php` — one question at a time
 * `resources/views/website/pages/learn/result.blade.php` — marks and score
 * `resources/views/website/pages/auth/login.blade.php`, `register.blade.php`
-* `resources/views/website/pages/checkout/success.blade.php`, `cancel.blade.php`
+* `resources/views/website/partials/checkout-steps.blade.php` — the shared
+  stepper (Create account → Verify email → Check order → Pay)
+* `resources/views/website/pages/checkout/review.blade.php` — the check-your-order page
+* `resources/views/website/pages/checkout/success.blade.php` — the waiting page
+* `resources/views/website/pages/checkout/cancel.blade.php`
 * `layouts/header.blade.php`, `layouts/mobile_menu.blade.php`,
   `layouts/footer.blade.php` — account / sign-in navigation
 
 **Tooling**
 * `app/Console/Commands/PaymentsDoctor.php` — `php artisan payments:doctor`
+* `app/Console/Commands/PruneUnverifiedUsers.php` — `php artisan users:prune-unverified`
 * `app/Console/Commands/CoursesExtract.php` — `php artisan courses:extract`
   (only needed if the source `.docx` files come back; `--dry-run` reports
   without writing)
 * `tests/Feature/PaidCoursesTest.php`, `tests/Feature/LearningAreaTest.php`,
+  `tests/Feature/CheckoutJourneyTest.php`, `tests/Feature/PruneUnverifiedUsersTest.php`,
   `tests/Feature/CourseContentFilesTest.php`
 
 **Untouched by design**
@@ -931,3 +1072,35 @@ Everything added or changed for this feature:
   extractor only ever read the existing filenames. Nothing on the site depends on
   these files: they were temporary, and the content they held is in the JSON
   files the site serves.
+
+---
+
+## Before you launch: three things to confirm
+
+These are not coding tasks. They are decisions the code deliberately leaves to
+the owner, and each one has a default that is a *placeholder*, not advice.
+
+1. **The consent wording needs legal review.** The tick box on check-your-order
+   reads, by default:
+
+   > I agree to the Terms and Refund Policy. I understand I get immediate access
+   > to digital content, so I lose my right to cancel within 14 days once access
+   > begins.
+
+   This is a starting point, not approved copy. Edit it in
+   `config/courses.php` (`consent_text`) — nothing else needs to change — and
+   set `terms_version` to something like `'2026-01'` at the same time, so you
+   can later tell which wording a given customer agreed to.
+
+2. **The policy page has to back the wording up.** The consent links to
+   `/our-policy`. That page must actually cover refunds and explain the 14-day
+   cancellation right being waived for digital content, because the site is
+   asserting the waiver in the tick box. Check the link resolves on the live
+   site, not just in a local view.
+
+3. **Decide whether Stripe sends receipts.** `payment_intent_data.receipt_email`
+   is set from the customer's address, and in live mode Stripe sends the receipt
+   because of it. Check the outcome in Stripe Dashboard → Settings → Emails and
+   confirm you are happy with what a customer receives. The site deliberately
+   **never claims a receipt was sent** — it does not control that, and promising
+   it is how people end up emailing to ask where it is.

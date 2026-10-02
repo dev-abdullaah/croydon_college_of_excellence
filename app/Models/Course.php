@@ -124,25 +124,15 @@ class Course extends Model
             : number_format($pounds, 2));
     }
 
+    /**
+     * Whether this user may read the material.
+     *
+     * A completed Stripe payment is the only thing that grants it, so this is
+     * deliberately the same question User::hasPurchased() answers. There is no
+     * setting that relaxes it.
+     */
     public function hasAccessFor(?User $user): bool
     {
-        // While the paywall is off every signed-in account may read the
-        // material, so a purchase is not what grants access.
-        if (! $this->requiresPurchase()) {
-            return $user !== null;
-        }
-
         return $user?->hasPurchased($this) ?? false;
-    }
-
-    /**
-     * Whether opening this course's material requires a paid purchase.
-     *
-     * Off while the lessons and papers are being built and marked; a live
-     * site wants it on. See config/course-content.php.
-     */
-    public function requiresPurchase(): bool
-    {
-        return (bool) config('course-content.require_purchase');
     }
 }

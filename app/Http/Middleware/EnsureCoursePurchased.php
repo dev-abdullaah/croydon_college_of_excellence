@@ -32,16 +32,9 @@ class EnsureCoursePurchased
             return redirect()->guest(route('login'));
         }
 
-        // The paywall can be switched off while the material is being built
-        // and marked, so every account can read it. A signed-in user is still
-        // required above: a sitting is a database row keyed to a user, and a
-        // lesson's progress is recorded against one.
-        if (! config('course-content.require_purchase')) {
-            return $next($request);
-        }
-
-        // 403 rather than 404: the resource exists, this visitor simply is
-        // not entitled to it.
+        // A completed purchase is the only thing that opens the material, and
+        // there is no setting that relaxes it. 403 rather than 404: the
+        // resource exists, this visitor simply is not entitled to it.
         abort_unless($course->hasAccessFor($request->user()), 403);
 
         return $next($request);

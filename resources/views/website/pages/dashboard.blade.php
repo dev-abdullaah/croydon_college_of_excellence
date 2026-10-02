@@ -47,11 +47,34 @@
 
                     <div class="row g-3 mb--40">
                         @foreach ($learnableCourses as $course)
-                            @php $p = $lessonProgress[$course->slug] ?? ['done' => 0, 'total' => 0]; @endphp
+                            @php
+                                $p = $lessonProgress[$course->slug] ?? ['done' => 0, 'total' => 0];
+                                // Only the course the success page named can carry
+                                // the badge, and the controller has already matched
+                                // that slug against the paid purchases this account
+                                // owns, so it cannot mark a course they do not have.
+                                $isNew = $highlightCourse && $highlightCourse->id === $course->id;
+                            @endphp
                             <div class="col-lg-6 col-12">
+                                {{-- The whole card is the link, and it turns into
+                                     a visible ring while the badge is showing so
+                                     the eye is drawn to the thing that just
+                                     arrived rather than having to read a label to
+                                     work out which one is new. --}}
                                 <a href="{{ route('learn.index', $course) }}"
-                                    class="rbt-service rbt-service-2 radius-10 h-100 d-block text-decoration-none text-reset">
-                                    <h4 class="title mb-1">{{ $course->name }}</h4>
+                                    class="rbt-service rbt-service-2 radius-10 h-100 d-block text-decoration-none text-reset {{ $isNew ? 'dashboard-course--new' : '' }}">
+                                    <div class="d-flex align-items-center mb-1 flex-wrap gap-2">
+                                        <h4 class="title mb-0">{{ $course->name }}</h4>
+                                        @if ($isNew)
+                                            <span class="badge bg-primary">New</span>
+                                        @endif
+                                    </div>
+                                    @if ($isNew)
+                                        <p class="small mb-2">
+                                            <i class="feather-check-circle me-1"></i>
+                                            Payment received. This is yours.
+                                        </p>
+                                    @endif
                                     @if ($p['total'] > 0)
                                         @php $pct = (int) round($p['done'] / $p['total'] * 100); @endphp
                                         <p class="mb-2 small">
@@ -69,7 +92,7 @@
                                         <p class="mb-2 small">Go to your papers and start practising.</p>
                                     @endif
                                     <span class="btn btn-lg btn-primary mt--20">
-                                        <span>Open the course</span>
+                                        <span>{{ $isNew ? 'Start learning' : 'Open the course' }}</span>
                                     </span>
                                 </a>
                             </div>
@@ -114,6 +137,11 @@
                         @endif
                     </div>
                 @empty
+                    {{-- Only when there is nothing half-finished either. Telling
+                         somebody who is midway through a purchase that they
+                         "have not purchased anything yet", and then listing
+                         their purchase underneath, reads as a contradiction. --}}
+                    @if ($unfinishedCourses->isEmpty())
                     <div class="rbt-service rbt-service-2 radius-10">
                         <h4 class="title">You have not purchased anything yet</h4>
                         <p>
@@ -158,23 +186,47 @@
                             </a>
                         </div>
                     </div>
+                    @endif
                 @endforelse
 
-                @if ($pendingPurchases->isNotEmpty())
+                {{--
+                    "Complete your purchase", not "Recent checkout attempts".
+
+                    The old heading described the database rows behind it. That
+                    is the wrong way round: a customer did not make an
+                    "attempt", they started buying a course and did not finish,
+                    and a list of internal statuses beside each name reads as
+                    several separate things going wrong. So this is one entry
+                    per course they have started and not finished, with a single
+                    button, and no statuses at all.
+
+                    The button goes to checkout.start rather than to the
+                    payment form or the course page, because start is the only
+                    place that knows what this person still needs. It is a GET
+                    that changes nothing but the session, so it is safe to be
+                    sitting here waiting to be clicked, and safe to arrive at
+                    from a bookmark.
+
+                    One row per course, not per purchase: three clicks on the
+                    pay button is one thing left to do, and listing it three
+                    times would make it look like three.
+                --}}
+                @if ($unfinishedCourses->isNotEmpty())
                     <div class="rbt-service rbt-service-2 radius-10 mt--30">
-                        <h4 class="title">Recent checkout attempts</h4>
-                        <p>These have not completed. No payment has been taken for them.</p>
+                        <h4 class="title">Complete your purchase</h4>
+                        <p>
+                            You started buying {{ $unfinishedCourses->count() === 1 ? 'this course' : 'these courses' }}
+                            but have not finished. Nothing has been charged &mdash; pick up where you left off.
+                        </p>
                         <ul class="list-unstyled mb-0">
-                            @foreach ($pendingPurchases as $purchase)
-                                <li class="d-flex justify-content-between align-items-center py-2">
+                            @foreach ($unfinishedCourses as $course)
+                                <li class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2">
                                     <span>
-                                        {{ $purchase->course->name ?? 'Course' }}
-                                        <small class="ms-2">{{ $purchase->statusLabel() }}</small>
+                                        <strong>{{ $course->name }}</strong>
+                                        <small class="ms-2">{{ $course->formattedPrice() }}</small>
                                     </span>
-                                    @if ($purchase->course)
-                                        <a href="{{ route('courses.show', $purchase->course) }}"
-                                            class="btn btn-lg btn-primary">Try again</a>
-                                    @endif
+                                    <a href="{{ route('checkout.start', $course) }}"
+                                        class="btn btn-lg btn-primary">Continue</a>
                                 </li>
                             @endforeach
                         </ul>

@@ -21,8 +21,8 @@
                     <span class="subtitle bg-primary-opacity">OUR COURSES</span>
                     <h2 class="title">Choose The Course You Need</h2>
                     <p class="mt--20 mb-0">
-                        Pay once and keep access for life. Lessons and papers are read
-                        and taken on this website, so there is nothing to download.
+                        Learn online in your own account: read the lessons and take the
+                        practice tests. Pay once, with no subscription.
                     </p>
                 </div>
             </div>
@@ -75,39 +75,20 @@
 
                         <div class="row align-items-center g-3">
                             <div class="col-lg-6">
-                                @auth
-                                    @if ($course->hasAccessFor(auth()->user()))
-                                        <a href="{{ $course->requiresPurchase() ? route('dashboard') : route('learn.index', $course) }}"
-                                            class="rbt-btn btn-gradient radius-round btn-sm w-100 justify-content-center text-center">
-                                            <span>{{ $course->requiresPurchase() ? 'View In My Account' : 'Start Learning' }}</span>
-                                        </a>
-                                    @else
-                                        <form method="POST" action="{{ route('checkout.store', $course) }}">
-                                            @csrf
-                                            <button type="submit"
-                                                class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center">
-                                                <span>Buy {{ $course->name }} &mdash; {{ $course->formattedPrice() }}</span>
-                                            </button>
-                                        </form>
-                                    @endif
+                                @if ($course->hasAccessFor(auth()->user()))
+                                    <a href="{{ route('dashboard') }}"
+                                        class="rbt-btn btn-gradient radius-round btn-sm w-100 justify-content-center text-center">
+                                        <span>View In My Account</span>
+                                    </a>
                                 @else
-                                    @if ($course->requiresPurchase())
-                                        <form method="POST" action="{{ route('checkout.store', $course) }}">
-                                            @csrf
-                                            <button type="submit"
-                                                class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center">
-                                                <span>Buy {{ $course->name }} &mdash; {{ $course->formattedPrice() }}</span>
-                                            </button>
-                                        </form>
-                                    @else
-                                        {{-- The paywall is off, but a sitting is tied to
-                                             an account, so sign in rather than sell. --}}
-                                        <a href="{{ route('login') }}"
-                                            class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center">
-                                            <span>Sign In To Start Learning</span>
-                                        </a>
-                                    @endif
-                                @endauth
+                                    {{-- A link, not a form: checkout.start carries
+                                         the visitor through whichever step they
+                                         still need. See partials/paid_courses. --}}
+                                    <a href="{{ route('checkout.start', $course) }}"
+                                        class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center">
+                                        <span>Buy {{ $course->name }} &mdash; {{ $course->formattedPrice() }}</span>
+                                    </a>
+                                @endif
                             </div>
                             <div class="col-lg-6">
                                 <div class="text-lg-end text-center">

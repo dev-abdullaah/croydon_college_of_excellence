@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Exceptions\AlreadyPurchasedException;
 use App\Exceptions\PaymentException;
 use App\Models\Course;
 use App\Models\Purchase;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Stripe\Checkout\Session;
@@ -38,8 +40,22 @@ class PurchaseService
      *
      * The course is resolved by the caller from the database, so the price
      * and the Stripe Price id both come from the server.
+     *
+     * Two things stop one purchase attempt becoming two payments.
+     *
+     * The first is reuse. A pending purchase that already has a Stripe session
+     * inside its checkout lifetime is asked about at Stripe before a new one
+     * is opened, and an answer of "still open" hands back the URL they were
+     * already on. Opening a second session for the same attempt creates two
+     * ways to pay for one course, and the customer who completes the wrong
+     * one has paid for something they can no longer reach.
+     *
+     * The second is the lock. Reuse is a read followed by a write, so two
+     * clicks arriving together can both see "no open session" and both create
+     * one. The lock makes the second request wait, and makes the first one to
+     * arrive do the work.
      */
-    public function beginCheckout(User $user, Course $course): Session
+    public function beginCheckout(User $user, Course $course, bool $termsAccepted = false): Session
     {
         $priceId = $course->stripePriceId();
 
@@ -50,6 +66,39 @@ class PurchaseService
             ));
         }
 
+        $lock = Cache::lock($this->checkoutLockKey($user, $course), 10);
+
+        if (! $lock->get()) {
+            /*
+             | A session is being opened for this customer and course right
+             | now. Refusing is the safe answer: waiting here would tie up a
+             | web worker for a request whose whole job is to hand the browser
+             | off to Stripe, and guessing would be the duplicate we are
+             | trying to prevent. The customer presses the button again, by
+             | which time the first request has finished and its session can be
+             | reused.
+             */
+            throw new PaymentException(
+                'A checkout for this course is already being started. Please try again in a moment.'
+            );
+        }
+
+        try {
+            return $this->openCheckoutSession($user, $course, $priceId, $termsAccepted);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * The work of beginCheckout, with the lock already held.
+     */
+    protected function openCheckoutSession(User $user, Course $course, string $priceId, bool $termsAccepted): Session
+    {
+        if ($existing = $this->reusableSession($user, $course)) {
+            return $existing;
+        }
+
         $session = $this->stripe->createCheckoutSession([
             'mode' => 'payment',
             'line_items' => [
@@ -57,21 +106,127 @@ class PurchaseService
             ],
             'client_reference_id' => (string) $user->id,
             'customer_email' => $user->email,
-            // Metadata is the bridge between Stripe and our database: it lets
-            // the webhook (and the return trip) attach the payment to the
-            // right user and course without trusting the browser.
+            /*
+             | How long Stripe keeps this page open for the customer. Stripe
+             | rejects anything outside 30 minutes to 24 hours, so the setting
+             | is clamped rather than trusted: a mistyped config value should
+             | be corrected here, not turned into a failed payment at the one
+             | moment somebody is trying to buy something.
+             */
+            'expires_at' => now()->addMinutes($this->checkoutExpiryMinutes())->getTimestamp(),
+            /*
+             | Metadata is the bridge between Stripe and our database: it lets
+             | the webhook (and the return trip) attach the payment to the
+             | right user and course without trusting the browser.
+             */
             'metadata' => [
                 'user_id' => (string) $user->id,
                 'course_id' => (string) $course->id,
                 'course_slug' => $course->slug,
             ],
+            'payment_intent_data' => [
+                /*
+                 | Ask Stripe to send the receipt to the address the payment is
+                 | tied to. Specifying receipt_email sends one in live mode
+                 | whatever the account's own email settings say, which is what
+                 | we want: somebody who has just paid a hundred pounds and
+                 | heard nothing turns into a support call.
+                 */
+                'receipt_email' => $user->email,
+            ],
             'success_url' => route('checkout.success').'?session_id={CHECKOUT_SESSION_ID}',
             'cancel_url' => route('checkout.cancel'),
         ]);
 
+        $this->recordPendingPurchase($user, $course, $session->id, $termsAccepted);
+
+        return $session;
+    }
+
+    /**
+     * A pending session for this customer and course that is still worth
+     * sending them back to, or null when a new one is needed.
+     *
+     * Only the newest pending row counts, and only if it was opened inside the
+     * current checkout lifetime. Older rows are ignored on purpose: their
+     * session may have expired at Stripe, and sending somebody to Stripe's
+     * expired-session page is a dead end with no way forward except back.
+     *
+     * Stripe is asked rather than the local row trusted, because the local row
+     * is our guess at what happened and Stripe is the record of it. Three
+     * answers matter:
+     *
+     *   - still open: hand back the same URL, so one attempt stays one attempt;
+     *   - paid: the customer finished somewhere else, so record it through the
+     *     normal idempotent path and report that there is nothing to pay for;
+     *   - anything else (expired, complete but unpaid): fall through and open a
+     *     new session.
+     */
+    protected function reusableSession(User $user, Course $course): ?Session
+    {
+        $purchase = Purchase::query()
+            ->where('user_id', $user->id)
+            ->forCourse($course)
+            ->where('status', Purchase::STATUS_PENDING)
+            ->whereNotNull('stripe_checkout_session_id')
+            ->where('created_at', '>=', now()->subMinutes($this->checkoutExpiryMinutes()))
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $purchase) {
+            return null;
+        }
+
+        try {
+            $session = $this->stripe->retrieveCheckoutSession($purchase->stripe_checkout_session_id);
+        } catch (Throwable $e) {
+            // Stripe is unreachable, or the session is gone. Neither is a
+            // reason to strand the customer: open a fresh one and let them pay.
+            Log::info('Could not reuse a checkout session; opening a new one.', [
+                'checkout_session_id' => $purchase->stripe_checkout_session_id,
+                'course_slug' => $course->slug,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        if (($session->payment_status ?? null) === 'paid') {
+            /*
+             | Already paid on this session. Recording it here uses the same
+             | idempotent path the webhook uses, so a webhook arriving late
+             | updates this row rather than creating a second purchase. A paid
+             | session is not something to send anybody back to, which is why
+             | this reports "already bought" and lets the controller take them
+             | to the course.
+             |
+             | Paid is checked before open, and the order matters. A delayed
+             | payment method can leave the session open at Stripe for a while
+             | after the money has arrived, so "still open" does not by itself
+             | mean there is still something to pay - read the other way round,
+             | it sends somebody back to a page asking for money we have
+             | already been given.
+             */
+            $this->recordCheckoutSession($session);
+
+            throw new AlreadyPurchasedException('This course has already been paid for.');
+        }
+
+        if (($session->status ?? null) === 'open') {
+            return $session;
+        }
+
+        return null;
+    }
+
+    /**
+     * The pending row that gives us a local trail before the webhook arrives.
+     */
+    protected function recordPendingPurchase(User $user, Course $course, string $sessionId, bool $termsAccepted): void
+    {
         try {
             Purchase::updateOrCreate(
-                ['stripe_checkout_session_id' => $session->id],
+                ['stripe_checkout_session_id' => $sessionId],
                 [
                     'user_id' => $user->id,
                     'course_id' => $course->id,
@@ -80,19 +235,49 @@ class PurchaseService
                     'customer_email' => $user->email,
                     'customer_name' => $user->name,
                     'status' => Purchase::STATUS_PENDING,
+                    /*
+                     | The consent is recorded the moment the tick box is
+                     | accepted, before Stripe has said anything about the
+                     | money, so an acceptance that leads to an abandoned or
+                     | failed payment is still on file.
+                     |
+                     | Only set when it was actually given, and never moved
+                     | afterwards: re-opening a checkout is not a fresh
+                     | agreement, and overwriting the timestamp would
+                     | misrepresent when the customer agreed to the terms.
+                     */
+                    'terms_accepted_at' => $termsAccepted ? now() : null,
+                    'terms_version' => $termsAccepted ? config('courses.terms_version') : null,
                 ]
             );
         } catch (Throwable $e) {
             // The checkout session still carries our metadata, so the webhook
             // will be able to reconstruct the purchase. Nothing is lost.
             Log::error('Unable to store the pending purchase for a checkout session.', [
-                'checkout_session_id' => $session->id,
+                'checkout_session_id' => $sessionId,
                 'course_slug' => $course->slug,
                 'exception' => $e->getMessage(),
             ]);
         }
+    }
 
-        return $session;
+    /**
+     * The lock key for one customer's attempt to buy one course.
+     */
+    protected function checkoutLockKey(User $user, Course $course): string
+    {
+        return "checkout:{$user->id}:{$course->id}";
+    }
+
+    /**
+     * How long a Checkout Session should stay open, clamped to what Stripe
+     * accepts. Outside 30 minutes to 24 hours the API rejects the request.
+     */
+    protected function checkoutExpiryMinutes(): int
+    {
+        $minutes = (int) config('courses.checkout_expiry_minutes', 60);
+
+        return max(30, min(24 * 60, $minutes));
     }
 
     /**

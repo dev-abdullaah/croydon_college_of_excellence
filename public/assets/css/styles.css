@@ -38480,3 +38480,189 @@ a[class*="lz-card"]:hover {
     animation: none;
   }
 }
+
+/* ==========================================================================
+   CHECKOUT STEPPER
+   The four steps between clicking Buy and reaching Stripe. Reused by
+   partials/checkout-steps.blade.php.
+
+   Mobile first. Below 767px the four steps do not fit side by side without the
+   labels wrapping onto two lines each, so they become a row of four numbered
+   circles with the current step's label underneath. The labels are still in
+   the DOM and still readable by a screen reader; only their position changes.
+
+   The connector is drawn as a ::after on the circle, which is why there is no
+   line element: it is decoration, and a screen reader should not have to skip
+   past it to get from one step to the next.
+
+   Colours come from the theme's own variables, so dark mode follows them
+   rather than needing a second palette.
+   ========================================================================== */
+
+.checkout-steps {
+  margin-bottom: 30px;
+}
+
+.checkout-steps__list {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checkout-steps__item {
+  position: relative;
+  flex: 1 1 0;
+  text-align: center;
+}
+
+/* The line to the next step, drawn from the right edge of this circle to the
+   left edge of the next. Half the gap each side, so the two halves meet in
+   the middle. Hidden from the last item, which has nothing after it. */
+.checkout-steps__item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 1.7rem;
+  left: calc(50% + 2.2rem);
+  width: calc(100% - 4.4rem);
+  height: 2px;
+  background: var(--color-border);
+}
+
+.checkout-steps__item.is-done:not(:last-child)::after {
+  background: var(--color-primary);
+}
+
+.checkout-steps__link,
+.checkout-steps__item a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-darker);
+  text-decoration: none;
+}
+
+.checkout-steps__num {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 50%;
+  background: var(--color-white);
+  border: 2px solid var(--color-border);
+  color: var(--color-body);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.checkout-steps__num i,
+.checkout-steps__num svg {
+  width: 16px;
+  height: 16px;
+}
+
+.checkout-steps__label {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-body);
+}
+
+/* Done: filled, and the circle is a link. */
+.checkout-steps__item.is-done .checkout-steps__num {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+.checkout-steps__item.is-done .checkout-steps__label {
+  color: var(--color-darker);
+}
+
+.checkout-steps__item.is-done a:hover .checkout-steps__label,
+.checkout-steps__item.is-done a:focus-visible .checkout-steps__label {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+/* Current: the only step with a strong filled ring, so the eye lands on it
+   first without reading any text. */
+.checkout-steps__item.is-current .checkout-steps__num {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+.checkout-steps__item.is-current .checkout-steps__label {
+  color: var(--color-darker);
+  font-weight: 700;
+}
+
+@media only screen and (max-width: 767px) {
+  /* Circles only, with the current step's label underneath, because four
+     two-word labels will not sit in a quarter of a phone each. */
+  .checkout-steps__label {
+    display: none;
+  }
+
+  .checkout-steps__item.is-current .checkout-steps__label {
+    display: block;
+    margin-top: 8px;
+  }
+
+  .checkout-steps__item:not(:last-child)::after {
+    top: 1.2rem;
+    left: calc(50% + 1.8rem);
+    width: calc(100% - 3.6rem);
+  }
+
+  .checkout-steps__num {
+    width: 2.4rem;
+    height: 2.4rem;
+    font-size: 13px;
+  }
+}
+
+.active-dark-mode .checkout-steps__num {
+  background: #23262f;
+}
+
+.active-dark-mode .checkout-steps__link,
+.active-dark-mode .checkout-steps__item a,
+.active-dark-mode .checkout-steps__label {
+  color: var(--color-white);
+}
+
+/* ==========================================================================
+   A course that has just been paid for, on the account page.
+
+   The "New" badge in the markup is what says so. This is the ring around the
+   card, and it exists because a badge is a small thing at the top of a card on
+   a page that may hold several of them: enough to be found if you are looking
+   for it, not enough to stop the eye on its own.
+
+   A box-shadow rather than a border, so the card does not change size when it
+   appears and the row of cards next to it does not shift.
+   ========================================================================== */
+
+.dashboard-course--new {
+  box-shadow: 0 0 0 2px var(--color-primary), 0 10px 30px rgba(25, 35, 51, .10);
+}
+
+.dashboard-course--new:hover,
+.dashboard-course--new:focus-visible {
+  box-shadow: 0 0 0 3px var(--color-primary), 0 14px 34px rgba(25, 35, 51, .16);
+}
+
+.dashboard-course--new:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

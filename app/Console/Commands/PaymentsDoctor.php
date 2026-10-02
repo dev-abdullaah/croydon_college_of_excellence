@@ -199,15 +199,10 @@ class PaymentsDoctor extends Command
             return self::FAILURE;
         }
 
-        // A live site must not quietly ship with the paywall down. It is off
-        // on purpose while the material is being built, so this is a loud
-        // note rather than a failure.
-        if (! config('course-content.require_purchase')) {
-            $this->components->warn('THE PAYWALL IS OFF: every signed-in account can open every course.');
-            $this->line('           This is expected while the lessons and papers are being built.');
-            $this->line('           Set COURSE_REQUIRE_PURCHASE=true before taking real payments.');
-            $this->newLine();
-        }
+        // There is no paywall switch: a completed Stripe payment is the only
+        // thing that opens the material. Say so plainly, because "is the
+        // paywall up?" used to be the question this command answered.
+        $this->components->info('Access control: every course needs a completed payment. No override exists.');
 
         $courses = Course::ordered()->get();
 

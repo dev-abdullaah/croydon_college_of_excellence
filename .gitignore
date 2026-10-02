@@ -10,7 +10,12 @@
 .env.production
 # Overrides .env wholesale on a developer machine. Holds real SMTP credentials
 # when MAIL_MAILER=smtp-live, so it must never be committed.
+# Note it is only picked up when APP_ENV is set in the environment, and then it
+# REPLACES .env rather than merging - a stale copy silently hides every setting
+# in .env. Prefer editing .env; rename a file you no longer want to
+# .env.local.bak rather than leaving it in place.
 .env.local
+.env.*.bak
 .phpunit.result.cache
 Homestead.json
 Homestead.yaml

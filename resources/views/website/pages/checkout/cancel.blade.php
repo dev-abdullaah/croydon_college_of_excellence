@@ -32,13 +32,20 @@
 
                     <div class="rbt-btn-wrapper">
                         @if ($course)
-                            <form method="POST" action="{{ route('checkout.store', $course) }}" class="d-inline">
-                                @csrf
-                                <button type="submit"
-                                    class="rbt-btn btn-gradient radius-round btn-sm justify-content-center text-center">
-                                    <span>Try {{ $course->name }} Again</span>
-                                </button>
-                            </form>
+                            {{--
+                                The retry goes to checkout.start, not straight to
+                                the payment form. checkout.start is the one place
+                                that knows where this person actually is: it sends
+                                an owner to their account, sends somebody who has
+                                drifted back to the review page to consent, and
+                                only opens Stripe for a customer who is really
+                                ready. Linking past it would mean re-deciding
+                                all of that here, in a view, where it would drift.
+                            --}}
+                            <a href="{{ route('checkout.start', $course) }}"
+                                class="rbt-btn btn-gradient radius-round btn-sm justify-content-center text-center">
+                                <span>Try {{ $course->name }} Again</span>
+                            </a>
 
                             <a href="{{ route('courses.index') }}"
                                 class="rbt-btn btn-border-gradient radius-round btn-sm justify-content-center text-center">
