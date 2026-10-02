@@ -37646,6 +37646,24 @@ Course Sidebar
   background: var(--primary-opacity);
 }
 
+/* Hardcoded black text, inside a block the theme has just darkened.
+ *
+ * `.text-black` is Bootstrap's `color: rgba(0,0,0,1) !important`, so no rule
+ * can correct it short of matching that `!important`. Dark mode repaints
+ * `.bg-color-white` as `--color-darker`, and nothing pulled these paragraphs
+ * with it: the Director's message puts the class on all eight of its
+ * paragraphs, and the text landed on the dark block at 1.33:1 - invisible
+ * rather than dim.
+ *
+ * Treated the same way as the course feature boxes above: `!important` to beat
+ * the utility, and scoped to `.bg-color-white` so it inverts text only where
+ * the theme actually darkened the background behind it, rather than
+ * recolouring `.text-black` everywhere it might legitimately be used.
+ */
+.active-dark-mode .bg-color-white .text-black {
+  color: var(--color-white-off) !important;
+}
+
 .active-dark-mode .rbt-offcanvas-trigger .offcanvas-trigger {
   display: block;
 }
