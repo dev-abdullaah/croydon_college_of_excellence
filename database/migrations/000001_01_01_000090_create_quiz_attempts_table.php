@@ -4,22 +4,23 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * One row per sitting of a paper.
+ *
+ * A paper is not a row: it lives in the JSON content file and is named here by
+ * its slug. This table holds only the learner's own work.
+ *
+ * Answers are written as the learner moves through the paper so a refresh, a
+ * dropped connection or a closed tab does not lose their work. `answers` is a
+ * JSON object of question number => "a"|"b"|"c"|"d", the numbers being the
+ * question's place on the paper. Nothing in it is trusted: the score is always
+ * recomputed from the content file at submit time, so an edited paper cannot
+ * quietly rewrite a stored result and a posted answer cannot invent a pass.
+ */
 return new class extends Migration
 {
     public function up(): void
     {
-        // One row per sitting of a paper.
-        //
-        // A paper is not a row: it lives in the JSON content file and is named
-        // here by its slug. This table holds only the learner's own work.
-        //
-        // Answers are written as the learner moves through the paper so a
-        // refresh, a dropped connection or a closed tab does not lose their
-        // work. `answers` is a JSON object of question number => "a"|"b"|"c"|"d",
-        // the numbers being the question's place on the paper. Nothing in it is
-        // trusted: the score is always recomputed from the content file at submit
-        // time, so an edited paper cannot quietly rewrite a stored result and a
-        // posted answer cannot invent a pass.
         Schema::create('quiz_attempts', function (Blueprint $table) {
             $table->id();
 

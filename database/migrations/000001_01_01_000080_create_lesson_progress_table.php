@@ -4,19 +4,21 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * "I have finished this lesson".
+ *
+ * A lesson is not a row: it lives in the JSON content file and is named here by
+ * its slug. That keeps this table to what is genuinely per learner, and it
+ * means a lesson can be reworded or re-extracted without a learner losing the
+ * fact that they read it.
+ *
+ * The unique triple is what stops a double-click, or a replayed request,
+ * adding the same row twice.
+ */
 return new class extends Migration
 {
     public function up(): void
     {
-        // "I have finished this lesson".
-        //
-        // A lesson is not a row: it lives in the JSON content file and is named
-        // here by its slug. That keeps this table to what is genuinely per
-        // learner, and it means a lesson can be reworded or re-extracted without
-        // a learner losing the fact that they read it.
-        //
-        // The unique triple is what stops a double-click, or a replayed request,
-        // adding the same row twice.
         Schema::create('lesson_progress', function (Blueprint $table) {
             $table->id();
 

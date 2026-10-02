@@ -4,6 +4,14 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * The paid course catalogue.
+ *
+ * Two courses, seeded by Database\Seeders\CourseSeeder. The lesson and paper
+ * content is not in the database at all: it is read from the JSON files in
+ * `database/data/` at request time, so there is nothing to import and nothing
+ * to drift out of step. What lives here is only what has to be queried.
+ */
 return new class extends Migration
 {
     public function up(): void
