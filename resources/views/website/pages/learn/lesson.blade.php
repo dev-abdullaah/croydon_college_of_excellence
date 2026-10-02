@@ -6,35 +6,31 @@
 
 @section('learn')
 
+    {{-- ── Top nav ─────────────────────────────────────────────────────────── --}}
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb--20">
-        <div>
-            <a href="{{ route('learn.index', $course) }}" class="btn btn-lg btn-outline-secondary">
-                &larr; All lessons
-            </a>
-        </div>
-
-        {{-- Which lesson of the course this is, as a position. --}}
-        <div class="small text-muted">
+        <a href="{{ route('learn.index', $course) }}" class="btn btn-outline-secondary">
+            &larr; All lessons
+        </a>
+        <span class="small text-muted">
             Lesson {{ $lesson->number }} of {{ $lessons->count() }}
+        </span>
+    </div>
+
+    {{-- ── Pager / position card ──────────────────────────────────────────── --}}
+    <div class="lz-card lz-pager-card p-3 mb--20">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <span class="lz-q-badge">
+                    <i class="feather-layers" style="font-size:1.3rem;"></i>
+                    Cards {{ $items->firstItem() }}&ndash;{{ $items->lastItem() }}
+                    of {{ $lesson->itemCount() }}
+                </span>
+            </div>
+            <span class="small text-muted">Page {{ $items->currentPage() }} of {{ $items->lastPage() }}</span>
         </div>
     </div>
 
-    {{-- Where the learner is in the 100 cards. --}}
-    <div class="lz-card p-3 mb--20">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-            <div class="small">
-                Showing cards
-                <strong>{{ $items->firstItem() }}&ndash;{{ $items->lastItem() }}</strong>
-                of <strong>{{ $lesson->itemCount() }}</strong>
-            </div>
-
-            <div class="small text-muted">
-                Page {{ $items->currentPage() }} of {{ $items->lastPage() }}
-            </div>
-        </div>
-    </div>
-
-    {{-- The study cards --}}
+    {{-- ── Study cards ────────────────────────────────────────────────────── --}}
     <div class="lz-card p-4 mb--30">
         @foreach ($items as $item)
             <div class="lz-item">
@@ -46,95 +42,117 @@
             </div>
         @endforeach
 
-        {{ $items->links() }}
+        <div class="mt-3">
+            {{ $items->links() }}
+        </div>
     </div>
 
-    {{-- On to the knowledge check for this lesson. --}}
+    {{-- ── Knowledge check ────────────────────────────────────────────────── --}}
     @if ($check)
         <div class="lz-card p-4 mb--30">
-            <div class="row align-items-center g-3">
-                <div class="col-md-8">
-                    <h5 class="title mb-1">Finished this lesson?</h5>
-                    <p class="mb-0">
-                        Put it to the test with {{ $check->title }} &mdash; {{ $check->questionCount() }}
-                        questions on the same material.
-                        @if ($checkScore !== null)
-                            <br>
-                            Your best score so far is
-                            <strong>{{ (int) round($checkScore) }}%</strong>.
-                        @endif
-                    </p>
+            <div class="d-flex align-items-start gap-3">
+                <div class="lz-num" style="border-radius:10px; background: rgba(47,87,239,.1); color: var(--lz-accent); flex-shrink:0;">
+                    <i class="feather-check-square" style="font-size:1.6rem;"></i>
                 </div>
-                <div class="col-md-4 text-md-end">
-                    {{--
-                        Primary either way: sitting the check is the point of
-                        this card. The one that has already been sat once says
-                        "again", which is an offer to improve a score, and that
-                        is not a warning, so it does not get warning colours.
-                    --}}
-                    <a href="{{ route('learn.quizzes.play', [$course, $check->slug]) }}"
-                        class="btn btn-lg btn-primary w-100">
-                        {{ $checkScore !== null ? 'Sit it again' : 'Start ' . strtolower($check->title) }}
-                    </a>
+                <div class="flex-grow-1">
+                    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+                        <div>
+                            <h5 class="title mb-1">Finished this lesson?</h5>
+                            <p class="mb-0 text-muted" style="font-size:1.45rem;">
+                                {{ $check->title }} &mdash; {{ $check->questionCount() }} questions
+                                on the same material.
+                                @if ($checkScore !== null)
+                                    Your best score so far is
+                                    <strong class="text-heading">{{ (int) round($checkScore) }}%</strong>.
+                                @endif
+                            </p>
+                        </div>
+                        <a href="{{ route('learn.quizzes.play', [$course, $check->slug]) }}"
+                            class="btn btn-primary btn-lg flex-shrink-0">
+                            {{ $checkScore !== null ? 'Sit again' : 'Start ' . strtolower($check->title) }}
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     @endif
 
-    {{-- Mark read --}}
+    {{-- ── Mark as read ────────────────────────────────────────────────────── --}}
     <div class="lz-card p-4 mb--30">
-        <div class="row align-items-center g-3">
-            <div class="col-md-8">
-                <h5 class="title mb-1">{{ $completedAt ? 'Lesson complete' : 'Finished reading?' }}</h5>
-                <p class="mb-0">
-                    @if ($completedAt)
-                        Marked complete on
-                        {{ $completedAt?->format('j M Y') }}.
-                        You can read it again as often as you like.
-                    @else
-                        Mark this lesson as read so you can see your progress across the course.
-                    @endif
-                </p>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div class="d-flex align-items-start gap-3">
+                <div class="lz-num" style="border-radius:10px; background: {{ $completedAt ? 'var(--lz-pass-soft)' : 'var(--lz-surface-2)' }}; color: {{ $completedAt ? 'var(--lz-pass)' : 'var(--lz-muted)' }}; flex-shrink:0;">
+                    <i class="feather-book-open" style="font-size:1.6rem;"></i>
+                </div>
+                <div>
+                    <h5 class="title mb-1">
+                        {{ $completedAt ? 'Lesson complete' : 'Finished reading?' }}
+                    </h5>
+                    <p class="mb-0 text-muted" style="font-size:1.45rem;">
+                        @if ($completedAt)
+                            Marked complete on {{ $completedAt?->format('j M Y') }}.
+                            You can read it again as often as you like.
+                        @else
+                            Mark this lesson as read to track your progress across the course.
+                        @endif
+                    </p>
+                </div>
             </div>
-            <div class="col-md-4 text-md-end">
+            <div>
                 @if ($completedAt)
-                    <span class="badge bg-success px-3 py-2">Done</span>
+                    <span class="badge bg-success px-3 py-2" style="font-size:1.3rem;">
+                        <i class="feather-check me-1"></i> Done
+                    </span>
                 @else
                     <form method="POST" action="{{ route('learn.lessons.complete', [$course, $lesson->slug]) }}">
                         @csrf
-                        {{-- Green, to match the green "Done" badge it turns into. --}}
-                        <button type="submit" class="btn btn-lg btn-success w-100">Mark as read</button>
+                        <button type="submit" class="btn btn-lg btn-success">
+                            Mark as read
+                        </button>
                     </form>
                 @endif
             </div>
         </div>
     </div>
 
-    {{-- Previous / next --}}
+    {{-- ── Previous / next ─────────────────────────────────────────────────── --}}
     <div class="row g-3">
-        <div class="col-md-6">
+        <div class="col-6">
             @if ($neighbours['previous'])
                 <a href="{{ route('learn.lessons.show', [$course, $neighbours['previous']->slug]) }}"
-                    class="lz-card d-block p-3 text-decoration-none text-reset h-100">
-                    <small class="text-muted">Previous</small>
-                    <div class="fw-semibold">Lesson {{ $neighbours['previous']->number }}:
-                        {{ $neighbours['previous']->title }}</div>
+                    class="lz-card d-flex align-items-center gap-2 p-3 text-decoration-none text-reset h-100">
+                    <i class="feather-arrow-left text-muted" style="font-size:1.8rem; flex-shrink:0;"></i>
+                    <div>
+                        <div class="small text-muted">Previous</div>
+                        <div class="fw-semibold" style="font-size:1.4rem;">
+                            Lesson {{ $neighbours['previous']->number }}:
+                            {{ $neighbours['previous']->title }}
+                        </div>
+                    </div>
                 </a>
             @endif
         </div>
-        <div class="col-md-6">
+        <div class="col-6">
             @if ($neighbours['next'])
                 <a href="{{ route('learn.lessons.show', [$course, $neighbours['next']->slug]) }}"
-                    class="lz-card d-block p-3 text-decoration-none text-reset h-100 text-md-end">
-                    <small class="text-muted">Next</small>
-                    <div class="fw-semibold">Lesson {{ $neighbours['next']->number }}:
-                        {{ $neighbours['next']->title }}</div>
+                    class="lz-card d-flex align-items-center justify-content-end gap-2 p-3 text-decoration-none text-reset h-100 text-end">
+                    <div>
+                        <div class="small text-muted">Next</div>
+                        <div class="fw-semibold" style="font-size:1.4rem;">
+                            Lesson {{ $neighbours['next']->number }}:
+                            {{ $neighbours['next']->title }}
+                        </div>
+                    </div>
+                    <i class="feather-arrow-right text-muted" style="font-size:1.8rem; flex-shrink:0;"></i>
                 </a>
             @else
                 <a href="{{ route('learn.index', $course) }}"
-                    class="lz-card d-block p-3 text-decoration-none text-reset h-100 text-md-end">
-                    <small class="text-muted">Next</small>
-                    <div class="fw-semibold">Back to all lessons &amp; papers</div>
+                    class="lz-card d-flex align-items-center justify-content-end gap-2 p-3 text-decoration-none text-reset h-100 text-end">
+                    <div>
+                        <div class="small text-muted">Next</div>
+                        <div class="fw-semibold" style="font-size:1.4rem;">Back to all lessons &amp; papers</div>
+                    </div>
+                    <i class="feather-arrow-right text-muted" style="font-size:1.8rem; flex-shrink:0;"></i>
                 </a>
             @endif
         </div>

@@ -6,111 +6,114 @@
 
 @section('learn')
 
-    {{-- A knowledge check belongs to the lesson of the same number; a mock
-         paper has no lesson to go back to. --}}
-    
-    {{-- The score --}}
-    <div class="lz-card p-4 mb--30">
-        <div class="row g-4 align-items-center">
-            <div class="col-md-4 text-center">
-                <div class="lz-score {{ $attempt->passed ? 'text-success' : 'text-danger' }}">
-                    {{ $attempt->score }}<span class="fs-4 text-muted">/{{ $attempt->total }}</span>
-                </div>
-                <div class="mt-2">
-                    <span class="badge {{ $attempt->passed ? 'bg-success' : 'bg-danger' }} px-3 py-2">
-                        {{ $attempt->passed ? 'Pass' : 'Not passed yet' }}
-                    </span>
-                </div>
-            </div>
+    {{-- ── Pass / fail hero ────────────────────────────────────────────────── --}}
+    <div class="lz-result-hero {{ $attempt->passed ? 'is-pass' : 'is-fail' }} mb--30">
+        {{-- Score circle --}}
+        <div class="lz-result-circle">
+            <div class="lz-result-pct">{{ (int) round((float) $attempt->percentage) }}<span style="font-size:1.4rem;">%</span></div>
+            <div class="lz-result-label">{{ $attempt->passed ? 'Pass' : 'Fail' }}</div>
+        </div>
 
-            <div class="col-md-8">
-                <p class="mb-2">
-                    You scored <strong>{{ (int) round((float) $attempt->percentage) }}%</strong>.
-                    The pass mark for this paper is {{ $quiz->pass_mark_percent }}%
-                    ({{ $quiz->passMarkCount() }} out of {{ $attempt->total }} correct).
+        {{-- Narrative --}}
+        <div class="flex-grow-1">
+            <h3 class="title mb-2">
+                @if ($attempt->passed)
+                    🎉 Well done — that&rsquo;s a pass!
+                @else
+                    Keep going — you&rsquo;re getting there
+                @endif
+            </h3>
+            <p class="mb-1" style="font-size:1.5rem;">
+                You scored <strong>{{ $attempt->score }}/{{ $attempt->total }}</strong>
+                ({{ (int) round((float) $attempt->percentage) }}%).
+                The pass mark is {{ $quiz->pass_mark_percent }}%
+                ({{ $quiz->passMarkCount() }} out of {{ $attempt->total }}).
+            </p>
+            @if (!$attempt->passed)
+                <p class="mb-1" style="font-size:1.45rem; color: var(--lz-fail);">
+                    You need
+                    {{ max(0, $quiz->passMarkCount() - (int) $attempt->score) }}
+                    more correct
+                    {{ max(0, $quiz->passMarkCount() - (int) $attempt->score) === 1 ? 'answer' : 'answers' }}
+                    to pass. Review the lesson material and sit it again.
                 </p>
-                <p class="mb-2">
-                    @if ($attempt->passed)
-                        Well done &mdash; that is a pass. Sit it again whenever you like to try for a higher score.
-                    @else
-                        You need {{ max(0, $quiz->passMarkCount() - (int) $attempt->score) }} more correct
-                        answer{{ max(0, $quiz->passMarkCount() - (int) $attempt->score) === 1 ? '' : 's' }}
-                        to pass. Go back over the lesson material and sit it again.
-                    @endif
+            @else
+                <p class="mb-1" style="font-size:1.45rem; color: var(--lz-pass);">
+                    Sit it again any time to try for a higher score.
                 </p>
-                <p class="small text-muted mb-0">
-                    Finished
-                    {{ $attempt->submitted_at?->format('j M Y, H:i') }}
-                    @if ($attempt->time_taken_seconds)
-                        &middot; took {{ gmdate($attempt->time_taken_seconds >= 3600 ? 'H:i:s' : 'i:s', $attempt->time_taken_seconds) }}
-                    @endif
-                    @if ($blank > 0)
-                        &middot; {{ $blank }} question{{ $blank === 1 ? '' : 's' }} left blank
-                    @endif
-                </p>
-            </div>
+            @endif
+            <p class="mb-0 small text-muted mt-2">
+                Finished {{ $attempt->submitted_at?->format('j M Y, H:i') }}
+                @if ($attempt->time_taken_seconds)
+                    &middot; took {{ gmdate($attempt->time_taken_seconds >= 3600 ? 'H:i:s' : 'i:s', $attempt->time_taken_seconds) }}
+                @endif
+                @if ($blank > 0)
+                    &middot; {{ $blank }} question{{ $blank === 1 ? '' : 's' }} left blank
+                @endif
+            </p>
         </div>
     </div>
 
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb--20">
-        <a href="{{ route('learn.index', $course) }}" class="btn btn-lg btn-outline-secondary">
+    {{-- ── Action buttons ──────────────────────────────────────────────────── --}}
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb--30">
+        <a href="{{ route('learn.index', $course) }}" class="btn btn-outline-secondary">
             &larr; Back to the course
         </a>
 
         <div class="d-flex flex-wrap gap-2">
             @if ($lesson)
                 <a href="{{ route('learn.lessons.show', [$course, $lesson->slug]) }}"
-                    class="btn btn-lg btn-outline-secondary">Back to the lesson</a>
+                    class="btn btn-outline-secondary">
+                    <i class="feather-book-open me-1"></i> Back to the lesson
+                </a>
             @endif
-            {{--
-                Offered whether the paper was passed or not, so it stays the
-                primary colour. Turning it amber or green here would be reading
-                the mark back to them, which the score above already says.
-            --}}
-            <a href="{{ route('learn.quizzes.play', [$course, $quiz->slug]) }}" class="btn btn-lg btn-primary">
-                Sit this paper again
+            <a href="{{ route('learn.quizzes.play', [$course, $quiz->slug]) }}" class="btn btn-primary">
+                <i class="feather-refresh-cw me-1"></i> Sit this paper again
             </a>
         </div>
     </div>
 
-    {{-- Every question, what was chosen, and what was right --}}
+    {{-- ── Question-by-question breakdown ─────────────────────────────────── --}}
     <div class="lz-card p-4 mb--30">
-        <h4 class="title mb--30">Question by question</h4>
+        <h4 class="title mb--30">
+            <i class="feather-list me-2 text-primary"></i>Question by question
+        </h4>
 
         @foreach ($marked as $row)
             <div class="pb-4 mb-4 border-bottom">
                 <div class="d-flex gap-3">
-                    {{-- align-self-start overrides .lz-num's own centring: this
-                         number heads the prompt and all four options, so
-                         centred it would sit beside the last option instead of
-                         beside the question it belongs to. --}}
-                    <span class="lz-num align-self-start">{{ $row['question']->position }}</span>
+                    {{-- align-self-start pins the badge to the question line --}}
+                    <span class="lz-num align-self-start" style="flex-shrink:0;">
+                        {{ $row['question']->position }}
+                    </span>
                     <div class="flex-grow-1">
-                        <p class="fw-semibold mb-3">{!! nl2br(e($row['question']->prompt)) !!}</p>
+                        <p class="fw-semibold mb-3" style="font-size:1.55rem; line-height:1.5;">
+                            {!! nl2br(e($row['question']->prompt)) !!}
+                        </p>
 
                         @foreach ($row['question']->options as $letter => $text)
                             @php
                                 $isPicked = $row['given'] === $letter;
-                                $isRight = $row['correct'] === $letter;
-                                $class = $isRight ? 'is-right' : ($isPicked ? 'is-wrong' : 'is-muted');
+                                $isRight  = $row['correct'] === $letter;
+                                $class    = $isRight ? 'is-right' : ($isPicked ? 'is-wrong' : 'is-muted');
                             @endphp
                             <div class="lz-opt {{ $class }}">
                                 <span class="lz-key">{{ strtoupper($letter) }}</span>
                                 <span class="flex-grow-1">{!! nl2br(e($text)) !!}</span>
                                 @if ($isRight)
                                     <span class="lz-mark lz-mark-yes small">
-                                        <i class="feather-check"></i> Correct answer
+                                        <i class="feather-check"></i> Correct
                                     </span>
                                 @elseif ($isPicked)
                                     <span class="lz-mark lz-mark-no small">
-                                        <i class="feather-x"></i> You chose this
+                                        <i class="feather-x"></i> Your answer
                                     </span>
                                 @endif
                             </div>
                         @endforeach
 
                         @if ($row['is_blank'])
-                            <p class="small mb-0">
+                            <p class="small mb-0 mt-1">
                                 <span class="lz-mark lz-mark-no">
                                     <i class="feather-x"></i> You left this blank
                                 </span>
@@ -118,7 +121,7 @@
                         @endif
 
                         @if ($row['explanation'])
-                            <div class="lz-explain">
+                            <div class="lz-explain mt-2">
                                 <strong>Why:</strong> {!! nl2br(e($row['explanation'])) !!}
                             </div>
                         @endif
@@ -128,49 +131,40 @@
         @endforeach
     </div>
 
-    {{-- Previous sittings --}}
+    {{-- ── Previous sittings ───────────────────────────────────────────────── --}}
     @if ($history->count() > 1)
         <div class="lz-card p-4 mb--30">
-            <h5 class="title">Your previous sittings</h5>
-            <ul class="list-unstyled mb-0">
-                @foreach ($history as $past)
-                    <li class="d-flex justify-content-between align-items-center py-2 border-bottom">
-                        <span>
-                            {{ $past->score }}/{{ $past->total }}
-                            <small class="text-muted">
-                                &middot; {{ $past->submitted_at?->format('j M Y, H:i') }}
-                            </small>
+            <h5 class="title mb--20">
+                <i class="feather-clock me-1 text-primary"></i> Your previous sittings
+            </h5>
+            @foreach ($history as $past)
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                    <div>
+                        <span class="fw-semibold">{{ $past->score }}/{{ $past->total }}</span>
+                        <span class="small text-muted ms-2">
+                            &middot; {{ $past->submitted_at?->format('j M Y, H:i') }}
                         </span>
-                        <span>
-                            <span class="badge {{ $past->passed ? 'bg-success' : 'bg-warning text-dark' }} me-2">
-                                {{ $past->passed ? 'Pass' : 'Not passed' }}
-                            </span>
-                            @if ($past->id !== $attempt->id)
-                                {{--
-                                        Left small on purpose. This is one row of
-                                        a list of past sittings, not an action
-                                        that matters as much as the buttons
-                                        above; at full size the list stops being
-                                        a list.
-                                    --}}
-                                    <a href="{{ route('learn.quizzes.result', [$course, $quiz->slug, $past->id]) }}"
-                                        class="btn btn-sm btn-outline-secondary">View</a>
-                            @else
-                                <span class="small text-muted">This one</span>
-                            @endif
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge {{ $past->passed ? 'bg-success' : 'bg-warning text-dark' }}">
+                            {{ $past->passed ? 'Pass' : 'Not passed' }}
                         </span>
-                    </li>
-                @endforeach
-            </ul>
+                        @if ($past->id !== $attempt->id)
+                            <a href="{{ route('learn.quizzes.result', [$course, $quiz->slug, $past->id]) }}"
+                                class="btn btn-sm btn-outline-secondary">View</a>
+                        @else
+                            <span class="small text-muted">This one</span>
+                        @endif
+                    </div>
+                </div>
+            @endforeach
         </div>
     @endif
 
 @endsection
 
 @push('scripts')
-    {{-- This sitting is finished, so the copy the browser was holding for it
-         is cleared here rather than on the way out of the play screen. If the
-         submit had been refused, it would still be there to finish. --}}
+    {{-- Clear localStorage for this sitting now it is finished. --}}
     <script>
         try {
             window.localStorage.removeItem('cce.quiz.attempt.{{ $attempt->id }}');
