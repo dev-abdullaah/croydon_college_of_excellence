@@ -38065,6 +38065,7 @@ Course Sidebar
   --lz-radius: 16px;
   --lz-radius-sm: 10px;
   --lz-accent: #2f57ef;
+  --lz-accent-fill: #2f57ef;
   --lz-accent-soft: rgba(47, 87, 239, .08);
   --lz-accent-mid: rgba(47, 87, 239, .18);
   --lz-pass: #1f9254;
@@ -38125,7 +38126,7 @@ a[class*="lz-card"]:hover {
 }
 
 a.lz-card:hover .lz-num {
-  background: var(--lz-accent);
+  background: var(--lz-accent-fill);
   color: #fff;
 }
 
@@ -38159,7 +38160,7 @@ a.lz-card:hover .lz-num {
 
 .lz-item .lz-q {
   font-weight: 700;
-  font-size: 1.55rem;
+  font-size: 1.85rem;
   color: var(--lz-text);
   margin-bottom: .4rem;
   line-height: 1.5;
@@ -38167,7 +38168,7 @@ a.lz-card:hover .lz-num {
 
 .lz-item .lz-a {
   color: var(--lz-muted);
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   line-height: 1.6;
 }
 
@@ -38201,7 +38202,7 @@ a.lz-card:hover .lz-num {
   border-radius: var(--lz-radius-sm);
   background: var(--lz-surface);
   cursor: pointer;
-  font-size: 1.5rem;
+  font-size: 1.85rem;
   transition: border-color var(--lz-transition), background-color var(--lz-transition), box-shadow var(--lz-transition);
 }
 
@@ -38244,8 +38245,8 @@ a.lz-card:hover .lz-num {
 
 .lz-opt.is-picked .lz-key,
 .lz-opt:has(input:checked) .lz-key {
-  background: var(--lz-accent);
-  border-color: var(--lz-accent);
+  background: var(--lz-accent-fill);
+  border-color: var(--lz-accent-fill);
   color: #fff;
 }
 
@@ -38375,8 +38376,8 @@ a.lz-card:hover .lz-num {
 }
 
 .lz-jump button.here {
-  background: var(--lz-accent);
-  border-color: var(--lz-accent);
+  background: var(--lz-accent-fill);
+  border-color: var(--lz-accent-fill);
   color: #fff;
   box-shadow: 0 3px 10px rgba(47, 87, 239, .28);
 }
@@ -38458,41 +38459,96 @@ a.lz-card:hover .lz-num {
   border-left: 4px solid var(--lz-pass);
   background: linear-gradient(135deg, rgba(31,146,84,.07) 0%, rgba(31,146,84,.03) 100%);
   border-radius: 0 8px 8px 0;
-  font-size: 1.45rem;
+  font-size: 1.7rem;
   color: var(--lz-text);
 }
 
 /* ---- Dark mode ---------------------------------------------------------- */
 
-.active-dark-mode .lz-card,
-.active-dark-mode .lz-opt,
-.active-dark-mode .lz-jump button {
-  background: var(--color-dark);
-  border-color: rgba(255, 255, 255, .12);
-  color: var(--color-white);
+/* The tokens above are light-mode values, and this block is the only reason any
+ * of them worked in dark mode.
+ *
+ * It used to patch six classes one at a time - the card, the options, the jump
+ * grid, the letter chips, the result bands - and every patch set a *surface*.
+ * Nothing set a *colour*, so the eleven elements reading a token directly were
+ * left on their light values against a #27272E card:
+ *
+ *   .lz-item .lz-q        --lz-text    #192335   1.06:1   the questions
+ *   .lz-item .lz-a        --lz-muted   #6b7385   3.12:1   the answers
+ *   .lz-explain           --lz-text    #192335   1.06:1   the explanations
+ *   .lz-num, .lz-q-badge  --lz-accent  #2f57ef   2.48:1   the number chips
+ *
+ * Redefining the tokens fixes all of them at once, and any `.lz-` markup added
+ * later follows automatically. Patching consumers is what let this drift: there
+ * were eleven of them and six patches, so the arithmetic was always going to
+ * come out wrong.
+ *
+ * --lz-accent lightens to #8fb0ff because accent-coloured *text* on the soft
+ * fill needs it, but that value cannot also serve as a fill - white on #8fb0ff
+ * is 2.14:1. Hence --lz-accent-fill, which stays saturated at #2f57ef and keeps
+ * white text on it at 5.63:1. Light mode needs only one value because #2f57ef
+ * satisfies both jobs; dark mode has to separate them.
+ *
+ * --lz-surface is #27272e rather than the theme's --color-dark so this stays
+ * self-contained. The two are the same value. */
+.active-dark-mode {
+  --lz-surface: #27272e;
+  --lz-surface-2: rgba(255, 255, 255, .06);
+  --lz-border: rgba(255, 255, 255, .14);
+  --lz-text: #f1f3f8;
+  --lz-muted: #b3b9c7;
+  --lz-accent: #8fb0ff;
+  --lz-accent-soft: rgba(143, 176, 255, .16);
+  --lz-accent-mid: rgba(143, 176, 255, .3);
+  --lz-pass: #4ade80;
+  --lz-pass-soft: rgba(74, 222, 128, .14);
+  --lz-fail: #ff8787;
+  --lz-fail-soft: rgba(255, 135, 135, .14);
 }
 
-.active-dark-mode .lz-key {
-  background: rgba(255,255,255,.08);
-  border-color: rgba(255,255,255,.12);
-  color: var(--color-white);
-}
-
+/* Still needed: .lz-explain paints a hard-coded gradient rather than reading a
+ * token, so the token set cannot reach it. */
 .active-dark-mode .lz-explain {
-  background: rgba(31, 146, 84, .12);
+  background: rgba(74, 222, 128, .12);
   border-left-color: var(--lz-pass);
 }
 
-.active-dark-mode .lz-result-hero.is-pass {
-  background: rgba(31, 146, 84, .13);
-}
-
-.active-dark-mode .lz-result-hero.is-fail {
-  background: rgba(201, 42, 42, .12);
-}
-
+/* Kept at a lighter touch than --lz-surface-2, as it was before. */
 .active-dark-mode .lz-item:hover {
-  background: rgba(255,255,255,.03);
+  background: rgba(255, 255, 255, .03);
+}
+
+/* Pagination.
+ *
+ * `$items->links()` emits Bootstrap 5's own markup, because AppServiceProvider
+ * calls Paginator::useBootstrapFive(). That is a different class tree from the
+ * theme's .rbt-pagination, which does have dark-mode rules - seven of them - so
+ * the two paginations on this site diverged silently. Bootstrap's .page-link is
+ * `background-color: #fff`, which inside a #27272E card is a row of white boxes. */
+.active-dark-mode .lz-card .pagination .page-link {
+  background: var(--lz-surface);
+  border-color: var(--lz-border);
+  color: var(--lz-muted);
+}
+
+.active-dark-mode .lz-card .pagination .page-item.active .page-link {
+  background: var(--lz-accent-fill);
+  border-color: var(--lz-accent-fill);
+  color: #fff;
+}
+
+.active-dark-mode .lz-card .pagination .page-item.disabled .page-link {
+  background: var(--lz-surface);
+  border-color: var(--lz-border);
+  color: var(--lz-text);
+  opacity: .45;
+}
+
+/* Bootstrap's .text-muted, on the two "Lesson 3 of 10" / "Page 1 of 4" lines.
+ * Scoped to the card rather than lifted globally - the same utility is still
+ * outstanding across the header, footer, mobile menu and learn pages. */
+.active-dark-mode .lz-card .text-muted {
+  color: var(--lz-muted) !important;
 }
 
 /* ==========================================================================
