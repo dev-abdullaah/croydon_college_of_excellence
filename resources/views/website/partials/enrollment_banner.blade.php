@@ -28,8 +28,15 @@
         : null;
 @endphp
 
-<div class="alert alert-info d-flex align-items-center justify-content-between flex-wrap text-start {{ $compact ?? false ? 'gap-2' : 'gap-3' }} {{ $compact ?? false ? 'mt--25 mb--10 mx-auto' : 'p-3 radius-10' }}"
-    style="background: #f0f7ff; border: 1px solid #bee3f8; color: #1e3a8a; {{ $compact ?? false ? 'max-width: 820px;' : '' }}">
+{{--
+    Colours live in the `.enrollment-banner` class rather than here. An inline
+    style outranks every stylesheet rule bar an `!important` one, so while the
+    palette was written here there was nothing a dark-mode rule could do
+    without `!important` - which is why the banner stayed a pale blue box in
+    dark mode. Only the compact max-width stays inline, being conditional.
+--}}
+<div class="enrollment-banner alert alert-info d-flex align-items-center justify-content-between flex-wrap text-start {{ $compact ?? false ? 'gap-2' : 'gap-3' }} {{ $compact ?? false ? 'mt--25 mb--10 mx-auto' : 'p-3 radius-10' }}"
+    style="{{ $compact ?? false ? 'max-width: 820px;' : '' }}">
     <div class="d-flex align-items-center">
         <i class="feather-{{ $learner && $courseCount ? 'book-open' : 'user-check' }} {{ $compact ?? false ? 'fs-4' : 'fs-3' }} me-3 text-primary"></i>
 

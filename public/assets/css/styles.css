@@ -39140,4 +39140,65 @@ a.lz-card:hover .lz-num {
   border-color: #333a4d;
 }
 
+/* Returning-student banner.
+ *
+ * This palette used to live in an inline `style` attribute, which is the
+ * reason it had no dark mode support: an inline style outranks every
+ * stylesheet rule bar an `!important` one, so there was nothing to write.
+ * Both halves now sit here together so they cannot drift apart.
+ *
+ * The dark background is deliberately translucent rather than a flat colour.
+ * The banner appears in two places on two different backgrounds - the
+ * homepage promo (`bg-color-extra2`, dark `#333d51`) and the catalogue
+ * (`bg-color-white`, dark `--color-darker`) - so any single flat dark value
+ * would be invisible against one of them. A translucent blue tint lifts
+ * whichever container it lands on by the same amount in both.
+ *
+ * `.alert-info` also sets these three properties, without `!important`;
+ * styles.css loads after Bootstrap so this wins on source order.
+ */
+.enrollment-banner {
+  background: #f0f7ff;
+  border: 1px solid #bee3f8;
+  color: #1e3a8a;
+}
+
+.active-dark-mode .enrollment-banner {
+  background: rgba(13, 110, 253, 0.16);
+  border-color: rgba(13, 110, 253, 0.4);
+  color: var(--color-white-dark);
+}
+
+/* Bootstrap's `.text-primary` is `#0d6efd`, which is 2.80:1 on the dark
+ * containers. Lifted for dark mode so the icon keeps reading as the accent
+ * it is in light mode rather than turning into a dark smudge. */
+.active-dark-mode .enrollment-banner .text-primary {
+  color: #8fb0ff !important;
+}
+
+/* Feature highlight pills on the homepage promo.
+ *
+ * `.bg-light` and `.text-secondary` are Bootstrap utilities carrying
+ * `!important`, so they need matching `!important` to be reached - which is
+ * why these are scoped to the promo rather than restated globally. In dark
+ * mode the section turns `#333d51` and the four pills stayed `#f8f9fa`,
+ * sitting on it at 10.34:1: four glaring white lozenges.
+ *
+ * Translucent white rather than a flat fill, so the pill lifts whatever it is
+ * placed on, with a hairline edge because at this contrast the fill alone
+ * does not read as a boundary.
+ */
+.active-dark-mode .rbt-paid-courses-area .badge.bg-light {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.active-dark-mode .rbt-paid-courses-area .badge.text-secondary {
+  color: var(--color-white-dark) !important;
+}
+
+.active-dark-mode .rbt-paid-courses-area .badge .text-primary {
+  color: #8fb0ff !important;
+}
+
 
