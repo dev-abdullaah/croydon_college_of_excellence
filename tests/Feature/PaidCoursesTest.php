@@ -883,6 +883,64 @@ class PaidCoursesTest extends TestCase
         );
     }
 
+    /**
+     * Every section gradient the views actually use has to be handled in dark
+     * mode.
+     *
+     * Dark mode sets `h1`..`h6` and `.section-title p` to white globally, so
+     * any section background still pale in dark mode turns its own heading
+     * invisible. `.bg-gradient-5` (a flat #EFF1FF) and `.bg-gradient-9` (a
+     * purple-to-blue gradient under a white wash) both were left out while the
+     * page banner was covered, which is why /courses-regular and /courses-send
+     * looked right and their 21 sub-pages, plus the 20 hero sections, did not.
+     *
+     * The gradient's own colour is not the point - `btn-gradient` is left
+     * alone on purpose, because a saturated fill takes white text perfectly
+     * well. What matters is a *section* background, which is what `bg-gradient-N`
+     * is, so that is what this walks.
+     */
+    public function test_every_section_gradient_used_by_the_views_has_dark_mode_support(): void
+    {
+        $css = (string) file_get_contents(public_path('assets/css/styles.css'));
+
+        $used = [];
+
+        foreach ($this->bladeFiles() as $file) {
+            preg_match_all('/\bbg-gradient-(\d+)\b/', (string) file_get_contents($file), $matches);
+
+            foreach ($matches[1] as $number) {
+                $used[$number] = true;
+            }
+        }
+
+        $this->assertNotEmpty($used, 'expected the views to use some section gradients');
+
+        $missing = [];
+
+        foreach (array_keys($used) as $number) {
+            if (! preg_match('/^\.active-dark-mode \.bg-gradient-'.$number.'\s*\{/m', $css)) {
+                $missing[] = 'bg-gradient-'.$number;
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $missing,
+            'these section gradients have no dark-mode override, so their headings turn '
+                .'white on a pale background in dark mode'
+        );
+
+        // Swapping `.bg-gradient-9`'s gradient is not sufficient on its own.
+        // Its `::after` lays a white wash over the top, and white text on top
+        // of a white wash is no better than the pale gradient underneath, so
+        // the wash has to be neutralised as well.
+        $this->assertMatchesRegularExpression(
+            '/^\.active-dark-mode \.bg-gradient-9::after\s*\{[^}]*background:\s*transparent/m',
+            $css,
+            'the white wash over .bg-gradient-9 has to be removed in dark mode'
+        );
+    }
+
     public function test_a_visitor_can_sign_in(): void
     {
         $user = User::factory()->create([
@@ -2375,6 +2433,12 @@ class PaidCoursesTest extends TestCase
      * both ends of the gradient, with the `::after` white wash applied at the
      * same 0%-to-10% alpha ramp the stylesheet uses.
      */
+    /** Every Blade view, for tests that need to know what the templates use. */
+    private function bladeFiles(): array
+    {
+        return $this->allBladeViews();
+    }
+
     private function worstHeroContrast(string $colour): float
     {
         $css = (string) file_get_contents(public_path('assets/css/styles.css'));
