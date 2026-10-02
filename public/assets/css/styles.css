@@ -38551,85 +38551,36 @@ a.lz-card:hover .lz-num {
   color: var(--lz-muted) !important;
 }
 
-/* ---- Paper sidebar rail ------------------------------------------------
+/* ---- Paper sidebar: deliberately not pinned -----------------------------
  *
- * The rail is sticky as a whole, because sticky on one card out of two
- * siblings is what put the rules card underneath the progress card.
+ * No rule, on purpose. The progress card and the rules card scroll away with
+ * the page.
  *
- * position:sticky creates a stacking context even at z-index:auto, so a pinned
- * box paints above its in-flow siblings. Pinning the *first* of two cards left
- * the second one occupying a slot that the pinned box had moved into: the
- * "10 minutes - pass at 8/10" card scrolled up into the progress card's
- * 100-440px band and vanished under it, taking the Finish button with it. That
- * is not reachable at the moment it is needed.
+ * The progress card used to carry `position: sticky; top: 100px`. Sticky creates
+ * a stacking context even at z-index:auto, so the pinned card painted above its
+ * in-flow siblings while keeping its own slot in flow. The rules card below -
+ * "10 minutes - pass at 8/10", carrying the Finish button - scrolled up into the
+ * pinned card's 100-440px band and vanished underneath it. The button was
+ * unreachable at the moment it was needed.
  *
- * Wrapping the column in one sticky element makes both cards travel as a unit,
- * so they cannot overlap however long the paper is.
+ * Pinning the whole column instead of one card fixes that overlap, and was
+ * tried. It does not survive contact with the height of the content:
  *
- * --lz-rail-top is 13rem = 130px. The header has no declared height anywhere:
- * .rbt-header-wrapper sets only background and box-shadow, and its media
- * queries below 1200px add 15px of padding rather than a height. What pins it
- * is the tallest thing inside it, the logo at `max-height: 90px`, so the fixed
- * header reaches 90 + 30 = 120px on narrower screens. 130px clears that with
- * 10px to spare.
+ *   - this column is ~620px tall at 24 questions (the jump grid is one row per
+ *     ten, so three or four rows of 42px buttons), and only ~520px is left below
+ *     the fixed header on a 1366x768 laptop;
+ *   - so a pinned rail has to be capped to the viewport, or its lower half goes
+ *     below the fold - the same unreachable Finish button by another route;
+ *   - and a capped rail must then scroll internally, which puts a second scroll
+ *     context inside the page. The wheel stops moving the page and the rail
+ *     captures the gesture, which reads as broken.
  *
- * 130px, not the old 100px. That value was a hardcoded inline style picked
- * against nothing measurable, and it was not enough: on a screen under 1200px
- * the header would have pinned over the top of the rail and covered the
- * progress bar. Note it is also not "too much" - a rail pinned at the wrong
- * offset reads as a gap of page scrolling past, which is its own oddity, but
- * that is a cosmetic cost against a covered progress bar.
+ * Dropping the pin removes all three problems at once: one scroll context, no
+ * cap to outgrow, no overlap, and the jump grid keeps its natural size.
  *
- * max-height plus overflow-y matters on short viewports. The jump grid is one
- * row per ten questions, so a 24-question paper needs four rows; pinned without
- * a cap, the rail grows taller than the space below the header and its lower
- * half - the Finish button - becomes unreachable again, which is the same bug
- * by another route. The rail scrolls internally instead.
- *
- * align-self is needed because the column is a Bootstrap flex item and would
- * otherwise stretch to the row's full height, leaving the sticky element no
- * slack to travel in and pinning nothing at all.
+ * The cost is that progress is only visible near the top of the paper. That is
+ * a fair trade against a Finish button that is sometimes not there at all.
  */
-.lz-rail-col {
-  align-self: flex-start;
-}
-
-.lz-rail {
-  position: sticky;
-  top: var(--lz-rail-top, 13rem);
-  max-height: calc(100vh - var(--lz-rail-top, 13rem) - 2rem);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  /* Scrollbar gutter reserved so the rail's content does not shift sideways
-   * the moment it becomes scrollable. */
-  scrollbar-width: thin;
-}
-
-/* A rail that can scroll must not scroll the page out from under a reader who
- * is wheeling over it, which is what overscroll-behavior:contain prevents. */
-.lz-rail::-webkit-scrollbar {
-  width: 6px;
-}
-
-.lz-rail::-webkit-scrollbar-thumb {
-  background: var(--lz-border);
-  border-radius: 99px;
-}
-
-.active-dark-mode .lz-rail::-webkit-scrollbar-thumb {
-  background: var(--dark-color-border-2, #474f5d);
-}
-
-/* Below lg the column is full width and the paper is read as one long stack.
- * A pinned rail there would occupy most of a short phone screen and hide the
- * questions behind it, so it goes back to ordinary flow. */
-@media (max-width: 991.98px) {
-  .lz-rail {
-    position: static;
-    max-height: none;
-    overflow-y: visible;
-  }
-}
 
 /* ==========================================================================
    Session messages (toast)

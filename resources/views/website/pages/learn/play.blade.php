@@ -101,27 +101,29 @@
 
             {{-- ── Sidebar ───────────────────────────────────────────────────── --}}
             {{--
-                The rail is sticky as a whole, not the first card in it.
+                Both cards are in ordinary flow, and that is deliberate.
 
-                Only the first card used to be sticky, which pinned it at
-                top:100px while keeping its slot in flow. The rules card below
-                then scrolled up into that 100-440px band and painted *under*
-                it - position:sticky creates a stacking context at z-index:auto,
-                so it won every overlap - and took the Finish button with it.
-                Unreachable exactly when the reader is mid-paper.
+                The first card used to carry `position: sticky; top: 100px`.
+                Sticky creates a stacking context even at z-index:auto, so the
+                pinned card painted *above* its in-flow sibling. It kept its slot
+                in flow, so the rules card below scrolled up into the pinned
+                card's 100-440px band and disappeared underneath it - taking the
+                Finish button with it, exactly when the reader wanted it.
 
-                Sticky belongs on the last child, or on one wrapper around the
-                whole column. The wrapper is what is used here: it keeps the two
-                cards together, so they travel as a unit and cannot collide.
+                Sticky would then need a viewport cap to stop it pushing its own
+                lower half, including Finish, below the fold on a laptop screen:
+                this column is ~620px tall at 24 questions and only ~520px is left
+                below the header. A capped sticky rail needs its own overflow-y,
+                which is a second scroll context nested inside the page - the
+                wheel stops moving the page and the rail captures it instead.
+                That reads as broken, and it is worse than the rail simply
+                scrolling away with the page.
 
-                --lz-rail-top leaves room for the header. It becomes fixed at 50px
-                (.rbt-header-wrapper) once main.js adds .rbt-sticky past 200px of
-                scroll, so 50 + 16 breathing room = 66px. The old 100px was
-                chosen against nothing measurable and left a 50px gap of page
-                scrolling visibly between the header and the pinned rail.
+                So: no sticky, no cap, no overflow. One scroll context - the
+                page. Nothing to overlap, nothing to be covered, and the jump
+                grid stays usable at its natural size.
             --}}
-            <div class="col-lg-4 lz-rail-col">
-                <div class="lz-rail">
+            <div class="col-lg-4">
 
                 {{-- Progress + jump grid --}}
                 <div class="lz-card p-4 mb--30 lz-aside">
@@ -178,8 +180,6 @@
                         <i class="feather-flag me-1"></i> Finish and see my results
                     </button>
                 </div>
-
-                </div>{{-- /.lz-rail --}}
             </div>
         </div>
     @endif
