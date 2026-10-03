@@ -112,7 +112,7 @@
                             <li><span></span> <a
                                     href="mailto:info@croydoncollegeofexcellence.co.uk">info@croydoncollegeofexcellence.co.uk</a>
                             </li>
-                            <li><span></span>47 Old Town, Croydon, London, CR0 1AU</li>
+                            <li><span></span>Interchange Building, 1st Floor, 81 - 85 Station Road, Croydon, London South, CR0 2RD</li>
                         </ul>
                         <ul class="social-icon social-default icon-naked justify-content-start mt--20">
                             <li class="list-inline-item">
