@@ -296,6 +296,38 @@ audio:not([controls]) {
   display: none;
 }
 
+/* Thin Scrollbar - Cross-browser */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--color-primary);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-secondary);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox scrollbar (already handled by scrollbar-width/color above) */
+
 a {
   color: var(--color-heading);
   text-decoration: none;
@@ -37830,6 +37862,7 @@ Course Sidebar
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 24px;
   width: 100%;
 }
 
@@ -37880,6 +37913,7 @@ Course Sidebar
   font-size: 1.4rem;
   line-height: 1.4;
   text-decoration: none;
+  white-space: nowrap;
   transition: color 0.25s ease, opacity 0.25s ease;
 }
 
