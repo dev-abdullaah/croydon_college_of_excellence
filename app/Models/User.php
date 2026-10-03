@@ -9,8 +9,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Collection;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 /**
  * A learner.
@@ -38,6 +39,12 @@ class User extends Authenticatable implements MustVerifyEmail
         'name',
         'email',
         'password',
+        'new_email',
+        'email_change_token',
+        'email_change_token_expires_at',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed_at',
     ];
 
     /**
@@ -51,6 +58,9 @@ class User extends Authenticatable implements MustVerifyEmail
         // The hash is the value a stolen row would be brute-forced against, so
         // it never belongs in a serialised payload.
         'verification_code_hash',
+        'email_change_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     /**
@@ -64,6 +74,8 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'verification_code_sent_at' => 'datetime',
             'verification_code_locked_until' => 'datetime',
+            'email_change_token_expires_at' => 'datetime',
+            'two_factor_confirmed_at' => 'datetime',
             // Small int, not hashed, and not hidden: unlike a password this is
             // never a credential by itself, only a counter beside one.
             'verification_code_attempts' => 'integer',
@@ -313,6 +325,46 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Every login history record for this user.
+     */
+    public function loginHistories(): HasMany
+    {
+        return $this->hasMany(LoginHistory::class);
+    }
+
+    /**
+     * All email addresses associated with this user.
+     */
+    public function emails(): HasMany
+    {
+        return $this->hasMany(UserEmail::class);
+    }
+
+    /**
+     * Get the user's primary email.
+     */
+    public function primaryEmail(): ?UserEmail
+    {
+        return $this->emails()->primary()->first();
+    }
+
+    /**
+     * Get the user's primary email address string.
+     */
+    public function getPrimaryEmailAttribute(): ?string
+    {
+        return $this->primaryEmail()?->email;
+    }
+
+    /**
+     * Get the user's verified emails.
+     */
+    public function verifiedEmails()
+    {
+        return $this->emails()->verified();
+    }
+
+    /**
      * Every purchase this user has made, in any status.
      */
     public function purchases(): HasMany
@@ -370,5 +422,232 @@ class User extends Authenticatable implements MustVerifyEmail
             ->whereIn('id', $this->purchases()->paid()->select('course_id'))
             ->ordered()
             ->get();
+    }
+
+    /**
+     * Start an email change request. Generates a token, stores the new email,
+     * and sends a verification email to the new address.
+     */
+    public function requestEmailChange(string $newEmail): void
+    {
+        $token = bin2hex(random_bytes(32));
+        $expiresInMinutes = (int) config('auth.email_change.expire', 60);
+
+        $this->writeEmailChangeState([
+            'new_email' => $newEmail,
+            'email_change_token' => $token,
+            'email_change_token_expires_at' => now()->addMinutes($expiresInMinutes),
+        ]);
+
+        $this->notify(new \App\Notifications\EmailChangeVerification(
+            $token,
+            $newEmail,
+            $expiresInMinutes,
+        ));
+    }
+
+    /**
+     * Verify the email change token and apply the new email if valid.
+     */
+    public function verifyEmailChange(string $token): bool
+    {
+        if ($this->email_change_token === null || $this->new_email === null) {
+            return false;
+        }
+
+        if ($this->email_change_token_expires_at?->isPast()) {
+            $this->clearEmailChange();
+            return false;
+        }
+
+        if (! hash_equals($this->email_change_token, $token)) {
+            return false;
+        }
+
+        $oldEmail = $this->email;
+
+        // Apply the new email
+        $this->writeEmailChangeState([
+            'email' => $this->new_email,
+            'email_verified_at' => null, // Require re-verification
+            'new_email' => null,
+            'email_change_token' => null,
+            'email_change_token_expires_at' => null,
+        ]);
+
+        // Notify the OLD email address about the change
+        if ($oldEmail !== $this->email) {
+            $this->notify(new \App\Notifications\EmailChangedNotification($this->email));
+        }
+
+        return true;
+    }
+
+    /**
+     * Clear any pending email change.
+     */
+    public function clearEmailChange(): void
+    {
+        $this->writeEmailChangeState([
+            'new_email' => null,
+            'email_change_token' => null,
+            'email_change_token_expires_at' => null,
+        ]);
+    }
+
+    /**
+     * Check if there's a pending email change.
+     */
+    public function hasPendingEmailChange(): bool
+    {
+        return $this->new_email !== null
+            && $this->email_change_token !== null
+            && $this->email_change_token_expires_at?->isFuture();
+    }
+
+    /**
+     * Write the email change columns straight to the database, then sync the
+     * in-memory copy.
+     */
+    private function writeEmailChangeState(array $attributes): void
+    {
+        $this->newQuery()
+            ->whereKey($this->getKey())
+            ->update($attributes);
+
+        $this->forceFill($attributes);
+        $this->syncOriginalAttributes(array_keys($attributes));
+    }
+
+    /**
+     * Generate a new 2FA secret and enable 2FA.
+     */
+    public function enableTwoFactor(): array
+    {
+        $google2fa = app('pragmarx.google2fa');
+        $secret = $google2fa->generateSecretKey();
+
+        $recoveryCodes = collect(range(1, 8))->map(fn () => strtoupper(Str::random(10)))->toArray();
+
+        $this->forceFill([
+            'two_factor_secret' => encrypt($secret),
+            'two_factor_recovery_codes' => encrypt(json_encode($recoveryCodes)),
+            'two_factor_confirmed_at' => null,
+        ])->save();
+
+        return [
+            'secret' => $secret,
+            'qr_code_url' => $google2fa->getQRCodeInline(
+                config('app.name'),
+                $this->email,
+                $secret
+            ),
+            'recovery_codes' => $recoveryCodes,
+        ];
+    }
+
+    /**
+     * Disable 2FA.
+     */
+    public function disableTwoFactor(): void
+    {
+        $this->forceFill([
+            'two_factor_secret' => null,
+            'two_factor_recovery_codes' => null,
+            'two_factor_confirmed_at' => null,
+        ])->save();
+    }
+
+    /**
+     * Confirm 2FA with a code (during setup).
+     */
+    public function confirmTwoFactor(string $code): bool
+    {
+        if (! $this->two_factor_secret) {
+            return false;
+        }
+
+        $google2fa = app('pragmarx.google2fa');
+        $valid = $google2fa->verifyKey(decrypt($this->two_factor_secret), $code);
+
+        if ($valid) {
+            $this->forceFill(['two_factor_confirmed_at' => now()])->save();
+        }
+
+        return $valid;
+    }
+
+    /**
+     * Verify a 2FA code (during login).
+     */
+    public function verifyTwoFactor(string $code): bool
+    {
+        if (! $this->two_factor_secret || ! $this->two_factor_confirmed_at) {
+            return false;
+        }
+
+        $google2fa = app('pragmarx.google2fa');
+
+        // Check TOTP code
+        if ($google2fa->verifyKey(decrypt($this->two_factor_secret), $code)) {
+            return true;
+        }
+
+        // Check recovery codes
+        $recoveryCodes = json_decode(decrypt($this->two_factor_recovery_codes), true) ?? [];
+        $code = strtoupper(str_replace(' ', '', $code));
+
+        if (in_array($code, $recoveryCodes)) {
+            // Remove used recovery code
+            $recoveryCodes = array_values(array_diff($recoveryCodes, [$code]));
+            $this->forceFill([
+                'two_factor_recovery_codes' => encrypt(json_encode($recoveryCodes)),
+            ])->save();
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if 2FA is enabled.
+     */
+    public function hasTwoFactorEnabled(): bool
+    {
+        return ! is_null($this->two_factor_secret)
+            && ! is_null($this->two_factor_confirmed_at);
+    }
+
+    /**
+     * Get the decrypted 2FA secret.
+     */
+    public function getTwoFactorSecret(): ?string
+    {
+        return $this->two_factor_secret ? decrypt($this->two_factor_secret) : null;
+    }
+
+    /**
+     * Get recovery codes.
+     */
+    public function getRecoveryCodes(): array
+    {
+        return $this->two_factor_recovery_codes
+            ? json_decode(decrypt($this->two_factor_recovery_codes), true) ?? []
+            : [];
+    }
+
+    /**
+     * Regenerate recovery codes.
+     */
+    public function regenerateRecoveryCodes(): array
+    {
+        $recoveryCodes = collect(range(1, 8))->map(fn () => strtoupper(Str::random(10)))->toArray();
+
+        $this->forceFill([
+            'two_factor_recovery_codes' => encrypt(json_encode($recoveryCodes)),
+        ])->save();
+
+        return $recoveryCodes;
     }
 }
