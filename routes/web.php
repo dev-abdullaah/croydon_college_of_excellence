@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountCenterController;
 use App\Http\Controllers\AssesmentMailController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\LessonController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\TutorMailController;
+use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/enroll/send', [EnrollMailController::class, 'sendMail'])->name('enroll.send');
@@ -55,6 +57,19 @@ Route::middleware('guest')->group(function () {
 
     Route::get('/register', [RegisterController::class, 'create'])->name('register');
     Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:10,1');
+
+    // Password reset (forgot password)
+    Route::get('/forgot-password', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'create'])
+        ->name('password.request');
+    Route::post('/forgot-password', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'store'])
+        ->middleware('throttle:2,1')
+        ->name('password.email');
+
+    Route::get('/reset-password/{token}', [\App\Http\Controllers\Auth\ResetPasswordController::class, 'create'])
+        ->name('password.reset');
+    Route::post('/reset-password', [\App\Http\Controllers\Auth\ResetPasswordController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('password.update');
 });
 
 /*
@@ -146,6 +161,32 @@ Route::get('/buy/{course}', [CheckoutController::class, 'start'])
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/my-account', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Account Center (security, emails, sessions)
+    Route::get('/my-account/security', [AccountCenterController::class, 'index'])->name('account.center');
+    Route::put('/my-account/security/password', [AccountCenterController::class, 'updatePassword'])
+        ->name('account.password.update');
+
+    // Two-Factor Authentication
+    Route::get('/my-account/security/2fa', [TwoFactorController::class, 'show'])
+        ->name('account.2fa.show');
+    Route::post('/my-account/security/2fa', [TwoFactorController::class, 'confirm'])
+        ->name('account.2fa.confirm');
+    Route::delete('/my-account/security/2fa', [TwoFactorController::class, 'disable'])
+        ->name('account.2fa.disable');
+    Route::post('/my-account/security/2fa/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes'])
+        ->name('account.2fa.recovery-codes');
+
+    // Email management
+    Route::post('/my-account/emails', [AccountCenterController::class, 'addEmail'])->name('account.emails.add');
+    Route::post('/my-account/emails/{userEmail}/verify', [AccountCenterController::class, 'resendVerification'])
+        ->name('account.emails.resend');
+    Route::get('/my-account/emails/verify/{token}', [AccountCenterController::class, 'verifyEmail'])
+        ->name('account.emails.verify');
+    Route::put('/my-account/emails/{userEmail}/primary', [AccountCenterController::class, 'setPrimary'])
+        ->name('account.emails.primary');
+    Route::delete('/my-account/emails/{userEmail}', [AccountCenterController::class, 'removeEmail'])
+        ->name('account.emails.remove');
 
     /*
     | Review page: shows the course, price, features, consent tick box,

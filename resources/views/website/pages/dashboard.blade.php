@@ -35,16 +35,21 @@
                 --}}
                 <div class="account-bar mb--40">
                     <h3 class="title">Your purchased materials</h3>
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        {{--
-                            Red, and full size. Signing out is the one thing
-                            on this page that undoes something, so it should
-                            not look like the neutral "Course details" link
-                            sitting four inches below it.
-                        --}}
-                        <button type="submit" class="btn btn-lg btn-danger">Sign Out</button>
-                    </form>
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                        <a href="{{ route('account.center') }}" class="btn btn-lg btn-outline-primary">
+                            <i class="feather-shield me-2"></i> Account Center
+                        </a>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            {{--
+                                Red, and full size. Signing out is the one thing
+                                on this page that undoes something, so it should
+                                not look like the neutral "Course details" link
+                                sitting four inches below it.
+                            --}}
+                            <button type="submit" class="btn btn-lg btn-danger">Sign Out</button>
+                        </form>
+                    </div>
                 </div>
 
                 @if ($learnableCourses->isNotEmpty())
@@ -237,6 +242,45 @@
                         </ul>
                     </div>
                 @endif
+
+                {{-- Login History --}}
+                <div class="rbt-service rbt-service-2 radius-10 mt--30">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <h4 class="title mb-0">Recent Login Activity</h4>
+                    </div>
+                    @if ($loginHistory->isNotEmpty())
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date & Time</th>
+                                        <th>Device</th>
+                                        <th>Browser</th>
+                                        <th>IP Address</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($loginHistory as $login)
+                                        <tr>
+                                            <td>{{ $login->login_at->format('M j, Y g:i A') }}</td>
+                                            <td>{{ $login->device_type }} ({{ $login->operating_system }})</td>
+                                            <td>{{ $login->browser }}</td>
+                                            <td>{{ $login->ip_address }}</td>
+                                            <td>
+                                                <span class="badge {{ $login->status === 'success' ? 'bg-success' : 'bg-danger' }}">
+                                                    {{ ucfirst($login->status) }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <p class="text-muted mb-0">No login history recorded yet.</p>
+                    @endif
+                </div>
 
             </div>
         </div>
