@@ -40,14 +40,7 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Bootstrap any application services.
      */
-    public function boot(): void
-    {
-        $this->useBootstrapPagination();
 
-        $this->limitApiRequests();
-
-        $this->bindCourseContent();
-    }
 
     /**
      * Paginate with the styles the site actually loads.
@@ -125,5 +118,56 @@ class AppServiceProvider extends ServiceProvider
 
             return $found;
         };
+    }
+
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
+    {
+        \Illuminate\Pagination\Paginator::useBootstrapFive();
+
+        \Illuminate\Support\Facades\Route::macro('lesson', function (string $uri, ?string $name = null, ?string $default = null) {
+            return $this->bind($uri, $name, 'lesson_id', function (\App\Content\CourseContent $content, string $slug, string $id) {
+                $lesson = $content->findLesson($slug, $id);
+                abort_if($lesson === null, 404, "There is no lesson \"{$id}\" in this course.");
+                return $lesson;
+            }, $default);
+        });
+
+        \Illuminate\Support\Facades\Route::macro('quiz', function (string $uri, ?string $name = null, ?string $default = null) {
+            return $this->bind($uri, $name, 'quiz_id', function (\App\Content\CourseContent $content, string $slug, string $id) {
+                $quiz = $content->findQuiz($slug, $id);
+                abort_if($quiz === null, 404, "There is no paper or mock test \"{$id}\" in this course.");
+                return $quiz;
+            }, $default);
+        });
+
+        $this->bootBrandEmail();
+    }
+
+    private function bootBrandEmail(): void
+    {
+        \Illuminate\Auth\Notifications\VerifyEmail::toMailUsing(function ($notifiable, $url) {
+            return (new \Illuminate\Notifications\Messages\MailMessage)
+                ->subject('Verify your email address - Croydon College of Excellence')
+                ->greeting('Confirm your email address')
+                ->line('Please click the button below to verify your email address.')
+                ->action('Verify Email Address', $url)
+                ->line('If you did not create an account, you can ignore this message.')
+                ->salutation(new \Illuminate\Support\HtmlString('Regards,<br>Croydon College of Excellence'));
+        });
+
+        \Illuminate\Auth\Notifications\ResetPassword::toMailUsing(function ($notifiable, $token) {
+            $url = url('/login') . '?reset=' . urlencode($token) . '&email=' . urlencode($notifiable->getEmailForPasswordReset());
+            return (new \Illuminate\Notifications\Messages\MailMessage)
+                ->subject('Reset your password - Croydon College of Excellence')
+                ->greeting('Reset your password')
+                ->line('You are receiving this email because we received a password reset request for your account.')
+                ->action('Reset Password', $url)
+                ->line('This password reset link will expire in ' . config('auth.passwords.' . config('auth.defaults.passwords') . '.expire') . ' minutes.')
+                ->line('If you did not request a password reset, no further action is required.')
+                ->salutation(new \Illuminate\Support\HtmlString('Regards,<br>Croydon College of Excellence'));
+        });
     }
 }

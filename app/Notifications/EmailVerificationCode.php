@@ -48,7 +48,7 @@ class EmailVerificationCode extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Your verification code')
+            ->subject('Your verification code - Croydon College of Excellence')
             ->greeting('Confirm your email address')
             // The code is the whole message, so it is given the largest type on
             // the page. Spacing between digits is deliberate: a code read off a
@@ -60,6 +60,7 @@ class EmailVerificationCode extends Notification
                 '</div>'
             ))
             ->line('It stops working in '.$this->expiresInMinutes.' minutes.')
-            ->line('If you did not create an account, you can ignore this message.');
+            ->line('If you did not create an account, you can ignore this message.')
+            ->salutation(new HtmlString('Regards,<br>Croydon College of Excellence'));
     }
 }
