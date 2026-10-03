@@ -67,7 +67,7 @@
                     <a href="{{ route('courses.index') }}">LIFE IN THE UK <i class="feather-chevron-down"></i></a>
                     <ul class="submenu">
                         <li><a href="{{ route('courses.show', 'life-in-the-uk-course') }}">📚 LIFE IN THE UK COURSE &mdash; &pound;99</a></li>
-                        <li><a href="{{ route('courses.show', '24-mock-tests') }}">⌚ 24 MOCK TESTS PACKAGE &mdash; &pound;49</a></li>
+                        <li><a href="{{ route('courses.show', '24-mock-tests') }}">⌚ 24 MOCK TESTS &mdash; &pound;49</a></li>
                         @auth
                             <li><a href="{{ route('dashboard') }}" class="text-primary fw-bold">👤 MY ACCOUNT</a></li>
                         @else
