@@ -27,11 +27,11 @@ class EnrollMailController extends Controller
 
         try {
 
-            Mail::to('info@croydoncollegeofexcellence.co.uk')->send(new EnrollMail($validatedData));
+            Mail::to(config('mail.college_inbox'))->send(new EnrollMail($validatedData));
 
             // Log success
             Log::info('Enrollment Email sent successfully', [
-                'recipient' => 'info@croydoncollegeofexcellence.co.uk',
+                'recipient' => config('mail.college_inbox'),
                 'data' => $validatedData,
             ]);
 

@@ -206,6 +206,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | College Inbox Recipient
+    |--------------------------------------------------------------------------
+    |
+    | The email address that receives all public-facing form submissions
+    | (contact, assessment, enrollment, tutor). Centralised here so it can
+    | be changed per environment without editing controllers or mail classes.
+    |
+    */
+
+    'college_inbox' => env('MAIL_COLLEGE_INBOX', 'info@croydoncollegeofexcellence.co.uk'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Markdown Mail Settings
     |--------------------------------------------------------------------------
     |

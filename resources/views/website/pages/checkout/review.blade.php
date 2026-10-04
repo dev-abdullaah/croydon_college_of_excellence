@@ -110,7 +110,7 @@
                                 oninvalid="this.setCustomValidity('Please tick the box to agree to the terms before paying.')"
                                 oninput="this.setCustomValidity('')">
                             <label class="form-check-label" for="consent">
-                                {!! $consentText !!}
+                                {!! \Illuminate\Support\Str::markdown(config('courses.consent_text')) !!}
                             </label>
                             @error('consent')
                                 <div class="invalid-feedback d-block">{{ $message }}</div>

@@ -19,7 +19,7 @@ class AssesmentMail extends Mailable
 
     public function build()
     {
-        return $this->to('info@croydoncollegeofexcellence.co.uk') // Set recipient email here
+        return $this->to(config('mail.college_inbox')) // Set recipient email here
             ->subject('Free Assesment Request from '.$this->data['full_name']) // Set email subject
             ->view('emails.assesment_mail_template')
             ->with([

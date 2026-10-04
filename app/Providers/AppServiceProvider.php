@@ -125,7 +125,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        \Illuminate\Pagination\Paginator::useBootstrapFive();
+        $this->useBootstrapPagination();
+        $this->limitApiRequests();
+        $this->bindCourseContent();
 
         // LogSuccessfulLogin and LogSuccessfulLogout are auto-discovered by Laravel 11
         // from the app/Listeners directory. No manual registration needed.

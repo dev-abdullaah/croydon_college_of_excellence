@@ -23,11 +23,11 @@ class TutorMailController extends Controller
 
         try {
             // Send email to recipient
-            Mail::to('info@croydoncollegeofexcellence.co.uk')->send(new TutorMail($validatedData));
+            Mail::to(config('mail.college_inbox'))->send(new TutorMail($validatedData));
 
             // Log success
             Log::info('Tutor Email sent successfully', [
-                'recipient' => 'info@croydoncollegeofexcellence.co.uk',
+                'recipient' => config('mail.college_inbox'),
                 'data' => $validatedData,
             ]);
 

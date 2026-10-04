@@ -18,13 +18,21 @@ use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\TutorMailController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/enroll/send', [EnrollMailController::class, 'sendMail'])->name('enroll.send');
+Route::post('/enroll/send', [EnrollMailController::class, 'sendMail'])
+    ->middleware('throttle:3,1')
+    ->name('enroll.send');
 
-Route::post('/assesment/send', [AssesmentMailController::class, 'sendMail'])->name('assesment.send');
+Route::post('/assesment/send', [AssesmentMailController::class, 'sendMail'])
+    ->middleware('throttle:3,1')
+    ->name('assesment.send');
 
-Route::post('/contact/send', [ContactMailController::class, 'sendMail'])->name('contact.send');
+Route::post('/contact/send', [ContactMailController::class, 'sendMail'])
+    ->middleware('throttle:3,1')
+    ->name('contact.send');
 
-Route::post('/tutor/send', [TutorMailController::class, 'sendMail'])->name('tutor.send');
+Route::post('/tutor/send', [TutorMailController::class, 'sendMail'])
+    ->middleware('throttle:3,1')
+    ->name('tutor.send');
 
 /*
 |--------------------------------------------------------------------------

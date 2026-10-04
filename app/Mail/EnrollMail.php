@@ -19,7 +19,7 @@ class EnrollMail extends Mailable
 
     public function build()
     {
-        return $this->to('info@croydoncollegeofexcellence.co.uk') // Set recipient email here
+        return $this->to(config('mail.college_inbox')) // Set recipient email here
             ->subject('Enrollment Request from '.$this->data['full_name']) // Set email subject
             ->view('emails.enroll_mail_template')
             ->with([

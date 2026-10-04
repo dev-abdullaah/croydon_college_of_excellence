@@ -23,11 +23,11 @@ class ContactMailController extends Controller
 
         try {
             // Send email to recipient
-            Mail::to('info@croydoncollegeofexcellence.co.uk')->send(new ContactMail($validatedData));
+            Mail::to(config('mail.college_inbox'))->send(new ContactMail($validatedData));
 
             // Log success
             Log::info('Contact Form Email sent successfully', [
-                'recipient' => 'info@croydoncollegeofexcellence.co.uk',
+                'recipient' => config('mail.college_inbox'),
                 'data' => $validatedData,
             ]);
 

@@ -27,11 +27,11 @@ class AssesmentMailController extends Controller
 
         try {
 
-            Mail::to('info@croydoncollegeofexcellence.co.uk')->send(new AssesmentMail($validatedData));
+            Mail::to(config('mail.college_inbox'))->send(new AssesmentMail($validatedData));
 
             // Log success
             Log::info('Free Assesment Email sent successfully', [
-                'recipient' => 'info@croydoncollegeofexcellence.co.uk',
+                'recipient' => config('mail.college_inbox'),
                 'data' => $validatedData,
             ]);
 

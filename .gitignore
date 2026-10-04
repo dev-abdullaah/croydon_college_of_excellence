@@ -5,7 +5,7 @@
 /public/storage
 /storage/*.key
 /vendor
-#.env
+.env
 .env.backup
 .env.production
 # Overrides .env wholesale on a developer machine. Holds real SMTP credentials

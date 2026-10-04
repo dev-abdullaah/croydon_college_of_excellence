@@ -20,7 +20,7 @@ class ContactMail extends Mailable
     public function build()
     {
         return $this->from(env('MAIL_FROM_ADDRESS'))  // Sender address, could be no-reply
-            ->to('info@croydoncollegeofexcellence.co.uk')  // Recipient email
+            ->to(config('mail.college_inbox'))  // Recipient email
             ->subject('Contact Form Message from '.$this->data['name']) // Email subject
             ->view('emails.contact_mail_template')  // Blade template for email
             ->with('data', $this->data);  // Send form data to view

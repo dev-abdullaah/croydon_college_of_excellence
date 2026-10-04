@@ -68,6 +68,6 @@ return [
     | Make this easy to change without editing a Blade file.
     |
     */
-    'consent_text' => 'I agree to the <a href="/our-policy" target="_blank">Terms and Refund Policy</a>. I understand I get immediate access to digital content, so I lose my right to cancel within 14 days once access begins.',
+    'consent_text' => 'I agree to the [Terms and Refund Policy](/our-policy){target="_blank"}. I understand I get immediate access to digital content, so I lose my right to cancel within 14 days once access begins.',
 
 ];
