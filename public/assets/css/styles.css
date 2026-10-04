@@ -38827,18 +38827,22 @@ a.lz-card:hover .lz-num {
 }
 
 .active-dark-mode .site-toast.alert-success {
+  background: #1a4d2e;
   color: #7ee2a2;
 }
 
 .active-dark-mode .site-toast.alert-danger {
+  background: #5c1a1a;
   color: #ff9d9d;
 }
 
 .active-dark-mode .site-toast.alert-warning {
+  background: #5c3d1a;
   color: #ffc080;
 }
 
 .active-dark-mode .site-toast.alert-info {
+  background: #1a3d4d;
   color: #8fd8f5;
 }
 
