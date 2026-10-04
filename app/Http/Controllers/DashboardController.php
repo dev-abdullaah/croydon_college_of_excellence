@@ -11,9 +11,6 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -136,104 +133,5 @@ class DashboardController extends Controller
                 'total' => $this->content->lessons($course->slug)->count(),
             ],
         ]);
-    }
-
-    /**
-     * Show the password change form.
-     */
-    public function showPasswordForm(Request $request): View
-    {
-        return view('website.pages.dashboard-password');
-    }
-
-    /**
-     * Update the user's password.
-     */
-    public function updatePassword(Request $request): RedirectResponse
-    {
-        $request->validate([
-            'current_password' => ['required', 'current_password'],
-            'password' => ['required', 'confirmed', Password::defaults()],
-        ]);
-
-        /** @var User $user */
-        $user = $request->user();
-
-        // Prevent reusing the current password
-        if (Hash::check($request->string('password'), $user->password)) {
-            return back()->withErrors([
-                'password' => 'The new password must be different from your current password.',
-            ])->withInput($request->except('password', 'password_confirmation'));
-        }
-
-        $user->password = Hash::make($request->string('password'));
-        $user->save();
-
-        return back()->with('status', 'password-changed');
-    }
-
-    /**
-     * Show the email change form.
-     */
-    public function showEmailForm(Request $request): View
-    {
-        return view('website.pages.dashboard-email', [
-            'pendingEmail' => $request->user()->new_email,
-        ]);
-    }
-
-    /**
-     * Request an email change - sends verification to the new address.
-     */
-    public function updateEmail(Request $request): RedirectResponse
-    {
-        /** @var User $user */
-        $user = $request->user();
-
-        // Rate limit: 3 requests per hour per user
-        $limiter = RateLimiter::for('email-change', function ($request) {
-            return \Illuminate\Cache\RateLimiting\Limit::perHour(3)->by($request->user()->id);
-        });
-        $key = 'email-change:' . $user->id;
-
-        if ($limiter->tooManyAttempts($key)) {
-            $seconds = $limiter->availableIn($key);
-            return back()->withErrors([
-                'email' => 'Too many email change requests. Please try again in ' . gmdate('i:s', $seconds) . '.',
-            ]);
-        }
-
-        $request->validate([
-            'current_password' => ['required', 'current_password'],
-            'email' => ['required', 'email', 'max:255', 'different:email', 'unique:users,email'],
-        ]);
-
-        $limiter->hit($key);
-
-        $user->requestEmailChange($request->string('email'));
-
-        return back()->with('status', 'email-change-sent');
-    }
-
-    /**
-     * Verify the email change token from the email link.
-     */
-    public function verifyEmailChange(Request $request, string $token): RedirectResponse
-    {
-        /** @var User $user */
-        $user = $request->user();
-
-        if (! $user->hasPendingEmailChange()) {
-            return redirect()->route('dashboard.email')
-                ->withErrors(['email' => 'No pending email change request.']);
-        }
-
-        if ($user->verifyEmailChange($token)) {
-            return redirect()->route('dashboard.email')
-                ->with('status', 'email-changed');
-        }
-
-        return redirect()->route('dashboard.email')
-            ->withErrors(['email' => 'Invalid or expired verification link.']);
     }
 }
