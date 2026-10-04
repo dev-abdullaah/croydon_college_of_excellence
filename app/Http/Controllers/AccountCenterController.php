@@ -16,6 +16,18 @@ use Illuminate\View\View;
 class AccountCenterController extends Controller
 {
     /**
+     * The tabs the account center is divided into, in the order they appear.
+     *
+     * Which one is open is carried in the URL as `?tab=` rather than in a
+     * `#fragment`, because a fragment never reaches the server. That is what
+     * made a reload drop the reader back onto Security no matter which tab they
+     * were on: the server had never been told, and it rendered the first tab.
+     * With the tab in the query string a reload restores it, the address bar
+     * names the tab, and the back button steps between tabs.
+     */
+    private const TABS = ['security', 'emails', 'sessions', 'danger'];
+
+    /**
      * Show the account center (security, password, emails, sessions).
      */
     public function index(Request $request): View
@@ -58,6 +70,36 @@ class AccountCenterController extends Controller
             'emails' => $emails,
             'activeSessions' => $activeSessions,
             'loginHistory' => $loginHistory,
+            'activeTab' => $this->normaliseTab($request->query('tab')),
+        ]);
+    }
+
+    /**
+     * Reduce anything that claims to be a tab to one that exists.
+     *
+     * The list is checked rather than trusted because the value arrives from the
+     * query string and then decides which pane is rendered, so an unknown tab
+     * must fall back to the first instead of reaching the view.
+     */
+    private function normaliseTab(mixed $tab): string
+    {
+        return in_array($tab, self::TABS, true) ? $tab : self::TABS[0];
+    }
+
+    /**
+     * Return to the account center on the tab the action came from.
+     *
+     * Every action here answers with `back()`, which would have sent the reader
+     * to the bare `/my-account/security` and so to the Security tab again -
+     * deleting an email from the Email Addresses tab appeared to throw them
+     * back to the front of the page. The tab is read from the submitted form
+     * instead of from the referer, so a browser that withholds the referer for
+     * privacy cannot cause the same jump.
+     */
+    private function backToTab(Request $request): RedirectResponse
+    {
+        return redirect()->route('account.center', [
+            'tab' => $this->normaliseTab($request->input('tab')),
         ]);
     }
 
@@ -74,7 +116,7 @@ class AccountCenterController extends Controller
 
         if (RateLimiter::tooManyAttempts($key, 5)) {
             $seconds = RateLimiter::availableIn($key);
-            return back()->withErrors([
+            return $this->backToTab($request)->withErrors([
                 'email' => 'Too many requests. Please try again in ' . gmdate('i:s', $seconds) . '.',
             ]);
         }
@@ -97,7 +139,7 @@ class AccountCenterController extends Controller
         // Send verification email
         $userEmail->sendVerificationNotification();
 
-        return back()->with('status', 'email-added');
+        return $this->backToTab($request)->with('status', 'email-added');
     }
 
     /**
@@ -113,7 +155,7 @@ class AccountCenterController extends Controller
         }
 
         if ($userEmail->is_verified) {
-            return back()->withErrors(['email' => 'This email is already verified.']);
+            return $this->backToTab($request)->withErrors(['email' => 'This email is already verified.']);
         }
 
         // Rate limit: 2 requests per 10 minutes per email
@@ -121,7 +163,7 @@ class AccountCenterController extends Controller
 
         if (RateLimiter::tooManyAttempts($key, 2)) {
             $seconds = RateLimiter::availableIn($key);
-            return back()->withErrors([
+            return $this->backToTab($request)->withErrors([
                 'email' => 'Too many verification emails sent. Please wait ' . gmdate('i:s', $seconds) . '.',
             ]);
         }
@@ -130,7 +172,7 @@ class AccountCenterController extends Controller
 
         $userEmail->sendVerificationNotification();
 
-        return back()->with('status', 'verification-sent');
+        return $this->backToTab($request)->with('status', 'verification-sent');
     }
 
     /**
@@ -138,20 +180,22 @@ class AccountCenterController extends Controller
      */
     public function verifyEmail(Request $request, string $token): RedirectResponse
     {
+        // Arriving from the mailed link, so there is no form to carry a tab.
+        // The outcome is announced on the Email Addresses tab, which is where
+        // the reader is sent whether it worked or not.
+        $redirect = redirect()->route('account.center', ['tab' => 'emails']);
+
         $userEmail = UserEmail::where('verification_token', $token)->first();
 
         if (! $userEmail) {
-            return redirect()->route('account.center')
-                ->withErrors(['email' => 'Invalid or expired verification link.']);
+            return $redirect->withErrors(['email' => 'Invalid or expired verification link.']);
         }
 
         if ($userEmail->verifyToken($token)) {
-            return redirect()->route('account.center')
-                ->with('status', 'email-verified');
+            return $redirect->with('status', 'email-verified');
         }
 
-        return redirect()->route('account.center')
-            ->withErrors(['email' => 'Invalid or expired verification link.']);
+        return $redirect->withErrors(['email' => 'Invalid or expired verification link.']);
     }
 
     /**
@@ -167,11 +211,11 @@ class AccountCenterController extends Controller
         }
 
         if (! $userEmail->is_verified) {
-            return back()->withErrors(['email' => 'You must verify this email before making it primary.']);
+            return $this->backToTab($request)->withErrors(['email' => 'You must verify this email before making it primary.']);
         }
 
         if ($userEmail->is_primary) {
-            return back()->with('status', 'already-primary');
+            return $this->backToTab($request)->with('status', 'already-primary');
         }
 
         $request->validate([
@@ -184,7 +228,7 @@ class AccountCenterController extends Controller
         // Set new primary
         $userEmail->update(['is_primary' => true]);
 
-        return back()->with('status', 'primary-changed');
+        return $this->backToTab($request)->with('status', 'primary-changed');
     }
 
     /**
@@ -200,7 +244,7 @@ class AccountCenterController extends Controller
         }
 
         if ($userEmail->is_primary) {
-            return back()->withErrors(['email' => 'Cannot remove primary email. Set another email as primary first.']);
+            return $this->backToTab($request)->withErrors(['email' => 'Cannot remove primary email. Set another email as primary first.']);
         }
 
         $request->validate([
@@ -209,7 +253,7 @@ class AccountCenterController extends Controller
 
         $userEmail->delete();
 
-        return back()->with('status', 'email-removed');
+        return $this->backToTab($request)->with('status', 'email-removed');
     }
 
     /**
@@ -227,7 +271,7 @@ class AccountCenterController extends Controller
 
         // Prevent reusing current password
         if (Hash::check($request->string('password'), $user->password)) {
-            return back()->withErrors([
+            return $this->backToTab($request)->withErrors([
                 'password' => 'The new password must be different from your current password.',
             ])->withInput($request->except('password', 'password_confirmation'));
         }
@@ -235,7 +279,7 @@ class AccountCenterController extends Controller
         $user->password = Hash::make($request->string('password'));
         $user->save();
 
-        return back()->with('status', 'password-changed');
+        return $this->backToTab($request)->with('status', 'password-changed');
     }
 
     /**
@@ -272,6 +316,6 @@ class AccountCenterController extends Controller
             'status' => 'revoked',
         ]);
 
-        return back()->with('status', 'session-revoked');
+        return $this->backToTab($request)->with('status', 'session-revoked');
     }
 }

@@ -23,22 +23,36 @@
         <div class="row justify-content-center">
             <div class="col-lg-10">
 
-                {{-- Breadcrumb Navigation --}}
+                {{--
+                    Tab navigation.
+
+                    These are ordinary links to `?tab=`, not Bootstrap pills
+                    driven by data-bs-toggle. A pill link points at a #fragment,
+                    which the browser never sends to the server, so the page came
+                    back to Security on every reload. Real links make the tab part
+                    of the address, which is what lets a reload, a shared link and
+                    the back button all land on the right tab.
+                --}}
                 <nav aria-label="Account sections" class="mb-4">
-                    <div class="nav nav-pills nav-justified flex-wrap gap-2" role="tablist">
-                        <a class="nav-link active" href="#security" role="tab" data-bs-toggle="pill">
+                    <div class="nav nav-pills nav-justified flex-wrap gap-2">
+                        <a class="nav-link {{ $activeTab === 'security' ? 'active' : '' }}"
+                           href="{{ route('account.center', ['tab' => 'security']) }}"
+                           @if ($activeTab === 'security') aria-current="page" @endif>
                             <i class="feather-shield me-1"></i> Security
                         </a>
-                        <a class="nav-link" href="#emails" role="tab" data-bs-toggle="pill">
+                        <a class="nav-link {{ $activeTab === 'emails' ? 'active' : '' }}"
+                           href="{{ route('account.center', ['tab' => 'emails']) }}"
+                           @if ($activeTab === 'emails') aria-current="page" @endif>
                             <i class="feather-mail me-1"></i> Email Addresses
                         </a>
-                        <a class="nav-link" href="#sessions" role="tab" data-bs-toggle="pill">
+                        <a class="nav-link {{ $activeTab === 'sessions' ? 'active' : '' }}"
+                           href="{{ route('account.center', ['tab' => 'sessions']) }}"
+                           @if ($activeTab === 'sessions') aria-current="page" @endif>
                             <i class="feather-monitor me-1"></i> Active Sessions
                         </a>
-                        <a class="nav-link" href="#2fa" role="tab" data-bs-toggle="pill">
-                            <i class="feather-lock me-1"></i> Two-Factor
-                        </a>
-                        <a class="nav-link text-danger" href="#danger" role="tab" data-bs-toggle="pill">
+                        <a class="nav-link {{ $activeTab === 'danger' ? 'active' : '' }}"
+                           href="{{ route('account.center', ['tab' => 'danger']) }}"
+                           @if ($activeTab === 'danger') aria-current="page" @endif>
                             <i class="feather-trash-2 me-1"></i> Danger Zone
                         </a>
                     </div>
@@ -47,7 +61,7 @@
                 <div class="tab-content" id="accountTabsContent">
 
                     {{-- ========== SECURITY TAB ========== --}}
-                    <div class="tab-pane fade show active" id="security" role="tabpanel">
+                    <div class="tab-pane fade {{ $activeTab === 'security' ? 'show active' : '' }}" id="security">
                         <div class="rbt-service rbt-service-2 radius-10 mb--40">
                             <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                                 <h4 class="title mb-0">Password</h4>
@@ -61,9 +75,17 @@
                                 </div>
                             @endif
 
+                            {{--
+                            The form below carries the tab it is submitted
+                            from, so the action answers on the tab the reader was
+                            already using instead of on Security. It travels in
+                            the body rather than being taken from the referer,
+                            which a browser may withhold.
+                        --}}
                             <form method="POST" action="{{ route('account.password.update') }}" class="needs-validation row g-3" novalidate>
                                 @csrf
                                 @method('PUT')
+                                <input type="hidden" name="tab" value="{{ $activeTab }}">
 
                                 <div class="col-12">
                                     <label for="current_password" class="form-label fw-semibold">Current Password</label>
@@ -125,12 +147,6 @@
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <div class="p-3 border rounded h-100 border-warning">
-                                        <h6 class="fw-semibold"><i class="feather-shield me-2"></i> Enable 2FA</h6>
-                                        <p class="small text-muted mb-0">Add two-factor authentication for an extra layer of security.</p>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
                                     <div class="p-3 border rounded h-100 border-info">
                                         <h6 class="fw-semibold"><i class="feather-mail me-2"></i> Verified Email</h6>
                                         <p class="small text-muted mb-0">Keep your primary email verified for account recovery.</p>
@@ -147,7 +163,7 @@
                     </div>
 
                     {{-- ========== EMAILS TAB ========== --}}
-                    <div class="tab-pane fade" id="emails" role="tabpanel">
+                    <div class="tab-pane fade {{ $activeTab === 'emails' ? 'show active' : '' }}" id="emails">
                         <div class="rbt-service rbt-service-2 radius-10 mb--40">
                             <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                                 <h4 class="title mb-0">Email Addresses</h4>
@@ -248,6 +264,7 @@
                                                         @if (! $email->is_verified)
                                                             <form action="{{ route('account.emails.resend', $email) }}" method="POST" class="d-inline">
                                                                 @csrf
+                                                                <input type="hidden" name="tab" value="{{ $activeTab }}">
                                                                 <button type="submit" class="btn btn-outline-secondary" title="Resend verification">
                                                                     <i class="feather-send"></i>
                                                                 </button>
@@ -292,7 +309,7 @@
                     </div>
 
                     {{-- ========== SESSIONS TAB ========== --}}
-                    <div class="tab-pane fade" id="sessions" role="tabpanel">
+                    <div class="tab-pane fade {{ $activeTab === 'sessions' ? 'show active' : '' }}" id="sessions">
                         <div class="rbt-service rbt-service-2 radius-10 mb--40">
                             <h4 class="title mb-3">Active Sessions</h4>
                             <p class="text-muted mb-4">Review your active sessions. Revoke any sessions you don't recognize.</p>
@@ -334,6 +351,7 @@
                                                         @if ($login->id !== ($activeSessions->first()?->id))
                                                             <form action="{{ route('account.sessions.revoke', $login) }}" method="POST" class="d-inline-flex align-items-center gap-2" onsubmit="return confirm('Are you sure you want to revoke this session?')">
                                                                 @csrf
+                                                                <input type="hidden" name="tab" value="{{ $activeTab }}">
                                                                 @method('DELETE')
                                                                 <input type="password" name="current_password" class="form-control form-control-sm" placeholder="Current password" required style="width: 150px; height: 34px; padding: 0.375rem 0.75rem;">
                                                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Revoke this session" style="height: 34px; padding: 0.375rem 0.75rem;">
@@ -358,140 +376,13 @@
                             <h5 class="title mb-3"><i class="feather-info me-2"></i> Session Security</h5>
                             <ul class="mb-0 small text-muted">
                                 <li>Sessions are automatically revoked when you change your password.</li>
-                                <li>Enable 2FA to require a code for new logins.</li>
                                 <li>If you see an unfamiliar session, change your password immediately.</li>
                             </ul>
                         </div>
                     </div>
 
-                    {{-- ========== 2FA TAB ========== --}}
-                    <div class="tab-pane fade" id="2fa" role="tabpanel">
-                        @if (auth()->user()->hasTwoFactorEnabled())
-                            {{-- 2FA Enabled View --}}
-                            <div class="rbt-service rbt-service-2 radius-10 mb--40">
-                                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-                                    <h4 class="title mb-0"><i class="feather-lock text-success me-2"></i> Two-Factor Authentication</h4>
-                                    <span class="badge bg-success fs-6 px-3 py-2">Enabled</span>
-                                </div>
-
-                                <div class="alert alert-success d-flex align-items-center">
-                                    <i class="feather-check-circle me-2 fs-4"></i>
-                                    <div>
-                                        <strong>2FA is active.</strong> You'll need a code from your authenticator app to sign in.
-                                    </div>
-                                </div>
-
-                                <div class="row g-3 mt-3">
-                                    <div class="col-md-6">
-                                        <form method="POST" action="{{ route('account.2fa.disable') }}" class="d-inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#disable2faModal">
-                                                <i class="feather-lock me-2"></i> Disable 2FA
-                                            </button>
-                                        </form>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <form method="POST" action="{{ route('account.2fa.recovery-codes') }}" class="d-inline">
-                                            @csrf
-                                            <button type="button" class="btn btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#recoveryCodesModal">
-                                                <i class="feather-key me-2"></i> View Recovery Codes
-                                            </button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {{-- Disable 2FA Modal --}}
-                            <div class="modal fade" id="disable2faModal" tabindex="-1" aria-labelledby="disable2faModalLabel" aria-hidden="true">
-                                <div class="modal-dialog modal-dialog-centered">
-                                    <div class="modal-content">
-                                        <form method="POST" action="{{ route('account.2fa.disable') }}">
-                                            @csrf
-                                            @method('DELETE')
-                                            <div class="modal-header">
-                                                <h5 class="modal-title" id="disable2faModalLabel"><i class="feather-lock me-2"></i> Disable Two-Factor Authentication</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <div class="alert alert-warning">
-                                                    <i class="feather-alert-triangle me-2"></i>
-                                                    Disabling 2FA removes the extra layer of security from your account.
-                                                </div>
-                                                <p>Enter a code from your authenticator app (or a recovery code) and your password to confirm.</p>
-                                                <div class="mb-3">
-                                                    <label for="disable_code" class="form-label fw-semibold">6-Digit Code</label>
-                                                    <input type="text" class="form-control form-control-lg text-center" id="disable_code" name="code" required maxlength="6" pattern="\d{6}" autocomplete="one-time-code" inputmode="numeric" placeholder="000000" style="letter-spacing: 0.5em;">
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label for="disable_password" class="form-label fw-semibold">Current Password</label>
-                                                    <input type="password" class="form-control form-control-lg" id="disable_password" name="current_password" required autocomplete="current-password">
-                                                </div>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                <button type="submit" class="btn btn-danger">Disable 2FA</button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {{-- Recovery Codes Modal --}}
-                            <div class="modal fade" id="recoveryCodesModal" tabindex="-1" aria-labelledby="recoveryCodesModalLabel" aria-hidden="true">
-                                <div class="modal-dialog modal-dialog-centered modal-lg">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title" id="recoveryCodesModalLabel"><i class="feather-key me-2"></i> Recovery Codes</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <p class="text-muted mb-3">Your recovery codes (each can be used once):</p>
-                                            @if (session('recovery_codes'))
-                                                <div class="alert alert-info">
-                                                    <strong>New recovery codes generated:</strong>
-                                                </div>
-                                            @endif
-                                            <div class="row g-2">
-                                                @foreach (auth()->user()->getRecoveryCodes() as $code)
-                                                    <div class="col-6">
-                                                        <code class="d-block bg-light p-3 text-center font-monospace fs-6 user-select-all">{{ $code }}</code>
-                                                    </div>
-                                                @endforeach
-                                            </div>
-                                            <div class="mt-3">
-                                                <form method="POST" action="{{ route('account.2fa.recovery-codes') }}">
-                                                    @csrf
-                                                    <button type="submit" class="btn btn-outline-warning w-100" onclick="return confirm('This will invalidate all current recovery codes and generate new ones. Continue?')">
-                                                        <i class="feather-refresh-cw me-2"></i> Regenerate Recovery Codes
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                        @else
-                            {{-- 2FA Disabled View --}}
-                            <div class="rbt-service rbt-service-2 radius-10 mb--40 text-center py-5">
-                                <div class="mb-4">
-                                    <i class="feather-lock text-muted" style="font-size: 48px;"></i>
-                                </div>
-                                <h4 class="title mb-3">Two-Factor Authentication</h4>
-                                <p class="text-muted mb-4">Add an extra layer of security to your account. When enabled, you'll need a code from your authenticator app to sign in.</p>
-                                <a href="{{ route('account.2fa.show') }}" class="btn btn-primary btn-lg">
-                                    <i class="feather-plus me-2"></i> Enable 2FA
-                                </a>
-                            </div>
-                        @endif
-                    </div>
-
                     {{-- ========== DANGER ZONE TAB ========== --}}
-                    <div class="tab-pane fade" id="danger" role="tabpanel">
+                    <div class="tab-pane fade {{ $activeTab === 'danger' ? 'show active' : '' }}" id="danger">
                         <div class="rbt-service rbt-service-2 radius-10 mb--40 border-danger">
                             <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                                 <h4 class="title mb-0 text-danger"><i class="feather-alert-triangle me-2"></i> Danger Zone</h4>
@@ -516,20 +407,6 @@
                             </div>
                         </div>
 
-                        {{-- Data Export --}}
-                        <div class="rbt-service rbt-service-2 radius-10 bg-light">
-                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                                <div>
-                                    <h5 class="mb-1">Download Your Data</h5>
-                                    <p class="text-muted small mb-0">Request a copy of your personal data and account activity.</p>
-                                </div>
-                                <button type="button" class="btn btn-outline-secondary" disabled>
-                                    <i class="feather-download me-2"></i> Request Data Export
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
                 </div>
 
             </div>
@@ -545,6 +422,7 @@
         <div class="modal-content">
             <form method="POST" action="{{ route('account.emails.add') }}">
                 @csrf
+                <input type="hidden" name="tab" value="{{ $activeTab }}">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addEmailModalLabel"><i class="feather-plus me-2"></i> Add Email Address</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -580,6 +458,7 @@
                 <div class="modal-content">
                     <form method="POST" action="{{ route('account.emails.primary', $email) }}">
                         @csrf
+                        <input type="hidden" name="tab" value="{{ $activeTab }}">
                         @method('PUT')
                         <div class="modal-header">
                             <h5 class="modal-title" id="setPrimaryModalLabel{{ $email->id }}"><i class="feather-star me-2"></i> Set as Primary Email</h5>
@@ -615,6 +494,7 @@
                 <div class="modal-content">
                     <form method="POST" action="{{ route('account.emails.remove', $email) }}">
                         @csrf
+                        <input type="hidden" name="tab" value="{{ $activeTab }}">
                         @method('DELETE')
                         <div class="modal-header">
                             <h5 class="modal-title" id="removeEmailModalLabel{{ $email->id }}"><i class="feather-trash-2 me-2"></i> Remove Email</h5>
