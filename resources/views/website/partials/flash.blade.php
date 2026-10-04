@@ -28,7 +28,7 @@
         'success' => session('success'),
         'info' => session('info'),
         'warning' => session('warning'),
-        'error' => session('error'),
+        'danger' => session('error'),
     ]);
 
     /*
