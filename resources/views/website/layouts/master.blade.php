@@ -105,43 +105,43 @@
 
     <!-- JS ==================== -->
     <!-- Modernizer JS -->
-    <script src="{{ asset('assets/js/vendor/modernizr.min.js') }}"></script>
+    <script src="{{ asset('assets/js/vendor/modernizr.min.js') }}" defer></script>
     <!-- jQuery JS -->
-    <script src="{{ asset('assets/js/vendor/jquery.js') }}"></script>
+    <script src="{{ asset('assets/js/vendor/jquery.js') }}" defer></script>
     <!-- Bootstrap JS -->
-    <script src="{{ asset('assets/js/vendor/bootstrap.min.js') }}"></script>
+    <script src="{{ asset('assets/js/vendor/bootstrap.min.js') }}" defer></script>
     <!-- sal.js -->
-    <script src="{{ asset('assets/js/vendor/sal.js') }}"></script>
+    <script src="{{ asset('assets/js/vendor/sal.js') }}" defer></script>
     <!-- Dark Mode Switcher -->
-    <script src="{{ asset('assets/js/vendor/js.cookie.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/jquery.style.switcher.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/swiper.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/jquery-appear.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/odometer.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/backtotop.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/isotop.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/imageloaded.js') }}"></script>
+    <script src="{{ asset('assets/js/vendor/js.cookie.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/jquery.style.switcher.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/swiper.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/jquery-appear.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/odometer.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/backtotop.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/isotop.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/imageloaded.js') }}" defer></script>
 
-    <script src="{{ asset('assets/js/vendor/wow.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/waypoint.min.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/easypie.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/text-type.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/jquery-one-page-nav.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/bootstrap-select.min.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/jquery-ui.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/magnify-popup.min.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/paralax-scroll.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/paralax.min.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/countdown.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/plyr.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/jodit.min.js') }}"></script>
-    <script src="{{ asset('assets/js/vendor/Sortable.min.js') }}"></script>
+    <script src="{{ asset('assets/js/vendor/wow.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/waypoint.min.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/easypie.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/text-type.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/jquery-one-page-nav.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/bootstrap-select.min.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/jquery-ui.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/magnify-popup.min.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/paralax-scroll.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/paralax.min.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/countdown.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/plyr.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/jodit.min.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/Sortable.min.js') }}" defer></script>
 
     <!-- Main JS -->
-    <script src="{{ asset('assets/js/main.js') }}"></script>
+    <script src="{{ asset('assets/js/main.js') }}" defer></script>
 
     <!-- Custom JS -->
-    <script src="{{ asset('assets/js/custom.js') }}"></script>
+    <script src="{{ asset('assets/js/custom.js') }}" defer></script>
 
     @stack('scripts')
 

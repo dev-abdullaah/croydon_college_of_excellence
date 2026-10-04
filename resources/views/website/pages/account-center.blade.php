@@ -381,6 +381,50 @@
                         </div>
                     </div>
 
+                    {{-- ========== FULL LOGIN HISTORY (PAGINATED) ========== --}}
+                    <div class="rbt-service rbt-service-2 radius-10 mb--40">
+                        <h4 class="title mb-3">Login History</h4>
+
+                        @if ($loginHistory->isNotEmpty())
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Date & Time</th>
+                                            <th>Device</th>
+                                            <th>Browser / OS</th>
+                                            <th>IP Address</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($loginHistory as $login)
+                                            <tr>
+                                                <td>{{ $login->login_at->format('M j, Y g:i A') }}</td>
+                                                <td>{{ $login->device_type }}</td>
+                                                <td>{{ $login->browser }} / {{ $login->operating_system }}</td>
+                                                <td>{{ $login->ip_address }}</td>
+                                                <td>
+                                                    <span class="badge {{ $login->status === 'success' ? 'bg-success' : ($login->status === 'revoked' ? 'bg-warning' : 'bg-danger') }}">
+                                                        {{ ucfirst($login->status) }}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {{-- Pagination --}}
+                            <div class="d-flex justify-content-center mt-3">
+                                {{ $loginHistory->links() }}
+                            </div>
+                        @else
+                            <p class="text-muted mb-0">No login history recorded yet.</p>
+                        @endif
+                    </div>
+                </div>
+
                     {{-- ========== DANGER ZONE TAB ========== --}}
                     <div class="tab-pane fade {{ $activeTab === 'danger' ? 'show active' : '' }}" id="danger">
                         <div class="rbt-service rbt-service-2 radius-10 mb--40 border-danger">

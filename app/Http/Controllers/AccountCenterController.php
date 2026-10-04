@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\LoginHistory;
 use App\Models\User;
 use App\Models\UserEmail;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -60,11 +61,11 @@ class AccountCenterController extends Controller
             ->limit(10)
             ->get();
 
-        // Full login history (including revoked/logged out) for reference
+        // Full login history (including revoked/logged out) with pagination
         $loginHistory = LoginHistory::forUser($user->id)
             ->latest('login_at')
-            ->limit(10)
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
         return view('website.pages.account-center', [
             'emails' => $emails,
