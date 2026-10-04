@@ -27,7 +27,7 @@ class StaticPageController extends Controller
         'contact-us' => 'website.pages.contact_us',
         'gallery' => 'website.pages.gallery',
         'enroll-now' => 'website.pages.enroll_now',
-        'free-assesment' => 'website.pages.free_assesment',
+        'free-assessment' => 'website.pages.free_assessment',
 
         // courses_regular sub-pages
         'regular-english' => 'website.pages.courses_regular.regular_english',

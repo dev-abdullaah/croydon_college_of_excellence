@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\AssesmentMail;
+use App\Mail\AssessmentMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
 
-class AssesmentMailController extends Controller
+class AssessmentMailController extends Controller
 {
     public function sendMail(Request $request)
     {
@@ -27,10 +27,10 @@ class AssesmentMailController extends Controller
 
         try {
 
-            Mail::to(config('mail.college_inbox'))->send(new AssesmentMail($validatedData));
+            Mail::to(config('mail.college_inbox'))->send(new AssessmentMail($validatedData));
 
             // Log success
-            Log::info('Free Assesment Email sent successfully', [
+            Log::info('Free Assessment Email sent successfully', [
                 'recipient' => config('mail.college_inbox'),
                 'data' => $validatedData,
             ]);
@@ -40,7 +40,7 @@ class AssesmentMailController extends Controller
         } catch (Throwable $e) {
 
             // Log error with more details
-            Log::error('Free Assesment Email sending failed', [
+            Log::error('Free Assessment Email sending failed', [
                 'error' => $e->getMessage(),
                 'data' => $validatedData,
             ]);

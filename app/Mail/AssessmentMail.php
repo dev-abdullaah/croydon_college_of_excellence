@@ -6,7 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class AssesmentMail extends Mailable
+class AssessmentMail extends Mailable
 {
     use Queueable, SerializesModels;
 
@@ -20,8 +20,8 @@ class AssesmentMail extends Mailable
     public function build()
     {
         return $this->to(config('mail.college_inbox')) // Set recipient email here
-            ->subject('Free Assesment Request from '.$this->data['full_name']) // Set email subject
-            ->view('emails.assesment_mail_template')
+            ->subject('Free Assessment Request from '.$this->data['full_name']) // Set email subject
+            ->view('emails.assessment_mail_template')
             ->with([
                 'full_name' => $this->data['full_name'],
                 'dob' => $this->data['dob'],

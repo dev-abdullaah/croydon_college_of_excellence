@@ -1,4 +1,4 @@
-<!-- resources/views/website/pages/free_assesment.blade.php -->
+<!-- resources/views/website/pages/free_assessment.blade.php -->
 @extends('website.layouts.master')
 
 @section('content')
@@ -7,13 +7,13 @@
 <div class="row rbt-conatct-area bg-gradient-9 rbt-section-gap">
     <div class="col-lg-12">
         <div class="section-title text-center mb--20">
-            <h2 class="title">Free Assesment</h2>
+            <h2 class="title">Free Assessment</h2>
         </div>
     </div>
 </div>
 <!-- Page Heading End -->
 
-<!-- Assesment Form Start -->
+<!-- Assessment Form Start -->
 <div class="checkout_area bg-color-white rbt-section-gap">
     <div class="container">
         <div class="row g-5 checkout-form">
@@ -28,12 +28,12 @@
                     @if(session('error'))
                     <div class="alert alert-danger">{{ session('error') }}</div>
                     @endif
-                    <form id="assesment-form" method="POST" action="{{ route('assesment.send') }}">
+                    <form id="assessment-form" method="POST" action="{{ route('assessment.send') }}">
 
                         @csrf
                         <!-- Admission Form Start -->
-                        <div id="assesment_form" class="container">
-                            <h3>Free Assesment Form</h3>
+                        <div id="assessment_form" class="container">
+                            <h3>Free Assessment Form</h3>
                             <hr class="mb--30">
                             <div class="row">
                                 <div class="col-md-6 col-12 mb--20">
@@ -178,7 +178,7 @@
         </div>
     </div>
 </div>
-<!-- Assesment Form End -->
+<!-- Assessment Form End -->
 
 <div class="rbt-separator-mid mt--60">
     <div class="container">

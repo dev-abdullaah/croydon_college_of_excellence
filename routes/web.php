@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountCenterController;
-use App\Http\Controllers\AssesmentMailController;
+use App\Http\Controllers\AssessmentMailController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -23,9 +23,19 @@ Route::post('/enroll/send', [EnrollMailController::class, 'sendMail'])
     ->middleware('throttle:3,1')
     ->name('enroll.send');
 
-Route::post('/assesment/send', [AssesmentMailController::class, 'sendMail'])
+Route::post('/assessment/send', [AssessmentMailController::class, 'sendMail'])
     ->middleware('throttle:3,1')
-    ->name('assesment.send');
+    ->name('assessment.send');
+
+// Legacy redirect for old spelling
+Route::post('/assesment/send', function () {
+    return redirect()->route('assessment.send', [], 301);
+})->withoutMiddleware('throttle');
+
+// Legacy redirect for old spelling
+Route::get('/free-assesment', function () {
+    return redirect('/free-assessment', 301);
+});
 
 Route::post('/contact/send', [ContactMailController::class, 'sendMail'])
     ->middleware('throttle:3,1')

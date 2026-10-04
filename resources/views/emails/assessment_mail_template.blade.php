@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Free Assesment Request</title>
+    <title>Free Assessment Request</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -108,7 +108,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h2>Free Assesment Request</h2>
+            <h2>Free Assessment Request</h2>
         </div>
         <div class="content">
             <p><strong>Full Name:</strong> {{ $full_name }}</p>
@@ -123,7 +123,7 @@
         </div>
     </div>
     <div class="footer">
-        <p>This message was sent from the Free Assesment Form on your website.</p>
+        <p>This message was sent from the Free Assessment Form on your website.</p>
     </div>
 </body>
 
