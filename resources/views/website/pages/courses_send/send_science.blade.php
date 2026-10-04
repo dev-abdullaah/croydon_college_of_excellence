@@ -203,7 +203,7 @@
                                                 </h4>
                                                 <div class="rbt-btn-wrapper pb-3">
                                                     <a class="rbt-btn btn-border-gradient radius-round btn-sm justify-content-center text-center"
-                                                        href="{{ url('/free-assesment') }}">
+                                                        href="{{ url('/free-assessment') }}">
                                                         <span>Book Free Assessment</span>
                                                     </a>
                                                 </div>
@@ -350,7 +350,7 @@
                                                 </h4>
                                                 <div class="rbt-btn-wrapper pb-3">
                                                     <a class="rbt-btn btn-border-gradient radius-round btn-sm justify-content-center text-center"
-                                                        href="{{ url('/free-assesment') }}">
+                                                        href="{{ url('/free-assessment') }}">
                                                         <span>Book Free Assessment</span>
                                                     </a>
                                                 </div>
@@ -496,7 +496,7 @@
                                                 </h4>
                                                 <div class="rbt-btn-wrapper pb-3">
                                                     <a class="rbt-btn btn-border-gradient radius-round btn-sm justify-content-center text-center"
-                                                        href="{{ url('/free-assesment') }}">
+                                                        href="{{ url('/free-assessment') }}">
                                                         <span>Book Free Assessment</span>
                                                     </a>
                                                 </div>

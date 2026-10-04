@@ -33,7 +33,7 @@ Route::post('/assesment/send', function () {
 })->withoutMiddleware('throttle');
 
 // Legacy redirect for old spelling
-Route::get('/free-assesment', function () {
+Route::get('/free-assessment', function () {
     return redirect('/free-assessment', 301);
 });
 
