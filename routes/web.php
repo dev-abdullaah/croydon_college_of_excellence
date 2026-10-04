@@ -27,16 +27,6 @@ Route::post('/assessment/send', [AssessmentMailController::class, 'sendMail'])
     ->middleware('throttle:3,1')
     ->name('assessment.send');
 
-// Legacy redirect for old spelling
-Route::post('/assesment/send', function () {
-    return redirect()->route('assessment.send', [], 301);
-})->withoutMiddleware('throttle');
-
-// Legacy redirect for old spelling
-Route::get('/free-assessment', function () {
-    return redirect('/free-assessment', 301);
-});
-
 Route::post('/contact/send', [ContactMailController::class, 'sendMail'])
     ->middleware('throttle:3,1')
     ->name('contact.send');
