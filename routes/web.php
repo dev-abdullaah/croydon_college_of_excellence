@@ -16,7 +16,6 @@ use App\Http\Controllers\LessonController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\TutorMailController;
-use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/enroll/send', [EnrollMailController::class, 'sendMail'])->name('enroll.send');
@@ -168,16 +167,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('account.password.update');
     Route::delete('/my-account/security/sessions/{loginHistory}', [AccountCenterController::class, 'revokeSession'])
         ->name('account.sessions.revoke');
-
-    // Two-Factor Authentication
-    Route::get('/my-account/security/2fa', [TwoFactorController::class, 'show'])
-        ->name('account.2fa.show');
-    Route::post('/my-account/security/2fa', [TwoFactorController::class, 'confirm'])
-        ->name('account.2fa.confirm');
-    Route::delete('/my-account/security/2fa', [TwoFactorController::class, 'disable'])
-        ->name('account.2fa.disable');
-    Route::post('/my-account/security/2fa/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes'])
-        ->name('account.2fa.recovery-codes');
 
     // Email management
     Route::post('/my-account/emails', [AccountCenterController::class, 'addEmail'])->name('account.emails.add');

@@ -11,7 +11,6 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 
 /**
  * A learner.
@@ -42,9 +41,6 @@ class User extends Authenticatable implements MustVerifyEmail
         'new_email',
         'email_change_token',
         'email_change_token_expires_at',
-        'two_factor_secret',
-        'two_factor_recovery_codes',
-        'two_factor_confirmed_at',
     ];
 
     /**
@@ -59,8 +55,6 @@ class User extends Authenticatable implements MustVerifyEmail
         // it never belongs in a serialised payload.
         'verification_code_hash',
         'email_change_token',
-        'two_factor_secret',
-        'two_factor_recovery_codes',
     ];
 
     /**
@@ -75,7 +69,6 @@ class User extends Authenticatable implements MustVerifyEmail
             'verification_code_sent_at' => 'datetime',
             'verification_code_locked_until' => 'datetime',
             'email_change_token_expires_at' => 'datetime',
-            'two_factor_confirmed_at' => 'datetime',
             // Small int, not hashed, and not hidden: unlike a password this is
             // never a credential by itself, only a counter beside one.
             'verification_code_attempts' => 'integer',
@@ -517,137 +510,5 @@ class User extends Authenticatable implements MustVerifyEmail
 
         $this->forceFill($attributes);
         $this->syncOriginalAttributes(array_keys($attributes));
-    }
-
-    /**
-     * Generate a new 2FA secret and enable 2FA.
-     */
-    public function enableTwoFactor(): array
-    {
-        $google2fa = app('pragmarx.google2fa');
-        $secret = $google2fa->generateSecretKey();
-
-        $recoveryCodes = collect(range(1, 8))->map(fn () => strtoupper(Str::random(10)))->toArray();
-
-        $this->forceFill([
-            'two_factor_secret' => encrypt($secret),
-            'two_factor_recovery_codes' => encrypt(json_encode($recoveryCodes)),
-            'two_factor_confirmed_at' => null,
-        ])->save();
-
-        return [
-            'secret' => $secret,
-            'qr_code_url' => $google2fa->getQRCodeInline(
-                config('app.name'),
-                $this->email,
-                $secret
-            ),
-            'recovery_codes' => $recoveryCodes,
-        ];
-    }
-
-    /**
-     * Disable 2FA.
-     */
-    public function disableTwoFactor(): void
-    {
-        $this->forceFill([
-            'two_factor_secret' => null,
-            'two_factor_recovery_codes' => null,
-            'two_factor_confirmed_at' => null,
-        ])->save();
-    }
-
-    /**
-     * Confirm 2FA with a code (during setup).
-     */
-    public function confirmTwoFactor(string $code): bool
-    {
-        if (! $this->two_factor_secret) {
-            return false;
-        }
-
-        $google2fa = app('pragmarx.google2fa');
-        $valid = $google2fa->verifyKey(decrypt($this->two_factor_secret), $code);
-
-        if ($valid) {
-            $this->forceFill(['two_factor_confirmed_at' => now()])->save();
-        }
-
-        return $valid;
-    }
-
-    /**
-     * Verify a 2FA code (during login).
-     */
-    public function verifyTwoFactor(string $code): bool
-    {
-        if (! $this->two_factor_secret || ! $this->two_factor_confirmed_at) {
-            return false;
-        }
-
-        $google2fa = app('pragmarx.google2fa');
-
-        // Check TOTP code
-        if ($google2fa->verifyKey(decrypt($this->two_factor_secret), $code)) {
-            return true;
-        }
-
-        // Check recovery codes
-        $recoveryCodes = json_decode(decrypt($this->two_factor_recovery_codes), true) ?? [];
-        $code = strtoupper(str_replace(' ', '', $code));
-
-        if (in_array($code, $recoveryCodes)) {
-            // Remove used recovery code
-            $recoveryCodes = array_values(array_diff($recoveryCodes, [$code]));
-            $this->forceFill([
-                'two_factor_recovery_codes' => encrypt(json_encode($recoveryCodes)),
-            ])->save();
-
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Check if 2FA is enabled.
-     */
-    public function hasTwoFactorEnabled(): bool
-    {
-        return ! is_null($this->two_factor_secret)
-            && ! is_null($this->two_factor_confirmed_at);
-    }
-
-    /**
-     * Get the decrypted 2FA secret.
-     */
-    public function getTwoFactorSecret(): ?string
-    {
-        return $this->two_factor_secret ? decrypt($this->two_factor_secret) : null;
-    }
-
-    /**
-     * Get recovery codes.
-     */
-    public function getRecoveryCodes(): array
-    {
-        return $this->two_factor_recovery_codes
-            ? json_decode(decrypt($this->two_factor_recovery_codes), true) ?? []
-            : [];
-    }
-
-    /**
-     * Regenerate recovery codes.
-     */
-    public function regenerateRecoveryCodes(): array
-    {
-        $recoveryCodes = collect(range(1, 8))->map(fn () => strtoupper(Str::random(10)))->toArray();
-
-        $this->forceFill([
-            'two_factor_recovery_codes' => encrypt(json_encode($recoveryCodes)),
-        ])->save();
-
-        return $recoveryCodes;
     }
 }

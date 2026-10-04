@@ -54,10 +54,7 @@ class EmailVerificationController extends Controller
         $email = $this->pendingEmail($request);
 
         return view('website.pages.auth.verify-email', [
-            // Masked rather than shown in full. This page is routinely open on
-            // a shared or public screen, and the person only needs to recognise
-            // their own address, not read it out to somebody next to them.
-            'email' => $this->mask($email),
+            'email' => $email,
             'hasEmail' => $email !== null,
         ]);
     }
@@ -170,7 +167,7 @@ class EmailVerificationController extends Controller
     public function resendForm(Request $request): View
     {
         return view('website.pages.auth.resend-code', [
-            'email' => $this->mask($this->pendingEmail($request)),
+            'email' => $this->pendingEmail($request),
         ]);
     }
 
@@ -238,23 +235,5 @@ class EmailVerificationController extends Controller
     {
         return $request->user()?->email
             ?? $request->session()->get('verification.email');
-    }
-
-    /**
-     * Hide all but the first character of the local part.
-     *
-     * Enough to recognise an address as your own, not enough to read aloud.
-     */
-    private function mask(?string $email): ?string
-    {
-        if (! is_string($email) || ! str_contains($email, '@')) {
-            return $email;
-        }
-
-        [$local, $domain] = explode('@', $email, 2);
-
-        return mb_substr($local, 0, 1)
-            .str_repeat('•', max(1, min(4, mb_strlen($local) - 1)))
-            .'@'.$domain;
     }
 }

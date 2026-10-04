@@ -141,7 +141,7 @@ Use an account-first flow. Guests cannot start checkout.
 4. After login and verification, return the user to the course they selected and start checkout only via an explicit POST (CSRF-protected) with the course slug validated server-side.
 5. Checkout Session uses `customer_email` (or a stored Stripe Customer ID) from the authenticated user, plus `client_reference_id` = user ID and metadata `course_id` and `user_id`.
 6. Access is granted only by the signature-verified webhook. The success page shows "confirming payment" until the purchase record is paid.
-7. Security baseline: hashed passwords, strong password rules, rate limiting on login, registration, password reset and verification resend, session regeneration on login, secure/HTTP-only/SameSite cookies in production, password reset flow, and no passwords or tokens in logs. Design so 2FA can be added later.
+7. Security baseline: hashed passwords, strong password rules, rate limiting on login, registration, password reset and verification resend, session regeneration on login, secure/HTTP-only/SameSite cookies in production, password reset flow, and no passwords or tokens in logs.
 8. One account may buy both courses; each course unlocks independently. Logged-in users who already own a course see "Go to course" instead of "Buy".
 
 ## 9. Stripe Payments
