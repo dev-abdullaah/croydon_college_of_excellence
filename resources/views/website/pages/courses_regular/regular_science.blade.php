@@ -135,7 +135,7 @@
                                             </ul>
                                         </div>
                                         <div class="thumbnail">
-                                            <img src="{{ asset('assets/images/course/science_course.png') }}" style="height: 200px!important; border-radius: 10px;">
+                                            <img src="{{ asset('assets/images/course/science_course.png') }}" style="height: 200px!important; border-radius: 10px;" alt="Science course illustration">
                                         </div>
                                     </div>
                                     <a class="rbt-btn btn-gradient btn-sm mt--30 w-100"></a>
@@ -276,7 +276,7 @@
                                             </ul>
                                         </div>
                                         <div class="thumbnail">
-                                            <img src="{{ asset('assets/images/course/science_course.png') }}" style="height: 200px!important; border-radius: 10px;">
+                                            <img src="{{ asset('assets/images/course/science_course.png') }}" style="height: 200px!important; border-radius: 10px;" alt="Science course illustration">
                                         </div>
                                     </div>
                                     <a class="rbt-btn btn-gradient btn-sm mt--30 w-100"></a>
@@ -411,7 +411,7 @@
                                             </ul>
                                         </div>
                                         <div class="thumbnail">
-                                            <img src="{{ asset('assets/images/course/science_course.png') }}" style="height: 200px!important; border-radius: 10px;">
+                                            <img src="{{ asset('assets/images/course/science_course.png') }}" style="height: 200px!important; border-radius: 10px;" alt="Science course illustration">
                                         </div>
                                     </div>
                                     <a class="rbt-btn btn-gradient btn-sm mt--30 w-100"></a>

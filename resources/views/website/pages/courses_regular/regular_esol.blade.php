@@ -78,7 +78,7 @@
                                 </div>
                                 <div class="thumbnail">
                                     <img src="{{ asset('assets/images/course/esol_course.png') }}"
-                                        style="height: 200px!important; border-radius: 10px;">
+                                        style="height: 200px!important; border-radius: 10px;" alt="ESOL course illustration">
                                 </div>
                             </div>
                             <a class="rbt-btn btn-gradient btn-sm mt--30 w-100"></a>

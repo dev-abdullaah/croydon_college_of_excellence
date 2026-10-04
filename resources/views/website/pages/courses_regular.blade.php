@@ -42,7 +42,7 @@
                                 <div class="rbt-card variation-01 rbt-hover">
                                     <div class="rbt-card-img">
                                         <a href="{{ url('/regular-english') }}">
-                                            <img src="{{ asset('assets/images/course/english_course.png') }}">
+                                            <img src="{{ asset('assets/images/course/english_course.png') }}" alt="English course illustration">
                                             <div class="rbt-badge-3 bg-white">
                                                 <span class="discountValue">40%</span>
                                                 <span>Off</span>
@@ -89,7 +89,7 @@
                                 <div class="rbt-card variation-01 rbt-hover">
                                     <div class="rbt-card-img">
                                         <a href="{{ url('/regular-math') }}">
-                                            <img src="{{ asset('assets/images/course/math_course.png') }}">
+                                            <img src="{{ asset('assets/images/course/math_course.png') }}" alt="Mathematics course illustration">
                                             <div class="rbt-badge-3 bg-white">
                                                 <span class="discountValue">40%</span>
                                                 <span>Off</span>
@@ -136,7 +136,7 @@
                                 <div class="rbt-card variation-01 rbt-hover">
                                     <div class="rbt-card-img">
                                         <a href="{{ url('/regular-science') }}">
-                                            <img src="{{ asset('assets/images/course/science_course.png') }}">
+                                            <img src="{{ asset('assets/images/course/science_course.png') }}" alt="Science course illustration">
                                             <div class="rbt-badge-3 bg-white">
                                                 <span class="discountValue">40%</span>
                                                 <span>Off</span>
@@ -183,7 +183,7 @@
                                 <div class="rbt-card variation-01 rbt-hover">
                                     <div class="rbt-card-img">
                                         <a href="{{ url('/regular-exam') }}">
-                                            <img src="{{ asset('assets/images/course/exam_11.png') }}">
+                                            <img src="{{ asset('assets/images/course/exam_11.png') }}" alt="Exam preparation course illustration">
                                             <div class="rbt-badge-3 bg-white">
                                                 <span class="discountValue">40%</span>
                                                 <span>Off</span>
@@ -230,7 +230,7 @@
                                 <div class="rbt-card variation-01 rbt-hover">
                                     <div class="rbt-card-img">
                                         <a href="{{ url('/regular-sat') }}">
-                                            <img src="{{ asset('assets/images/course/sat_course.png') }}">
+                                            <img src="{{ asset('assets/images/course/sat_course.png') }}" alt="SAT preparation course illustration">
                                             <div class="rbt-badge-3 bg-white">
                                                 <span class="discountValue">40%</span>
                                                 <span>Off</span>
@@ -277,7 +277,7 @@
                                 <div class="rbt-card variation-01 rbt-hover">
                                     <div class="rbt-card-img">
                                         <a href="{{ url('/regular-skills') }}">
-                                            <img src="{{ asset('assets/images/course/functional_skill.png') }}">
+                                            <img src="{{ asset('assets/images/course/functional_skill.png') }}" alt="Functional skills course illustration">
                                             <div class="rbt-badge-3 bg-white">
                                                 <span class="discountValue">40%</span>
                                                 <span>Off</span>
@@ -324,7 +324,7 @@
                                 <div class="rbt-card variation-01 rbt-hover">
                                     <div class="rbt-card-img">
                                         <a href="{{ url('/regular-esol') }}">
-                                            <img src="{{ asset('assets/images/course/esol_course.png') }}">
+                                            <img src="{{ asset('assets/images/course/esol_course.png') }}" alt="ESOL course illustration">
                                             <div class="rbt-badge-3 bg-white">
                                                 <span class="discountValue">40%</span>
                                                 <span>Off</span>
@@ -371,7 +371,7 @@
                                 <div class="rbt-card variation-01 rbt-hover">
                                     <div class="rbt-card-img">
                                         <a href="{{ url('/regular-ielts') }}">
-                                            <img src="{{ asset('assets/images/course/ielts_course.png') }}">
+                                            <img src="{{ asset('assets/images/course/ielts_course.png') }}" alt="IELTS preparation course illustration">
                                             <div class="rbt-badge-3 bg-white">
                                                 <span class="discountValue">40%</span>
                                                 <span>Off</span>
@@ -418,7 +418,7 @@
                                 <div class="rbt-card variation-01 rbt-hover">
                                     <div class="rbt-card-img">
                                         <a href="{{ url('/regular-ukvi') }}">
-                                            <img src="{{ asset('assets/images/course/ukvi_course.png') }}">
+                                            <img src="{{ asset('assets/images/course/ukvi_course.png') }}" alt="UKVI preparation course illustration">
                                             <div class="rbt-badge-3 bg-white">
                                                 <span class="discountValue">40%</span>
                                                 <span>Off</span>

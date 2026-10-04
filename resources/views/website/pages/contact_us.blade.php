@@ -64,7 +64,7 @@
         <div class="row g-5">
             <div class="col-lg-6 pt--60">
                 <div class="thumbnail">
-                    <img class="w-100 radius-6" src="{{ asset('assets/images/about/contact.jpg') }}">
+                    <img class="w-100 radius-6" src="{{ asset('assets/images/about/contact.jpg') }}" alt="Croydon College of Excellence campus">
                 </div>
             </div>
 

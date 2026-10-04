@@ -77,7 +77,7 @@
                                     </ul>
                                 </div>
                                 <div class="thumbnail">
-                                    <img src="{{ asset('assets/images/course/math_course.png') }}" style="height: 200px!important; border-radius: 10px;">
+                                    <img src="{{ asset('assets/images/course/math_course.png') }}" style="height: 200px!important; border-radius: 10px;" alt="Mathematics course illustration">
                                 </div>
                             </div>
                             <a class="rbt-btn btn-gradient btn-sm mt--30 w-100"></a>

@@ -8,12 +8,12 @@
                     <div class="footer-widget">
                         <div class="logo logo-dark">
                             <a href="{{ url('/') }}">
-                                <img src="{{ asset('assets/images/logo/logo.png') }}">
+                                <img src="{{ asset('assets/images/logo/logo.png') }}" alt="Croydon College of Excellence logo">
                             </a>
                         </div>
                         <div class="logo d-none logo-light">
                             <a href="{{ url('/') }}">
-                                <img src="{{ asset('assets/images/logo/logo.png') }}">
+                                <img src="{{ asset('assets/images/logo/logo.png') }}" alt="Croydon College of Excellence logo">
                             </a>
                         </div>
 
@@ -118,17 +118,17 @@
                             <li class="list-inline-item">
                                 <a
                                     href="https://www.facebook.com/people/Croydon-College-of-Excellence/61572423543580/" rel="noopener noreferrer" target="_blank">
-                                    <img src="{{ asset('assets/images/icons/facebook.png') }}" width="20" height="20">
+                                    <img src="{{ asset('assets/images/icons/facebook.png') }}" width="20" height="20" alt="Facebook">
                                 </a>
                             </li>
                             <li class="list-inline-item">
                                 <a href="https://www.instagram.com/ccollegeofexcellence/profilecard/" rel="noopener noreferrer" target="_blank">
-                                    <img src="{{ asset('assets/images/icons/instagram.png') }}" width="18" height="18">
+                                    <img src="{{ asset('assets/images/icons/instagram.png') }}" width="18" height="18" alt="Instagram">
                                 </a>
                             </li>
                             <li class="list-inline-item">
                                 <a href="https://www.linkedin.com/company/croydon-college-of-excellence/" rel="noopener noreferrer" target="_blank">
-                                    <img src="{{ asset('assets/images/icons/linkedIn.png') }}" width="18" height="18">
+                                    <img src="{{ asset('assets/images/icons/linkedIn.png') }}" width="18" height="18" alt="LinkedIn">
                                 </a>
                             </li>
                         </ul>

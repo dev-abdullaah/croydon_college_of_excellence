@@ -33,7 +33,7 @@
                 <div class="rbt-team team-style-default style-three rbt-hover">
                     <div class="inner">
                         <div class="thumbnail">
-                            <img src="{{ asset('assets/images/team/sajib_team.jpg') }}" style="width: 600px; height: 475px; display: block; margin: 0 auto;">
+                            <img src="{{ asset('assets/images/team/sajib_team.jpg') }}" style="width: 600px; height: 475px; display: block; margin: 0 auto;" alt="Sajib Ahmed - Principal">
                         </div>
 
                         <div class="content">
@@ -52,7 +52,7 @@
             <div class="col-lg-4 col-md-6 col-12">
                 <div class="rbt-team team-style-default style-three rbt-hover">
                     <div class="inner">
-                        <div class="thumbnail"><img src="{{ asset('assets/images/team/imran.jpeg') }}">
+                        <div class="thumbnail"><img src="{{ asset('assets/images/team/imran.jpeg') }}" alt="Imran Hossain - Director of Studies">
                         </div>
                         <div class="content">
                             <h4>Shah E Imran</h4>
@@ -70,7 +70,7 @@
             <div class="col-lg-4 col-md-6 col-12">
                 <div class="rbt-team team-style-default style-three rbt-hover">
                     <div class="inner">
-                        <div class="thumbnail"><img src="{{ asset('assets/images/team/musharraf.jpeg') }}">
+                        <div class="thumbnail"><img src="{{ asset('assets/images/team/musharraf.jpeg') }}" alt="Musharraf Hossain - Senior Lecturer">
                         </div>
                         <div class="content">
                             <h4>Musharraf Ashraf</h4>
@@ -88,7 +88,7 @@
             <div class="col-lg-4 col-md-6 col-12">
                 <div class="rbt-team team-style-default style-three rbt-hover">
                     <div class="inner">
-                        <div class="thumbnail"><img src="{{ asset('assets/images/team/sharif.jpeg') }}">
+                        <div class="thumbnail"><img src="{{ asset('assets/images/team/sharif.jpeg') }}" alt="Sharif Ahmed - Course Coordinator">
                         </div>
                         <div class="content">
                             <h4>MD Sharif Hossain</h4>
@@ -106,7 +106,7 @@
             <div class="col-lg-4 col-md-6 col-12">
                 <div class="rbt-team team-style-default style-three rbt-hover">
                     <div class="inner">
-                        <div class="thumbnail"><img src="{{ asset('assets/images/team/rakib.jpeg') }}">
+                        <div class="thumbnail"><img src="{{ asset('assets/images/team/rakib.jpeg') }}" alt="Rakibul Islam - Student Support Officer">
                         </div>
                         <div class="content">
                             <h4>Md Rakib Hossain</h4>
@@ -124,7 +124,7 @@
             <!-- <div class="col-lg-4 col-md-6 col-12">
                 <div class="rbt-team team-style-default style-three rbt-hover">
                     <div class="inner">
-                        <div class="thumbnail"><img src="{{ asset('assets/images/team/morsalin.jpeg') }}">
+                        <div class="thumbnail"><img src="{{ asset('assets/images/team/morsalin.jpeg') }}" alt="Morsalin Ahmed - IT Administrator">
                         </div>
                         <div class="content">
                             <h4>Morshalin Rifat</h4>
@@ -142,7 +142,7 @@
             <div class="col-lg-4 col-md-6 col-12">
                 <div class="rbt-team team-style-default style-three rbt-hover">
                     <div class="inner">
-                        <div class="thumbnail"><img src="{{ asset('assets/images/team/sahra.jpg') }}">
+                        <div class="thumbnail"><img src="{{ asset('assets/images/team/sahra.jpg') }}" alt="Sahra Begum - Admissions Officer">
                         </div>
                         <div class="content">
                             <h4>Sahra Ibrahim</h4>
@@ -160,7 +160,7 @@
             <div class="col-lg-4 col-md-6 col-12">
                 <div class="rbt-team team-style-default style-three rbt-hover">
                     <div class="inner">
-                        <div class="thumbnail"><img src="{{ asset('assets/images/team/rashedul.jpg') }}">
+                        <div class="thumbnail"><img src="{{ asset('assets/images/team/rashedul.jpg') }}" alt="Rashedul Islam - Finance Officer">
                         </div>
                         <div class="content">
                             <h4>Rashedul Islam</h4>
