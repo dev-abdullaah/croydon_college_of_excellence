@@ -7,12 +7,12 @@ use Illuminate\Support\Facades\Schema;
 /**
  * The users table.
  *
- * This baseline was built once and is not edited afterwards. The mailed
- * verification code used to arrive as a separate `add_verification_code_to_users`
- * migration; its columns are declared inline here instead, because folding a
- * change into the table it belongs to is only safe while there is no data
- * anywhere that matters. From the first deploy onwards, new columns go in a
- * new migration.
+ * This baseline is edited as columns are added, rather than accumulating a
+ * separate `add_..._to_users` migration for each one. The mailed verification
+ * code and the pending email change each used to arrive that way; their
+ * columns are declared inline here instead, because folding a change into the
+ * table it belongs to is only safe while there is no data anywhere that
+ * matters. Once a deploy has happened, new columns go in a new migration.
  *
  * Note on `email`: it is unique, and has been since the table was written.
  * Registration does not lean on that index to produce "that email is taken" -
@@ -57,6 +57,20 @@ return new class extends Migration
             $table->timestamp('verification_code_sent_at')->nullable();
             $table->unsignedTinyInteger('verification_code_attempts')->default(0);
             $table->timestamp('verification_code_locked_until')->nullable();
+
+            /*
+             * Email change in progress.
+             *
+             * `email` stays as it is until the new address is confirmed, so a
+             * change is visible but not yet real. `new_email` is where it is
+             * headed, the token proves the request came from the mailbox that
+             * is meant to receive it, and the expiry stops a token that was
+             * never used from working indefinitely. All null means no change
+             * is outstanding.
+             */
+            $table->string('new_email')->nullable();
+            $table->string('email_change_token')->nullable();
+            $table->timestamp('email_change_token_expires_at')->nullable();
 
             $table->string('password');
             $table->rememberToken();

@@ -10,6 +10,13 @@ class LoginHistory extends Model
 {
     use HasFactory;
 
+    /**
+     * The table is singular, so the default plural guess is overridden here.
+     *
+     * @var string
+     */
+    protected $table = 'login_history';
+
     protected $fillable = [
         'user_id',
         'email',
