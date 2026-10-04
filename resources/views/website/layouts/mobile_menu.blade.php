@@ -108,17 +108,17 @@
                 <span class="rbt-short-title d-block">Stay Connected With Us</span>
                 <ul class="social-icon social-default with-gradient justify-content-start mt--20">
                     <li class="list-inline-item">
-                        <a href="https://www.facebook.com/people/Croydon-College-of-Excellence/61572423543580/">
+                        <a href="https://www.facebook.com/people/Croydon-College-of-Excellence/61572423543580/" rel="noopener noreferrer" target="_blank">
                             <img src="{{ asset('assets/images/icons/facebook.png') }}" width="20" height="20" alt="Facebook">
                         </a>
                     </li>
                     <li class="list-inline-item">
-                        <a href="https://www.instagram.com/ccollegeofexcellence/profilecard/">
+                        <a href="https://www.instagram.com/ccollegeofexcellence/profilecard/" rel="noopener noreferrer" target="_blank">
                             <img src="{{ asset('assets/images/icons/instagram.png') }}" width="18" height="18" alt="Instagram">
                         </a>
                     </li>
                     <li class="list-inline-item">
-                        <a href="https://www.linkedin.com/company/croydon-college-of-excellence/">
+                        <a href="https://www.linkedin.com/company/croydon-college-of-excellence/" rel="noopener noreferrer" target="_blank">
                             <img src="{{ asset('assets/images/icons/linkedIn.png') }}" width="18" height="18" alt="LinkedIn">
                         </a>
                     </li>

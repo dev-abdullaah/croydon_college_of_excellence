@@ -29,21 +29,21 @@
                                                 <ul class="social-icon social-default transparent-with-border">
                                                     <li class="list-inline-item">
                                                         <a
-                                                            href="https://www.facebook.com/people/Croydon-College-of-Excellence/61572423543580/">
+                                                            href="https://www.facebook.com/people/Croydon-College-of-Excellence/61572423543580/" rel="noopener noreferrer" target="_blank">
                                                             <img src="{{ asset('assets/images/icons/facebook.png') }}" width="25"
                                                                 height="25">
                                                         </a>
                                                     </li>
                                                     <li class="list-inline-item">
                                                         <a
-                                                            href="https://www.instagram.com/ccollegeofexcellence/profilecard/">
+                                                            href="https://www.instagram.com/ccollegeofexcellence/profilecard/" rel="noopener noreferrer" target="_blank">
                                                             <img src="{{ asset('assets/images/icons/instagram.png') }}" width="25"
                                                                 height="25">
                                                         </a>
                                                     </li>
                                                     <li class="list-inline-item">
                                                         <a
-                                                            href="https://www.linkedin.com/company/croydon-college-of-excellence/">
+                                                            href="https://www.linkedin.com/company/croydon-college-of-excellence/" rel="noopener noreferrer" target="_blank">
                                                             <img src="{{ asset('assets/images/icons/linkedIn.png') }}" width="25"
                                                                 height="25">
                                                         </a>
@@ -79,21 +79,21 @@
                                                 <ul class="social-icon social-default transparent-with-border">
                                                     <li class="list-inline-item">
                                                         <a
-                                                            href="https://www.facebook.com/people/Croydon-College-of-Excellence/61572423543580/">
+                                                            href="https://www.facebook.com/people/Croydon-College-of-Excellence/61572423543580/" rel="noopener noreferrer" target="_blank">
                                                             <img src="{{ asset('assets/images/icons/facebook.png') }}" width="25"
                                                                 height="25">
                                                         </a>
                                                     </li>
                                                     <li class="list-inline-item">
                                                         <a
-                                                            href="https://www.instagram.com/ccollegeofexcellence/profilecard/">
+                                                            href="https://www.instagram.com/ccollegeofexcellence/profilecard/" rel="noopener noreferrer" target="_blank">
                                                             <img src="{{ asset('assets/images/icons/instagram.png') }}" width="25"
                                                                 height="25">
                                                         </a>
                                                     </li>
                                                     <li class="list-inline-item">
                                                         <a
-                                                            href="https://www.linkedin.com/company/croydon-college-of-excellence/">
+                                                            href="https://www.linkedin.com/company/croydon-college-of-excellence/" rel="noopener noreferrer" target="_blank">
                                                             <img src="{{ asset('assets/images/icons/linkedIn.png') }}" width="25"
                                                                 height="25">
                                                         </a>
@@ -129,21 +129,21 @@
                                                 <ul class="social-icon social-default transparent-with-border">
                                                     <li class="list-inline-item">
                                                         <a
-                                                            href="https://www.facebook.com/people/Croydon-College-of-Excellence/61572423543580/">
+                                                            href="https://www.facebook.com/people/Croydon-College-of-Excellence/61572423543580/" rel="noopener noreferrer" target="_blank">
                                                             <img src="{{ asset('assets/images/icons/facebook.png') }}" width="25"
                                                                 height="25">
                                                         </a>
                                                     </li>
                                                     <li class="list-inline-item">
                                                         <a
-                                                            href="https://www.instagram.com/ccollegeofexcellence/profilecard/">
+                                                            href="https://www.instagram.com/ccollegeofexcellence/profilecard/" rel="noopener noreferrer" target="_blank">
                                                             <img src="{{ asset('assets/images/icons/instagram.png') }}" width="25"
                                                                 height="25">
                                                         </a>
                                                     </li>
                                                     <li class="list-inline-item">
                                                         <a
-                                                            href="https://www.linkedin.com/company/croydon-college-of-excellence/">
+                                                            href="https://www.linkedin.com/company/croydon-college-of-excellence/" rel="noopener noreferrer" target="_blank">
                                                             <img src="{{ asset('assets/images/icons/linkedIn.png') }}" width="25"
                                                                 height="25">
                                                         </a>

@@ -1,2 +1,10 @@
 User-agent: *
-Disallow:
+Disallow: /my-account/
+Disallow: /checkout/
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /email/verify
+Disallow: /email/resend
+Disallow: /logout

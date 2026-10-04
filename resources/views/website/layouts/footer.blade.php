@@ -117,17 +117,17 @@
                         <ul class="social-icon social-default icon-naked justify-content-start mt--20">
                             <li class="list-inline-item">
                                 <a
-                                    href="https://www.facebook.com/people/Croydon-College-of-Excellence/61572423543580/">
+                                    href="https://www.facebook.com/people/Croydon-College-of-Excellence/61572423543580/" rel="noopener noreferrer" target="_blank">
                                     <img src="{{ asset('assets/images/icons/facebook.png') }}" width="20" height="20">
                                 </a>
                             </li>
                             <li class="list-inline-item">
-                                <a href="https://www.instagram.com/ccollegeofexcellence/profilecard/">
+                                <a href="https://www.instagram.com/ccollegeofexcellence/profilecard/" rel="noopener noreferrer" target="_blank">
                                     <img src="{{ asset('assets/images/icons/instagram.png') }}" width="18" height="18">
                                 </a>
                             </li>
                             <li class="list-inline-item">
-                                <a href="https://www.linkedin.com/company/croydon-college-of-excellence/">
+                                <a href="https://www.linkedin.com/company/croydon-college-of-excellence/" rel="noopener noreferrer" target="_blank">
                                     <img src="{{ asset('assets/images/icons/linkedIn.png') }}" width="18" height="18">
                                 </a>
                             </li>
