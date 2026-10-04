@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
@@ -23,13 +24,39 @@ class AccountCenterController extends Controller
         $user = $request->user();
         $user->load('emails');
 
+        $emails = $user->emails->sortByDesc('is_primary');
+
+        // Ensure the user's primary email (from users table) is included
+        // If it's not already in user_emails, add it as the primary
+        $primaryEmailFromUser = $user->email;
+        $hasPrimaryInUserEmails = $emails->contains('email', $primaryEmailFromUser);
+
+        if (! $hasPrimaryInUserEmails) {
+            $emails = $emails->prepend((object)[
+                'id' => 0,
+                'email' => $primaryEmailFromUser,
+                'is_primary' => true,
+                'is_verified' => $user->hasVerifiedEmail(),
+            ]);
+        }
+
+        // Active sessions: not revoked, not logged out, no logout_at
+        $activeSessions = LoginHistory::forUser($user->id)
+            ->where('status', 'success')
+            ->whereNull('logout_at')
+            ->latest('login_at')
+            ->limit(10)
+            ->get();
+
+        // Full login history (including revoked/logged out) for reference
         $loginHistory = LoginHistory::forUser($user->id)
             ->latest('login_at')
             ->limit(10)
             ->get();
 
         return view('website.pages.account-center', [
-            'emails' => $user->emails->sortByDesc('is_primary'),
+            'emails' => $emails,
+            'activeSessions' => $activeSessions,
             'loginHistory' => $loginHistory,
         ]);
     }
@@ -43,13 +70,10 @@ class AccountCenterController extends Controller
         $user = $request->user();
 
         // Rate limit: 5 requests per hour per user
-        $limiter = RateLimiter::for('add-email', function ($request) {
-            return \Illuminate\Cache\RateLimiting\Limit::perHour(5)->by($request->user()->id);
-        });
         $key = 'add-email:' . $user->id;
 
-        if ($limiter->tooManyAttempts($key)) {
-            $seconds = $limiter->availableIn($key);
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            $seconds = RateLimiter::availableIn($key);
             return back()->withErrors([
                 'email' => 'Too many requests. Please try again in ' . gmdate('i:s', $seconds) . '.',
             ]);
@@ -60,7 +84,7 @@ class AccountCenterController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:user_emails,email'],
         ]);
 
-        $limiter->hit($key);
+        RateLimiter::hit($key, 3600); // 1 hour decay
 
         // Create the new email record (unverified, not primary)
         $userEmail = UserEmail::create([
@@ -93,19 +117,16 @@ class AccountCenterController extends Controller
         }
 
         // Rate limit: 2 requests per 10 minutes per email
-        $limiter = RateLimiter::for('resend-verification', function ($request) use ($userEmail) {
-            return \Illuminate\Cache\RateLimiting\Limit::perMinutes(10, 2)->by($userEmail->id);
-        });
         $key = 'resend-verification:' . $userEmail->id;
 
-        if ($limiter->tooManyAttempts($key)) {
-            $seconds = $limiter->availableIn($key);
+        if (RateLimiter::tooManyAttempts($key, 2)) {
+            $seconds = RateLimiter::availableIn($key);
             return back()->withErrors([
                 'email' => 'Too many verification emails sent. Please wait ' . gmdate('i:s', $seconds) . '.',
             ]);
         }
 
-        $limiter->hit($key);
+        RateLimiter::hit($key, 600); // 10 minutes decay
 
         $userEmail->sendVerificationNotification();
 
@@ -215,5 +236,42 @@ class AccountCenterController extends Controller
         $user->save();
 
         return back()->with('status', 'password-changed');
+    }
+
+    /**
+     * Revoke a specific session (requires password confirmation).
+     */
+    public function revokeSession(Request $request, LoginHistory $loginHistory): RedirectResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        if ($loginHistory->user_id !== $user->id) {
+            abort(403);
+        }
+
+        $request->validate([
+            'current_password' => ['required', 'current_password'],
+        ]);
+
+        // If this is the current session, redirect to logout
+        $currentSessionId = $request->session()->getId();
+        if ($loginHistory->session_id === $currentSessionId) {
+            return redirect()->route('logout')
+                ->with('success', 'Your current session has been revoked. Please sign in again.');
+        }
+
+        // For other sessions, delete the session from the sessions table
+        if ($loginHistory->session_id) {
+            Session::getHandler()->destroy($loginHistory->session_id);
+        }
+
+        // Update login history to mark as revoked
+        $loginHistory->update([
+            'logout_at' => now(),
+            'status' => 'revoked',
+        ]);
+
+        return back()->with('status', 'session-revoked');
     }
 }

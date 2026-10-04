@@ -55,9 +55,7 @@
                             is what proves ownership, and this only says which
                             account to compare it against.
                         --}}
-                        @unless ($hasEmail)
-                            <input type="hidden" name="email" value="{{ old('email') }}">
-                        @endunless
+                        <input type="hidden" name="email" value="{{ $email ?? old('email') }}">
 
                         <div class="mb-3">
                             <label for="code" class="form-label">Verification Code</label>

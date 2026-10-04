@@ -65,14 +65,10 @@
                     </form>
                 </div>
 
-                <div class="text-center mt--20">
-                    <p class="mb-2">
-                        New student?
-                        <a href="{{ route('register') }}" class="fw-bold">Create an account</a>
-                    </p>
+<div class="text-center mt--20">
                     <p class="mb-0">
-                        Haven't enrolled yet?
-                        <a href="{{ route('courses.index') }}" class="text-primary fw-bold">Explore Life in the UK Courses &amp; Mock Tests &rarr;</a>
+                        New learner?
+                        <a href="{{ route('register') }}" class="fw-bold text-primary">Create an account</a>
                     </p>
                 </div>
 

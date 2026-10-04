@@ -18,6 +18,7 @@ class LoginHistory extends Model
         'browser',
         'operating_system',
         'user_agent',
+        'session_id',
         'status',
         'login_at',
         'logout_at',

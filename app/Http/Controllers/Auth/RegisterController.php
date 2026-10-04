@@ -45,11 +45,23 @@ class RegisterController extends Controller
          | depends on the state of the account it belongs to.
          */
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[\p{L}\s\-\'\.]+$/u',
+                function ($attribute, $value, $fail) {
+                    $words = array_filter(explode(' ', trim($value)));
+                    if (count($words) === 1 && strlen($words[0]) < 2) {
+                        $fail('Please enter at least 2 characters for your name.');
+                    }
+                },
+            ],
             'email' => ['required', 'string', 'email', 'max:255'],
             'password' => ['required', 'confirmed', Password::defaults()],
         ], [
             'password.confirmed' => 'The two passwords do not match.',
+            'name.regex' => 'Name can only contain letters, spaces, hyphens, apostrophes, and periods.',
         ]);
 
         $email = $validated['email'];
@@ -67,7 +79,7 @@ class RegisterController extends Controller
              | continues straight to it.
              */
             return redirect()->route('login')
-                ->with('info', 'You already have an account with this email. Please log in.');
+                ->with('info', 'An account with this email already exists and is verified. Please sign in at the login page. If you forgot your password, use "Forgot password" on the login page.');
         }
 
         if ($existing) {

@@ -1,36 +1,41 @@
-<!-- resources/views/website/pages/courses_regular/regular_.blade.php -->
 @extends('website.layouts.master')
 
 @section('content')
 
-<!-- Start Subject Heading -->
-<div class="rbt-conatct-area bg-gradient-5 rbt-section-gap">
+<!-- Hero Section -->
+<div class="rbt-conatct-area bg-gradient-9 rbt-section-gap">
     <div class="container">
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="section-title text-center">
-                    <h2 class="title">Life in the UK Test Preparation</h2>
+        <div class="row align-items-center">
+            <div class="col-lg-7">
+                <div class="section-title text-lg-start">
+                    <span class="subtitle bg-primary-opacity">Life in the UK Test Preparation</span>
+                    <h2 class="title">Pass Your Citizenship Test with Confidence</h2>
+                    <p class="mt-3 mb-0" style="font-size: 1.15rem; color: var(--color-body);">
+                        The complete self-study platform: <strong>10 structured lessons</strong> covering the full official handbook 
+                        + <strong>24 timed mock tests</strong> (576 questions) simulating the real Home Office exam.
+                    </p>
                 </div>
+            </div>
+            <div class="col-lg-5 text-center mt-4 mt-lg-0">
+                <img src="{{ asset('assets/images/course/life_uk_course.png') }}" alt="Life in the UK Course" class="img-fluid" style="max-height: 320px; border-radius: 16px; box-shadow: 0 20px 60px rgba(47, 87, 239, 0.25);">
             </div>
         </div>
     </div>
 </div>
-<!-- End Subject Heading -->
 
-<!-- Course Details Starts-->
-<div class="rbt-course-details-area ptb-5"
-    style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;">
+<!-- Course Content -->
+<div class="rbt-course-details-area ptb-5" style="font-family: var(--font-croydon);">
     <div class="container">
         <div class="row g-4">
             <div class="col-lg-12">
                 <div class="course-details-content">
-
+                    
                     <!-- Online Course & Mock Tests Callout -->
-                    <div class="alert alert-primary p-4 radius-10 mt--30 mb--30" style="background: linear-gradient(135deg, #f0f4ff, #e8f0fe); border: 1.5px solid #c7d7fe;">
+                    <div class="alert alert-primary p-4 radius-10 mt-4 mb-4" style="background: linear-gradient(135deg, #f0f4ff, #e8f0fe); border: 1.5px solid #c7d7fe;">
                         <div class="row align-items-center">
                             <div class="col-lg-8">
-                                <span class="badge bg-primary mb-2">ONLINE PREPARATION &amp; MOCK TESTS</span>
-                                <h4 class="title mb-2">Self-Study Online: 10 Lessons &amp; 24 Full-Length Mock Tests</h4>
+                                <span class="badge bg-primary mb-2">ONLINE PREPARATION & MOCK TESTS</span>
+                                <h4 class="title mb-2">Self-Study Online: 10 Lessons & 24 Full-Length Mock Tests</h4>
                                 <p class="mb-0 text-muted">
                                     Prepare directly on our digital learning platform. Read structured lessons, test yourself with 576 practice questions, and review your scores instantly.
                                 </p>
@@ -52,132 +57,108 @@
                         </div>
                     </div>
 
-                    <div class="col-xl-12 col-md-12 col-sm-12 col-12">
-                        <div class="rbt-service rbt-service-2 variation-2 color-box bg-color-white-off radius-10">
-                            <div class="rbt-course-feature-inner radius-10">
-                                <div class="section-title">
-                                    <h3 class="title mb--20">Welcome to the Life in the UK Test Preparation Course
-                                        at CCE!</h3>
-                                </div>
-                                <div>
-                                    We're excited to welcome you to our <span class="txt-highlight">Life in the UK
-                                        Test Preparation Course!</span> This
-                                    course is
-                                    designed to help you prepare for the official <span class="txt-highlight">Life
-                                        in the UK Test</span>, an essential
-                                    step for those
-                                    applying for British citizenship or permanent residency.
+                    <!-- 10 Structured Lessons -->
+                    <div class="lz-card p-4 mb-4">
+                        <h3 class="title mb-4"><i class="feather-layers me-2 text-primary"></i>10 Structured Lessons</h3>
+                        <p class="text-muted mb-4">Full official handbook content broken down into easy-to-read cards:</p>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="lz-lesson-item p-4 bg-color-white-off rounded-3 border border-light h-100">
+                                    <h5 class="title mb-2">Lessons 1&ndash;2</h5>
+                                    <p class="mb-0 fw-medium">Values, Principles & What is the UK</p>
+                                    <p class="text-muted small mt-1 mb-0">British values, principles, and the nations that make up the United Kingdom</p>
                                 </div>
                             </div>
-
-                            <div class="inner mt--20">
-                                <div class="content">
-                                    <h4 class="title">We Focus On:</h4>
-                                    <ul class="rbt-list-style-1 list-unstyled">
-                                        <li class="d-flex align-items-start">
-                                            <i class="feather-check"></i>
-                                            <div class="ms-2">
-                                                <strong>British History: </strong>
-                                                Key events, famous figures, and important milestones that have shaped the UK.
-                                            </div>
-                                        </li>
-                                        <li class="d-flex align-items-start">
-                                            <i class="feather-check"></i>
-                                            <div class="ms-2">
-                                                <strong>The UK's Government and Law: </strong>
-                                                Understanding the political system, rights, and responsibilities of UK citizens.
-                                            </div>
-                                        </li>
-                                        <li class="d-flex align-items-start">
-                                            <i class="feather-check"></i>
-                                            <div class="ms-2">
-                                                <strong>Culture and Traditions: </strong>
-                                                Learning about the UK's customs, festivals, and diversity.
-                                            </div>
-                                        </li>
-                                        <li class="d-flex align-items-start">
-                                            <i class="feather-check"></i>
-                                            <div class="ms-2">
-                                                <strong>Everyday Life: </strong>
-                                                How life is lived across the UK, including customs, transportation, and healthcare.
-                                            </div>
-                                        </li>
-                                    </ul>
-                                </div>
-                                <div class="thumbnail">
-                                    <img src="{{ asset('assets/images/course/life_uk_course.png') }}" style="height: 200px!important; border-radius: 10px;">
+                            <div class="col-md-6">
+                                <div class="lz-lesson-item p-4 bg-color-white-off rounded-3 border border-light h-100">
+                                    <h5 class="title mb-2">Lessons 3&ndash;6</h5>
+                                    <p class="mb-0 fw-medium">Complete British History from Early Times to Post-War</p>
+                                    <p class="text-muted small mt-1 mb-0">Romans, Anglo-Saxons, Normans, Tudors, Stuarts, Empire, World Wars, and modern Britain</p>
                                 </div>
                             </div>
-                            <a class="rbt-btn btn-gradient btn-sm mt--30 w-100"></a>
-
-                            <div class="rbt-course-feature-inner mt-4 text-start">
-                                <h4 style="color: rgb(255, 37, 37) !important;">
-                                    <strong>
-                                        *** Grab 3 Free Mock Tests***
-                                    </strong>
-                                </h4>
-                            </div>
-
-                            <div class="inner">
-                                <div class="content">
-                                    <h4 class="title">We Offer:</h4>
-                                    <ul class="rbt-list-style-1">
-                                        <li><i class="feather-check"></i>1:1/2:1/3:1/4:1 & 5:1 Max Learning
-                                            Groups</li>
-                                        <li><i class="feather-check"></i>GCSE & A Level Crash Course</li>
-                                        <li><i class="feather-check"></i>Exam Preparation Only Courses</li>
-                                        <li><i class="feather-check"></i>Boost Up Courses</li>
-                                        <li><i class="feather-check"></i>Scale Up 1 Score in GCSE/A Level
-                                            Courses</li>
-                                    </ul>
-                                </div>
-                                <div class="thumbnail">
-                                    <!-- <img src="assets/images/service/service-02.png" style="height: 200px!important;"> -->
+                            <div class="col-md-6">
+                                <div class="lz-lesson-item p-4 bg-color-white-off rounded-3 border border-light h-100">
+                                    <h5 class="title mb-2">Lesson 7</h5>
+                                    <p class="mb-0 fw-medium">Modern, Thriving Society, Culture & Sport</p>
+                                    <p class="text-muted small mt-1 mb-0">UK today: diversity, arts, media, sports, traditions, and cultural life</p>
                                 </div>
                             </div>
-                            <a class="rbt-btn btn-gradient btn-sm mt--30 w-100"></a>
-
-                            <div class="inner mt-4">
-                                <div class="content">
-                                    <h4 class="title">Our Specialties:</h4>
-                                    <ul class="rbt-list-style-1">
-                                        <li><i class="feather-check"></i>Fully Focused On UK National Curriculum
-                                        </li>
-                                        <li><i class="feather-check"></i>Fully UK Qualified Teachers</li>
-                                        <li><i class="feather-check"></i>Flexible Timing</li>
-                                        <li><i class="feather-check"></i>Baseline, Progressive, Year-End
-                                            Assessments</li>
-                                        <li><i class="feather-check"></i>6 Weeks Review Meeting with Parents
-                                        </li>
-                                        <li><i class="feather-check"></i>1:1 Problem Solving Sessions</li>
-                                        <li><i class="feather-check"></i>Wide Range of Courses</li>
-                                        <li><i class="feather-check"></i>Strong Track Record of Success</li>
-                                    </ul>
-                                </div>
-                                <div class="thumbnail">
-                                    <!-- <img src="assets/images/service/service-02.png" style="height: 200px!important;"> -->
+                            <div class="col-md-6">
+                                <div class="lz-lesson-item p-4 bg-color-white-off rounded-3 border border-light h-100">
+                                    <h5 class="title mb-2">Lesson 8</h5>
+                                    <p class="mb-0 fw-medium">UK Government, The Law & Your Role</p>
+                                    <p class="text-muted small mt-1 mb-0">Parliament, democracy, voting, courts, rights and responsibilities of citizens</p>
                                 </div>
                             </div>
-                            <a class="rbt-btn btn-gradient btn-sm mt--30 w-100"></a>
-
-                            <div class="rbt-course-feature-inner color-box card-bg-4 radius-10">
-                                <div class="mt-4 text-center">
-                                    <h4><strong>
-                                            Affordable Fees and Qualified Teachers Await You!
-                                            <br>
-                                            <span style="color: rgb(255, 37, 37) !important;">Get 40%
-                                                Discount!</span>
-                                        </strong>
-                                    </h4>
-                                    <div class="rbt-btn-wrapper pb-3">
-                                        <a class="rbt-btn btn-border-gradient radius-round btn-sm justify-content-center text-center"
-                                            href="{{ url('/free-assesment') }}">
-                                            <span>Book Free Assessment</span>
-                                        </a>
-                                    </div>
+                            <div class="col-md-6">
+                                <div class="lz-lesson-item p-4 bg-color-white-off rounded-3 border border-light h-100">
+                                    <h5 class="title mb-2">Lessons 9&ndash;10</h5>
+                                    <p class="mb-0 fw-medium">Community Involvement, Everyday Life & Traditions</p>
+                                    <p class="text-muted small mt-1 mb-0">Local communities, everyday life, customs, festivals, and British traditions</p>
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- 24 Timed Mock Tests -->
+                    <div class="lz-card p-4 mb-4">
+                        <h3 class="title mb-4"><i class="feather-clock me-2 text-success"></i>24 Timed Mock Tests</h3>
+                        <p class="text-muted mb-4">Simulate the real Home Office examination format:</p>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="lz-feature-item p-4 bg-success-soft rounded-3 h-100 text-center">
+                                    <i class="feather-file-text text-success mb-2" style="font-size: 2.5rem;"></i>
+                                    <h5 class="title mb-1">576 Questions</h5>
+                                    <p class="text-muted small mb-0">24 separate papers covering all 10 topics</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="lz-feature-item p-4 bg-primary-soft rounded-3 h-100 text-center">
+                                    <i class="feather-timer text-primary mb-2" style="font-size: 2.5rem;"></i>
+                                    <h5 class="title mb-1">45-Minute Timer</h5>
+                                    <p class="text-muted small mb-0">Practice against the clock to build speed</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="lz-feature-item p-4 bg-warning-soft rounded-3 h-100 text-center">
+                                    <i class="feather-target text-warning mb-2" style="font-size: 2.5rem;"></i>
+                                    <h5 class="title mb-1">Real Pass Mark</h5>
+                                    <p class="text-muted small mb-0">18 out of 24 (75%) required to pass</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="lz-feature-item p-4 bg-info-soft rounded-3 h-100 text-center">
+                                    <i class="feather-check-circle text-info mb-2" style="font-size: 2.5rem;"></i>
+                                    <h5 class="title mb-1">Instant Scoring</h5>
+                                    <p class="text-muted small mb-0">Know your result the moment you submit</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="lz-feature-item p-4 bg-danger-soft rounded-3 h-100 text-center">
+                                    <i class="feather-help-circle text-danger mb-2" style="font-size: 2.5rem;"></i>
+                                    <h5 class="title mb-1">Teacher Answer Keys</h5>
+                                    <p class="text-muted small mb-0">Review full explanations and retry anytime</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CTA -->
+                    <div class="text-center pt-2">
+                        @auth
+                            <a href="{{ route('dashboard') }}" class="rbt-btn btn-gradient radius-round btn-lg me-3">
+                                <i class="feather-play me-1"></i> Continue Learning
+                            </a>
+                        @else
+                            <a href="{{ route('login') }}" class="rbt-btn btn-gradient radius-round btn-lg me-3">
+                                <i class="feather-log-in me-1"></i> Sign In to Start
+                            </a>
+                            <a href="{{ route('register') }}" class="btn btn-outline-primary btn-lg">
+                                <i class="feather-user-plus me-1"></i> Create Free Account
+                            </a>
+                        @endauth
                     </div>
 
                 </div>
@@ -185,12 +166,27 @@
         </div>
     </div>
 </div>
-<!-- Course Details Ends-->
 
-<div class="rbt-separator-mid mt--60">
-    <div class="container">
-        <hr class="rbt-separator m-0">
-    </div>
-</div>
+@push('styles')
+<style>
+.lz-lesson-item,
+.lz-feature-item {
+    transition: all 0.2s ease;
+}
+.lz-lesson-item:hover,
+.lz-feature-item:hover {
+    border-color: var(--lz-accent-mid);
+    box-shadow: 0 4px 16px rgba(47, 87, 239, 0.1);
+    transform: translateY(-2px);
+}
+
+/* Soft color variants */
+.bg-primary-soft { background: rgba(47, 87, 239, 0.1) !important; }
+.bg-success-soft { background: rgba(31, 146, 84, 0.1) !important; }
+.bg-warning-soft { background: rgba(255, 143, 36, 0.1) !important; }
+.bg-info-soft { background: rgba(27, 162, 219, 0.1) !important; }
+.bg-danger-soft { background: rgba(255, 0, 3, 0.1) !important; }
+</style>
+@endpush
 
 @endsection

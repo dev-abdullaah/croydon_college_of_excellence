@@ -23,12 +23,12 @@
 
                 @include('website.partials.checkout-steps', ['step' => 'verify'])
 
-                <div class="rbt-service rbt-service-2 radius-10">
+<div class="rbt-service rbt-service-2 radius-10">
                     {{--
                         This page exists so the code page can ask for one thing.
 
                         It is the only place in this flow that asks for an email
-                        address, which is what lets /email/verify show a single
+                        address, which is what keeps /email/verify show a single
                         field. Same shape as Laravel's own password reset: a
                         "send it again" form is a page of its own, reached by a
                         link, rather than a second form under the first.
@@ -37,13 +37,19 @@
                         @csrf
 
                         <div class="mb-3">
-                            <label for="email" class="form-label">Email Address</label>
-                            <input type="email" id="email" name="email" value="{{ old('email') }}"
-                                class="form-control @error('email') is-invalid @enderror" required autofocus
-                                autocomplete="email">
-                            @error('email')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
+                            <label class="form-label">Email Address</label>
+                            @if ($email)
+                                <input type="email" id="email" name="email" value="{{ $email }}"
+                                    class="form-control" readonly autocomplete="email">
+                                <div class="form-text">A verification code will be sent to this address.</div>
+                            @else
+                                <input type="email" id="email" name="email" value="{{ old('email') }}"
+                                    class="form-control @error('email') is-invalid @enderror" required autofocus
+                                    autocomplete="email">
+                                @error('email')
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                @enderror
+                            @endif
                         </div>
 
                         <div class="rbt-btn-wrapper">

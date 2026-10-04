@@ -2,18 +2,15 @@
 
 namespace App\Providers;
 
-use App\Listeners\LogSuccessfulLogin;
 use App\Content\CourseContent;
 use App\Services\CatalogService;
 use App\Services\PurchaseService;
 use App\Services\StripeService;
 use Closure;
-use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Routing\Route as IlluminateRoute;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -130,7 +127,8 @@ class AppServiceProvider extends ServiceProvider
     {
         \Illuminate\Pagination\Paginator::useBootstrapFive();
 
-        Event::listen(Login::class, LogSuccessfulLogin::class);
+        // LogSuccessfulLogin and LogSuccessfulLogout are auto-discovered by Laravel 11
+        // from the app/Listeners directory. No manual registration needed.
 
         \Illuminate\Support\Facades\Route::macro('lesson', function (string $uri, ?string $name = null, ?string $default = null) {
             return $this->bind($uri, $name, 'lesson_id', function (\App\Content\CourseContent $content, string $slug, string $id) {

@@ -166,6 +166,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/my-account/security', [AccountCenterController::class, 'index'])->name('account.center');
     Route::put('/my-account/security/password', [AccountCenterController::class, 'updatePassword'])
         ->name('account.password.update');
+    Route::delete('/my-account/security/sessions/{loginHistory}', [AccountCenterController::class, 'revokeSession'])
+        ->name('account.sessions.revoke');
 
     // Two-Factor Authentication
     Route::get('/my-account/security/2fa', [TwoFactorController::class, 'show'])

@@ -16,6 +16,10 @@ class LogSuccessfulLogin
     {
         $user = $event->user;
 
+        if (! $user->hasVerifiedEmail()) {
+            return;
+        }
+
         $agent = new Agent($this->request->header('User-Agent'));
 
         try {
@@ -27,6 +31,7 @@ class LogSuccessfulLogin
                 'browser'         => $agent->browser(),
                 'operating_system'=> $agent->platform(),
                 'user_agent'      => $this->request->header('User-Agent'),
+                'session_id'      => $this->request->session()->getId(),
                 'status'          => 'success',
                 'login_at'        => now(),
             ]);

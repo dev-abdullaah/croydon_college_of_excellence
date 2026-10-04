@@ -294,10 +294,18 @@
                     {{-- ========== SESSIONS TAB ========== --}}
                     <div class="tab-pane fade" id="sessions" role="tabpanel">
                         <div class="rbt-service rbt-service-2 radius-10 mb--40">
-                            <h4 class="title mb-3">Active Sessions & Login History</h4>
-                            <p class="text-muted mb-4">Review your recent login activity. Revoke any sessions you don't recognize.</p>
+                            <h4 class="title mb-3">Active Sessions</h4>
+                            <p class="text-muted mb-4">Review your active sessions. Revoke any sessions you don't recognize.</p>
 
-                            @if ($loginHistory->isNotEmpty())
+                            @if (session('status') === 'session-revoked')
+                                <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+                                    <i class="feather-check-circle me-2"></i>
+                                    Session has been revoked successfully.
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            @endif
+
+                            @if ($activeSessions->isNotEmpty())
                                 <div class="table-responsive">
                                     <table class="table table-hover mb-0">
                                         <thead class="table-light">
@@ -311,22 +319,27 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @foreach ($loginHistory as $login)
+                                            @foreach ($activeSessions as $login)
                                                 <tr>
                                                     <td>{{ $login->login_at->format('M j, Y g:i A') }}</td>
                                                     <td>{{ $login->device_type }}</td>
                                                     <td>{{ $login->browser }} / {{ $login->operating_system }}</td>
                                                     <td>{{ $login->ip_address }}</td>
                                                     <td>
-                                                        <span class="badge {{ $login->status === 'success' ? 'bg-success' : 'bg-danger' }}">
-                                                            {{ ucfirst($login->status) }}
+                                                        <span class="badge bg-success">
+                                                            Active
                                                         </span>
                                                     </td>
                                                     <td class="text-end">
-                                                        @if ($login->id !== ($loginHistory->first()?->id))
-                                                            <button class="btn btn-sm btn-outline-danger" disabled title="Session revocation coming soon">
-                                                                <i class="feather-x me-1"></i> Revoke
-                                                            </button>
+                                                        @if ($login->id !== ($activeSessions->first()?->id))
+                                                            <form action="{{ route('account.sessions.revoke', $login) }}" method="POST" class="d-inline-flex align-items-center gap-2" onsubmit="return confirm('Are you sure you want to revoke this session?')">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                                <input type="password" name="current_password" class="form-control form-control-sm" placeholder="Current password" required style="width: 150px; height: 34px; padding: 0.375rem 0.75rem;">
+                                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Revoke this session" style="height: 34px; padding: 0.375rem 0.75rem;">
+                                                                    <i class="feather-x me-1"></i> Revoke
+                                                                </button>
+                                                            </form>
                                                         @else
                                                             <span class="text-muted small">Current session</span>
                                                         @endif
