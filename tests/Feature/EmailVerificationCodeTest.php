@@ -570,32 +570,31 @@ class EmailVerificationCodeTest extends TestCase
             ->assertSee(route('verification.notice'), false);
     }
 
-    public function test_the_address_is_masked_on_screen(): void
+    public function test_the_address_is_shown_in_full_on_screen(): void
     {
-        // Shown in full it would be readable to whoever is standing behind the
-        // person, on what is often a shared screen.
+        // The address is no longer masked - it's shown in full so the user can
+        // confirm it's correct without ambiguity.
         $user = User::factory()->unverified()->create(['email' => 'student@example.com']);
 
         $this->post('/email/resend', ['email' => $user->email]);
 
         $html = $this->get('/email/verify')->assertOk()->getContent();
 
-        $this->assertStringContainsString('s••••@example.com', $html);
-        $this->assertStringNotContainsString('student@example.com', $html);
+        $this->assertStringContainsString('student@example.com', $html);
+        $this->assertStringNotContainsString('s••••@example.com', $html);
     }
 
-    public function test_a_short_local_part_is_still_masked(): void
+    public function test_a_short_local_part_is_shown_in_full(): void
     {
-        // One dot's worth of cover for a one character local part, so the
-        // masking can never accidentally reveal the whole thing.
+        // Short local parts are also shown in full.
         $user = User::factory()->unverified()->create(['email' => 'a@example.com']);
 
         $this->post('/email/resend', ['email' => $user->email]);
 
         $html = $this->get('/email/verify')->assertOk()->getContent();
 
-        $this->assertStringContainsString('a•@example.com', $html);
-        $this->assertStringNotContainsString('>a@example.com<', $html);
+        $this->assertStringContainsString('a@example.com', $html);
+        $this->assertStringNotContainsString('a•@example.com', $html);
     }
 
     public function test_the_code_page_works_from_the_session_alone(): void
