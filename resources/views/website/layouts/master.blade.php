@@ -55,14 +55,14 @@
     <div id="my_switcher" class="my_switcher">
         <ul>
             <li>
-                <a href="javascript: void(0);" data-theme="light" class="setColor light">
-                    <img src="{{ asset('assets/images/about/sun-01.svg') }}" alt="Sun images"><span title="Light Mode"> Light</span>
-                </a>
+                <button type="button" data-theme="light" class="setColor light" aria-label="Switch to light mode">
+                    <img src="{{ asset('assets/images/about/sun-01.svg') }}" alt="" aria-hidden="true"><span>Light</span>
+                </button>
             </li>
             <li>
-                <a href="javascript: void(0);" data-theme="dark" class="setColor dark">
-                    <img src="{{ asset('assets/images/about/vector.svg') }}" alt="Vector Images"><span title="Dark Mode"> Dark</span>
-                </a>
+                <button type="button" data-theme="dark" class="setColor dark" aria-label="Switch to dark mode">
+                    <img src="{{ asset('assets/images/about/vector.svg') }}" alt="" aria-hidden="true"><span>Dark</span>
+                </button>
             </li>
         </ul>
     </div>
