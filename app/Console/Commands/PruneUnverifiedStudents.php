@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\User;
+use App\Models\Student;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -25,9 +25,9 @@ use Illuminate\Support\Facades\Log;
  * leftover. The command is scheduled daily and is deliberately conservative:
  * it would rather leave a row alone than remove one that matters.
  */
-class PruneUnverifiedUsers extends Command
+class PruneUnverifiedStudents extends Command
 {
-    protected $signature = 'users:prune-unverified
+    protected $signature = 'students:prune-unverified
                             {--days= : Accounts older than this many days. Defaults to courses.prune_unverified_days}
                             {--dry-run : List what would be removed without deleting anything}';
 
@@ -46,7 +46,7 @@ class PruneUnverifiedUsers extends Command
 
         $cutoff = now()->subDays($days);
 
-        $candidates = User::query()
+        $candidates = Student::query()
             ->whereNull('email_verified_at')
             ->where('created_at', '<', $cutoff)
             ->whereDoesntHave('purchases')
@@ -78,15 +78,15 @@ class PruneUnverifiedUsers extends Command
             $this->components->warn('Dry run: nothing will be deleted.');
         }
 
-        foreach ($candidates->lazyById(200) as $user) {
-            if ($this->doNotDelete($user)) {
+        foreach ($candidates->lazyById(200) as $student) {
+            if ($this->doNotDelete($student)) {
                 $kept++;
 
                 continue;
             }
 
             if (! $dryRun) {
-                $user->delete();
+                $student->delete();
             }
 
             $deleted++;
@@ -125,16 +125,16 @@ class PruneUnverifiedUsers extends Command
      * Checked on the live row rather than the one loaded earlier, so a
      * verification or a payment that happened in the last second counts.
      */
-    private function doNotDelete(User $user): bool
+    private function doNotDelete(Student $student): bool
     {
-        return DB::table('users')
-            ->where('id', $user->id)
+        return DB::table('students')
+            ->where('id', $student->id)
             ->where(function ($query) {
                 $query->whereNotNull('email_verified_at')
                     ->orWhereExists(
                         fn ($sub) => $sub->selectRaw('1')
                             ->from('purchases')
-                            ->whereColumn('purchases.user_id', 'users.id')
+                            ->whereColumn('purchases.student_id', 'students.id')
                     );
             })
             ->exists();
