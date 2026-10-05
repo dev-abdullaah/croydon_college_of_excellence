@@ -7,7 +7,7 @@ use App\Content\Lesson;
 use App\Content\Quiz;
 use App\Models\Course;
 use App\Models\QuizAttempt;
-use App\Models\User;
+use App\Models\Student;
 use Illuminate\Support\Facades\File;
 use Illuminate\Testing\TestResponse;
 
@@ -227,13 +227,13 @@ trait InteractsWithCourseContent
      *
      * @param  array<int|string, string>  $answers  question number => letter
      */
-    protected function submitPaper(User $user, Course $course, string $slug, array $answers = []): TestResponse
+    protected function submitPaper(Student $student, Course $course, string $slug, array $answers = []): TestResponse
     {
-        if (! QuizAttempt::query()->forPaper($user, $course->slug, $slug)->exists()) {
-            $this->actingAs($user)->get(route('learn.quizzes.play', [$course, $slug]));
+        if (! QuizAttempt::query()->forPaper($student, $course->slug, $slug)->exists()) {
+            $this->actingAs($student)->get(route('learn.quizzes.play', [$course, $slug]));
         }
 
-        return $this->actingAs($user)->post(
+        return $this->actingAs($student)->post(
             route('learn.quizzes.submit', [$course, $slug]),
             ['answers' => $answers]
         );

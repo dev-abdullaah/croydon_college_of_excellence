@@ -2,27 +2,28 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
-use App\Models\UserEmail;
+use App\Models\LoginHistory;
+use App\Models\Student;
+use App\Models\StudentEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class AccountCenterTabsTest extends TestCase
 {
     use RefreshDatabase;
-    private function verifiedUser(): User
+    private function verifiedStudent(): Student
     {
-        return User::factory()->create(['email_verified_at' => now()]);
+        return Student::factory()->create(['email_verified_at' => now()]);
     }
 
     public function test_the_active_tab_survives_a_reload(): void
     {
-        $user = $this->verifiedUser();
+        $student = $this->verifiedStudent();
 
         // Each tab has to render itself as the open one when asked for by name,
         // because a reload is just another GET of the same URL.
         foreach (['security', 'emails', 'sessions', 'danger'] as $tab) {
-            $html = $this->actingAs($user)
+            $html = $this->actingAs($student)
                 ->get(route('account.center', ['tab' => $tab]))
                 ->assertOk()
                 ->getContent();
@@ -44,9 +45,9 @@ class AccountCenterTabsTest extends TestCase
 
     public function test_the_address_bar_carries_the_tab(): void
     {
-        $user = $this->verifiedUser();
+        $student = $this->verifiedStudent();
 
-        $html = $this->actingAs($user)
+        $html = $this->actingAs($student)
             ->get(route('account.center', ['tab' => 'sessions']))
             ->assertOk()
             ->getContent();
@@ -60,9 +61,9 @@ class AccountCenterTabsTest extends TestCase
 
     public function test_an_unknown_tab_falls_back_to_security(): void
     {
-        $user = $this->verifiedUser();
+        $student = $this->verifiedStudent();
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get(route('account.center', ['tab' => 'not-a-tab']))
             ->assertOk()
             ->assertSee('class="tab-pane fade show active" id="security"', false);
@@ -70,10 +71,10 @@ class AccountCenterTabsTest extends TestCase
 
     public function test_no_tab_given_still_shows_security(): void
     {
-        $user = $this->verifiedUser();
+        $student = $this->verifiedStudent();
 
         // The dashboard links here with no tab at all.
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get(route('account.center'))
             ->assertOk()
             ->assertSee('class="tab-pane fade show active" id="security"', false);
@@ -81,28 +82,28 @@ class AccountCenterTabsTest extends TestCase
 
     public function test_deleting_an_email_returns_to_the_emails_tab(): void
     {
-        $user = $this->verifiedUser();
-        $email = UserEmail::create([
-            'user_id' => $user->id,
+        $student = $this->verifiedStudent();
+        $email = StudentEmail::create([
+            'student_id' => $student->id,
             'email' => 'second@example.com',
             'is_primary' => false,
             'is_verified' => true,
         ]);
 
-        $response = $this->actingAs($user)->delete(route('account.emails.remove', $email), [
+        $response = $this->actingAs($student)->delete(route('account.emails.remove', $email), [
             'current_password' => 'password',
             'tab' => 'emails',
         ]);
 
         $response->assertRedirect(route('account.center', ['tab' => 'emails']));
-        $this->assertDatabaseMissing('user_emails', ['id' => $email->id]);
+        $this->assertDatabaseMissing('student_emails', ['id' => $email->id]);
     }
 
     public function test_a_validation_failure_also_returns_to_the_tab_it_came_from(): void
     {
-        $user = $this->verifiedUser();
-        $email = UserEmail::create([
-            'user_id' => $user->id,
+        $student = $this->verifiedStudent();
+        $email = StudentEmail::create([
+            'student_id' => $student->id,
             'email' => 'second@example.com',
             'is_primary' => false,
             'is_verified' => true,
@@ -110,7 +111,7 @@ class AccountCenterTabsTest extends TestCase
 
         // Wrong password: the reader must not be thrown to Security to find the
         // message, because the message lives on the tab they were working in.
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->from(route('account.center', ['tab' => 'emails']))
             ->delete(route('account.emails.remove', $email), [
                 'current_password' => 'wrong',
@@ -121,17 +122,17 @@ class AccountCenterTabsTest extends TestCase
 
     public function test_revoking_a_session_returns_to_the_sessions_tab(): void
     {
-        $user = $this->verifiedUser();
+        $student = $this->verifiedStudent();
 
-        $login = \App\Models\LoginHistory::create([
-            'user_id' => $user->id,
-            'email' => $user->email,
+        $login = LoginHistory::create([
+            'student_id' => $student->id,
+            'email' => $student->email,
             'session_id' => 'some-other-session',
             'status' => 'success',
             'login_at' => now(),
         ]);
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->delete(route('account.sessions.revoke', $login), [
                 'current_password' => 'password',
                 'tab' => 'sessions',
@@ -141,9 +142,9 @@ class AccountCenterTabsTest extends TestCase
 
     public function test_adding_an_email_returns_to_the_emails_tab(): void
     {
-        $user = $this->verifiedUser();
+        $student = $this->verifiedStudent();
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->post(route('account.emails.add', ['tab' => 'emails']), [
                 'current_password' => 'password',
                 'email' => 'new@example.com',
@@ -154,29 +155,29 @@ class AccountCenterTabsTest extends TestCase
 
     public function test_the_verification_link_lands_on_the_emails_tab(): void
     {
-        $user = $this->verifiedUser();
-        $email = UserEmail::create([
-            'user_id' => $user->id,
+        $student = $this->verifiedStudent();
+        $email = StudentEmail::create([
+            'student_id' => $student->id,
             'email' => 'second@example.com',
             'is_primary' => false,
             'is_verified' => false,
         ]);
         $token = $email->generateVerificationToken();
 
-        $this->actingAs($user)->get(route('account.emails.verify', $token))
+        $this->actingAs($student)->get(route('account.emails.verify', $token))
             ->assertRedirect(route('account.center', ['tab' => 'emails']));
 
-        $this->actingAs($user)->get(route('account.emails.verify', 'not-a-real-token'))
+        $this->actingAs($student)->get(route('account.emails.verify', 'not-a-real-token'))
             ->assertRedirect(route('account.center', ['tab' => 'emails']));
     }
 
     public function test_a_tampered_tab_field_cannot_reach_an_unlisted_tab(): void
     {
-        $user = $this->verifiedUser();
+        $student = $this->verifiedStudent();
 
         // The tab decides what is rendered, so it is not taken on trust from
         // the form body.
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->post(route('account.emails.add'), [
                 'current_password' => 'password',
                 'email' => 'new@example.com',

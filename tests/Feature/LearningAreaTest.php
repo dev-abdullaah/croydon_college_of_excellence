@@ -6,7 +6,7 @@ use App\Models\Course;
 use App\Models\LessonProgress;
 use App\Models\Purchase;
 use App\Models\QuizAttempt;
-use App\Models\User;
+use App\Models\Student;
 use App\Services\CourseContentExtractionFailedException;
 use App\Services\CourseContentExtractor;
 use App\Services\CourseContentParser;
@@ -61,27 +61,27 @@ class LearningAreaTest extends TestCase
 
     public function test_a_visitor_without_the_purchase_gets_a_403(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get(route('learn.index', $this->course()))
             ->assertForbidden();
     }
 
     public function test_an_unpaid_purchase_does_not_unlock_the_learning_area(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course();
 
         Purchase::create([
-            'user_id' => $user->id,
+            'student_id' => $student->id,
             'course_id' => $course->id,
             'amount' => $course->price,
             'currency' => $course->currency,
             'status' => Purchase::STATUS_PENDING,
         ]);
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get(route('learn.index', $course))
             ->assertForbidden();
     }
@@ -177,7 +177,7 @@ class LearningAreaTest extends TestCase
             ->assertRedirect(route('learn.lessons.show', [$course, $lesson]));
 
         $this->assertDatabaseHas('lesson_progress', [
-            'user_id' => $buyer->id,
+            'student_id' => $buyer->id,
             'course_slug' => $course->slug,
             'lesson_slug' => $lesson,
         ]);
@@ -192,7 +192,7 @@ class LearningAreaTest extends TestCase
         $this->actingAs($buyer)->post(route('learn.lessons.complete', [$course, $lesson]));
 
         $this->assertDatabaseHas('lesson_progress', [
-            'user_id' => $buyer->id,
+            'student_id' => $buyer->id,
             'course_slug' => $course->slug,
             'lesson_slug' => $lesson,
         ]);
@@ -203,7 +203,7 @@ class LearningAreaTest extends TestCase
             ->assertRedirect(route('learn.lessons.show', [$course, $lesson]));
 
         $this->assertDatabaseMissing('lesson_progress', [
-            'user_id' => $buyer->id,
+            'student_id' => $buyer->id,
             'course_slug' => $course->slug,
             'lesson_slug' => $lesson,
         ]);
@@ -268,7 +268,7 @@ class LearningAreaTest extends TestCase
         $this->actingAs($buyer)->post($url)->assertRedirect();
         $this->actingAs($buyer)->post($url)->assertRedirect();
 
-        $this->assertSame(0, LessonProgress::where('user_id', $buyer->id)->count());
+        $this->assertSame(0, LessonProgress::where('student_id', $buyer->id)->count());
     }
 
     public function test_marking_a_lesson_unread_leaves_the_other_lessons_alone(): void
@@ -282,9 +282,9 @@ class LearningAreaTest extends TestCase
 
         $this->actingAs($buyer)->post(route('learn.lessons.unread', [$course, $first]));
 
-        $this->assertSame(1, LessonProgress::where('user_id', $buyer->id)->count());
+        $this->assertSame(1, LessonProgress::where('student_id', $buyer->id)->count());
         $this->assertDatabaseHas('lesson_progress', [
-            'user_id' => $buyer->id,
+            'student_id' => $buyer->id,
             'course_slug' => $course->slug,
             'lesson_slug' => $second,
         ]);
@@ -306,8 +306,8 @@ class LearningAreaTest extends TestCase
 
         $this->actingAs($one)->post(route('learn.lessons.unread', [$course, $lesson]));
 
-        $this->assertSame(0, LessonProgress::where('user_id', $one->id)->count());
-        $this->assertSame(1, LessonProgress::where('user_id', $two->id)->count());
+        $this->assertSame(0, LessonProgress::where('student_id', $one->id)->count());
+        $this->assertSame(1, LessonProgress::where('student_id', $two->id)->count());
     }
 
     public function test_marking_a_lesson_unread_in_a_course_you_do_not_own_is_refused(): void
@@ -325,7 +325,7 @@ class LearningAreaTest extends TestCase
             ->assertForbidden();
 
         // Refused, and no collateral damage to the actual owner.
-        $this->assertSame(1, LessonProgress::where('user_id', $owner->id)->count());
+        $this->assertSame(1, LessonProgress::where('student_id', $owner->id)->count());
     }
 
     public function test_marking_a_lesson_read_twice_does_not_duplicate_it(): void
@@ -340,10 +340,10 @@ class LearningAreaTest extends TestCase
         $this->actingAs($buyer)->post($url);
         $this->actingAs($buyer)->post($url);
 
-        $this->assertSame(1, LessonProgress::where('user_id', $buyer->id)->count());
+        $this->assertSame(1, LessonProgress::where('student_id', $buyer->id)->count());
     }
 
-    public function test_lesson_progress_is_per_user(): void
+    public function test_lesson_progress_is_per_student(): void
     {
         $course = $this->course();
         [$lesson] = $this->makeLessons($course, 1);
@@ -353,8 +353,8 @@ class LearningAreaTest extends TestCase
 
         $this->actingAs($one)->post(route('learn.lessons.complete', [$course, $lesson]));
 
-        $this->assertSame(1, LessonProgress::where('user_id', $one->id)->count());
-        $this->assertSame(0, LessonProgress::where('user_id', $two->id)->count());
+        $this->assertSame(1, LessonProgress::where('student_id', $one->id)->count());
+        $this->assertSame(0, LessonProgress::where('student_id', $two->id)->count());
     }
 
     public function test_a_lesson_from_another_course_cannot_be_reached(): void
@@ -421,7 +421,7 @@ class LearningAreaTest extends TestCase
         $this->assertSame(1, $response->viewData('position'));
 
         $this->assertDatabaseHas('quiz_attempts', [
-            'user_id' => $buyer->id,
+            'student_id' => $buyer->id,
             'course_slug' => $course->slug,
             'quiz_slug' => $quiz,
             'status' => QuizAttempt::IN_PROGRESS,
@@ -431,7 +431,7 @@ class LearningAreaTest extends TestCase
         // cost a write. This is the guarantee that makes a question free.
         $this->assertSame(
             0,
-            QuizAttempt::where('user_id', $buyer->id)->firstOrFail()->answeredCount()
+            QuizAttempt::where('student_id', $buyer->id)->firstOrFail()->answeredCount()
         );
     }
 
@@ -513,7 +513,7 @@ class LearningAreaTest extends TestCase
         $this->submitPaper($buyer, $course, $quiz, [1 => 'a', 2 => 'a', 3 => 'a'])
             ->assertRedirect();
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         $this->assertSame(QuizAttempt::SUBMITTED, $attempt->status);
         $this->assertSame(['1' => 'a', '2' => 'a', '3' => 'a'], $attempt->answers);
@@ -529,7 +529,7 @@ class LearningAreaTest extends TestCase
 
         $this->submitPaper($buyer, $course, $quiz, [1 => 'a']);
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         $this->assertNull($attempt->answerFor(2));
         $this->assertNull($attempt->answerFor(3));
@@ -550,7 +550,7 @@ class LearningAreaTest extends TestCase
 
         $this->submitPaper($buyer, $course, $quiz, [2 => 'b']);
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         $this->assertNull($attempt->answerFor(1));
         $this->assertSame('b', $attempt->answerFor(2));
@@ -571,7 +571,7 @@ class LearningAreaTest extends TestCase
 
         $this->submitPaper($buyer, $course, $quiz, [1 => 'a', 2 => 'b', 99 => 'c']);
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         $this->assertSame(3, $attempt->total);
         $this->assertSame(2, $attempt->score);
@@ -591,7 +591,7 @@ class LearningAreaTest extends TestCase
         // not cost the learner their sitting.
         $this->assertSame(
             QuizAttempt::IN_PROGRESS,
-            QuizAttempt::where('user_id', $buyer->id)->firstOrFail()->status
+            QuizAttempt::where('student_id', $buyer->id)->firstOrFail()->status
         );
     }
 
@@ -603,7 +603,7 @@ class LearningAreaTest extends TestCase
 
         $this->submitPaper($buyer, $course, $quiz);
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         $this->assertSame(0, $attempt->score);
         $this->assertSame(3, $attempt->total);
@@ -628,7 +628,7 @@ class LearningAreaTest extends TestCase
             ->post(route('learn.quizzes.submit', [$course, $quiz]))
             ->assertRedirect();
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         $this->assertSame(QuizAttempt::SUBMITTED, $attempt->status);
         $this->assertSame(0, $attempt->score);
@@ -649,7 +649,7 @@ class LearningAreaTest extends TestCase
 
         $this->actingAs($buyer)->get(route('learn.quizzes.play', [$course, $quiz]));
 
-        QuizAttempt::where('user_id', $buyer->id)->firstOrFail()
+        QuizAttempt::where('student_id', $buyer->id)->firstOrFail()
             ->forceFill(['current_position' => 99])
             ->save();
 
@@ -676,7 +676,7 @@ class LearningAreaTest extends TestCase
         // request that finishes the paper.
         $response = $this->submitPaper($buyer, $course, $quiz, [1 => 'a', 2 => 'a', 3 => 'a']);
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         $response->assertRedirect(route('learn.quizzes.result', [$course, $quiz, $attempt->id]));
 
@@ -713,7 +713,7 @@ class LearningAreaTest extends TestCase
 
         $this->actingAs($buyer)->post(route('learn.quizzes.submit', [$course, $quiz]));
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         $this->assertSame(754, $attempt->time_taken_seconds);
     }
@@ -730,7 +730,7 @@ class LearningAreaTest extends TestCase
 
         $this->submitPaper($buyer, $course, $quiz);
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         $this->assertSame(0, $attempt->time_taken_seconds);
     }
@@ -747,7 +747,7 @@ class LearningAreaTest extends TestCase
         $this->submitPaper($buyer, $course, $quiz, $answers);
         $this->submitPaper($buyer, $course, $quiz, $answers);
 
-        $attempts = QuizAttempt::where('user_id', $buyer->id)->get();
+        $attempts = QuizAttempt::where('student_id', $buyer->id)->get();
 
         $this->assertCount(1, $attempts, 'A repeated submit must not open a second sitting.');
         $this->assertSame(1, $attempts->first()->score);
@@ -761,7 +761,7 @@ class LearningAreaTest extends TestCase
 
         $this->actingAs($buyer)->get(route('learn.quizzes.play', [$course, $quiz]));
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         // Nothing but answers is ever read. A score cannot be supplied by the
         // client, and an answer for a question that is not in the paper cannot
@@ -791,7 +791,7 @@ class LearningAreaTest extends TestCase
 
         $this->submitPaper($buyer, $course, $quiz, [1 => 'a', 2 => 'b', 3 => 'c', 4 => 'd']);
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         $this->assertTrue($attempt->passed);
         $this->assertSame(4, $attempt->score);
@@ -810,7 +810,7 @@ class LearningAreaTest extends TestCase
 
         $this->submitPaper($buyer, $course, $paper, $this->correctAnswers($course, $paper, 18));
 
-        $this->assertTrue(QuizAttempt::where('user_id', $buyer->id)->firstOrFail()->passed);
+        $this->assertTrue(QuizAttempt::where('student_id', $buyer->id)->firstOrFail()->passed);
     }
 
     public function test_one_answer_short_of_the_pass_mark_fails(): void
@@ -821,7 +821,7 @@ class LearningAreaTest extends TestCase
 
         $this->submitPaper($buyer, $course, $paper, $this->correctAnswers($course, $paper, 17));
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         $this->assertSame(17, $attempt->score);
         $this->assertFalse($attempt->passed);
@@ -841,7 +841,7 @@ class LearningAreaTest extends TestCase
 
         $this->submitPaper($buyer, $course, $quiz, [1 => 'a', 2 => 'b', 3 => 'c']);
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         $this->assertSame(3, $attempt->score);
 
@@ -849,7 +849,7 @@ class LearningAreaTest extends TestCase
         $this->submitPaper($buyer, $course, $quiz, [1 => 'd', 2 => 'd', 3 => 'd'])
             ->assertRedirect();
 
-        $this->assertSame(1, QuizAttempt::where('user_id', $buyer->id)->count());
+        $this->assertSame(1, QuizAttempt::where('student_id', $buyer->id)->count());
         $this->assertSame(QuizAttempt::SUBMITTED, $attempt->fresh()->status);
         $this->assertSame(3, $attempt->fresh()->score);
         $this->assertSame(['1' => 'a', '2' => 'b', '3' => 'c'], $attempt->fresh()->answers);
@@ -865,7 +865,7 @@ class LearningAreaTest extends TestCase
 
         $this->actingAs($buyer)->get(route('learn.quizzes.play', [$course, $quiz]))->assertOk();
 
-        $this->assertSame(2, QuizAttempt::where('user_id', $buyer->id)->count());
+        $this->assertSame(2, QuizAttempt::where('student_id', $buyer->id)->count());
     }
 
     public function test_one_learner_cannot_read_another_learners_result(): void
@@ -878,7 +878,7 @@ class LearningAreaTest extends TestCase
 
         $this->submitPaper($owner, $course, $quiz, [1 => 'a', 2 => 'b']);
 
-        $attempt = QuizAttempt::where('user_id', $owner->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $owner->id)->firstOrFail();
 
         $this->actingAs($other)
             ->get(route('learn.quizzes.result', [$course, $quiz, $attempt->id]))
@@ -894,7 +894,7 @@ class LearningAreaTest extends TestCase
 
         $this->submitPaper($buyer, $course, $one, [1 => 'a', 2 => 'b']);
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         $this->actingAs($buyer)
             ->get(route('learn.quizzes.result', [$course, $two, $attempt->id]))
@@ -909,7 +909,7 @@ class LearningAreaTest extends TestCase
 
         $this->actingAs($buyer)->get(route('learn.quizzes.play', [$course, $quiz]));
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         $this->actingAs($buyer)
             ->get(route('learn.quizzes.result', [$course, $quiz, $attempt->id]))
@@ -986,7 +986,7 @@ class LearningAreaTest extends TestCase
 
         $this->submitPaper($buyer, $course, $quiz, $this->correctAnswers($course, $quiz, 2));
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         $this->actingAs($buyer)
             ->get(route('learn.quizzes.result', [$course, $quiz, $attempt->id]))
@@ -1004,7 +1004,7 @@ class LearningAreaTest extends TestCase
 
         $this->submitPaper($buyer, $course, $quiz, $this->correctAnswers($course, $quiz, 2));
 
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         $this->actingAs($buyer)
             ->get(route('learn.quizzes.result', [$course, $quiz, $attempt->id]))
@@ -1034,7 +1034,7 @@ class LearningAreaTest extends TestCase
         [$lesson] = $this->makeLessons($course, 1);
 
         $this->submitPaper($buyer, $course, $quiz, $this->correctAnswers($course, $quiz, 2));
-        $attempt = QuizAttempt::where('user_id', $buyer->id)->firstOrFail();
+        $attempt = QuizAttempt::where('student_id', $buyer->id)->firstOrFail();
 
         // Blue: the action the page exists for. Green: finishing something.
         // Outlined grey: getting somewhere else.
@@ -1574,12 +1574,12 @@ class LearningAreaTest extends TestCase
         return Course::where('slug', $slug)->firstOrFail();
     }
 
-    protected function buyer(Course $course): User
+    protected function buyer(Course $course): Student
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
         Purchase::create([
-            'user_id' => $user->id,
+            'student_id' => $student->id,
             'course_id' => $course->id,
             'amount' => $course->price,
             'currency' => $course->currency,
@@ -1587,6 +1587,6 @@ class LearningAreaTest extends TestCase
             'paid_at' => now(),
         ]);
 
-        return $user->fresh();
+        return $student->fresh();
     }
 }

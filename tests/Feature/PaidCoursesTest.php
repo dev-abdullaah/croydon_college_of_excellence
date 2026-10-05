@@ -6,7 +6,7 @@ use App\Http\Controllers\CheckoutController;
 use App\Models\Course;
 use App\Models\Purchase;
 use App\Models\StripeWebhookEvent;
-use App\Models\User;
+use App\Models\Student;
 use App\Services\StripeService;
 use Database\Seeders\CourseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -105,11 +105,11 @@ class PaidCoursesTest extends TestCase
 
     public function test_the_banner_welcomes_a_signed_in_learner_with_a_course(): void
     {
-        $user = User::factory()->create(['name' => 'Amina Rahman']);
-        $this->markAsPaid($user, $this->course('life-in-the-uk-course'), 'cs_test_banner');
+        $student = Student::factory()->create(['name' => 'Amina Rahman']);
+        $this->markAsPaid($student, $this->course('life-in-the-uk-course'), 'cs_test_banner');
 
-        $home = $this->actingAs($user)->get('/')->assertOk();
-        $catalogue = $this->actingAs($user)->get('/courses')->assertOk();
+        $home = $this->actingAs($student)->get('/')->assertOk();
+        $catalogue = $this->actingAs($student)->get('/courses')->assertOk();
 
         foreach ([$home, $catalogue] as $response) {
             $response
@@ -133,12 +133,12 @@ class PaidCoursesTest extends TestCase
 
     public function test_the_banner_points_a_signed_in_learner_with_no_course_at_the_courses(): void
     {
-        $user = User::factory()->create(['name' => 'Sam Okafor']);
+        $student = Student::factory()->create(['name' => 'Sam Okafor']);
 
         // An unpaid purchase is not access, so it must not produce the
         // "your course is ready" wording.
         Purchase::create([
-            'user_id' => $user->id,
+            'student_id' => $student->id,
             'course_id' => $this->course('24-mock-tests')->id,
             'stripe_checkout_session_id' => 'cs_test_unpaid_banner',
             'amount' => 4900,
@@ -146,8 +146,8 @@ class PaidCoursesTest extends TestCase
             'status' => Purchase::STATUS_PENDING,
         ]);
 
-        $home = $this->actingAs($user)->get('/')->assertOk();
-        $catalogue = $this->actingAs($user)->get('/courses')->assertOk();
+        $home = $this->actingAs($student)->get('/')->assertOk();
+        $catalogue = $this->actingAs($student)->get('/courses')->assertOk();
 
         foreach ([$home, $catalogue] as $response) {
             $response
@@ -260,7 +260,7 @@ class PaidCoursesTest extends TestCase
 
     public function test_the_account_page_sends_an_empty_visitor_to_the_catalogue(): void
     {
-        $html = $this->actingAs(User::factory()->create())
+        $html = $this->actingAs(Student::factory()->create())
             ->get('/my-account')
             ->assertOk()
             ->getContent();
@@ -279,10 +279,10 @@ class PaidCoursesTest extends TestCase
 
     public function test_the_account_heading_and_sign_out_stay_on_one_row(): void
     {
-        $user = User::factory()->create();
-        $this->markAsPaid($user, $this->course('life-in-the-uk-course'), 'cs_test_account_bar');
+        $student = Student::factory()->create();
+        $this->markAsPaid($student, $this->course('life-in-the-uk-course'), 'cs_test_account_bar');
 
-        $html = $this->actingAs($user)
+        $html = $this->actingAs($student)
             ->get('/my-account')
             ->assertOk()
             ->getContent();
@@ -330,7 +330,7 @@ class PaidCoursesTest extends TestCase
     {
         // It is the theme's own button (rbt-btn), not a Bootstrap .btn, and it
         // is the one thing to do on that card, so it sits in a centred block.
-        $html = $this->actingAs(User::factory()->create())
+        $html = $this->actingAs(Student::factory()->create())
             ->get('/my-account')
             ->assertOk()
             ->getContent();
@@ -368,7 +368,7 @@ class PaidCoursesTest extends TestCase
 
     public function test_the_cancel_page_sends_a_visitor_to_the_catalogue(): void
     {
-        $html = $this->actingAs(User::factory()->create())
+        $html = $this->actingAs(Student::factory()->create())
             ->withSession(['checkout.course' => 'life-in-the-uk-course'])
             ->get('/checkout/cancel')
             ->assertOk()
@@ -462,7 +462,7 @@ class PaidCoursesTest extends TestCase
         // seeded onto the session directly rather than produced by signing
         // up. The overlay is the thing under test, not how a message is
         // caused.
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(Student::factory()->create())
             ->withSession(['success' => 'Your account is ready'])
             ->get('/my-account')
             ->assertOk()
@@ -485,7 +485,7 @@ class PaidCoursesTest extends TestCase
 
     public function test_signing_out_is_a_large_red_button(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(Student::factory()->create())
             ->get('/my-account')
             ->assertOk()
             ->assertSee('class="btn btn-lg btn-danger"', false);
@@ -495,7 +495,7 @@ class PaidCoursesTest extends TestCase
     {
         // One page, one button size. A mixture is what makes a page look
         // unfinished, and this page had 20px, 31px and 45px buttons on it.
-        $html = $this->actingAs(User::factory()->create())
+        $html = $this->actingAs(Student::factory()->create())
             ->get('/my-account')
             ->assertOk()
             ->getContent();
@@ -531,7 +531,7 @@ class PaidCoursesTest extends TestCase
 
     public function test_a_message_carries_a_dismiss_control(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(Student::factory()->create())
             ->withSession(['success' => 'All done'])
             ->get('/my-account')
             ->assertOk()
@@ -556,7 +556,7 @@ class PaidCoursesTest extends TestCase
 
     public function test_a_confirmation_leaves_the_screen_by_itself(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(Student::factory()->create())
             ->withSession(['success' => 'Your email address is verified'])
             ->get('/my-account')
             ->assertOk()
@@ -566,7 +566,7 @@ class PaidCoursesTest extends TestCase
     public function test_a_longer_message_is_given_longer_before_it_goes(): void
     {
         // Six seconds is a reading time, not a sentence.
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(Student::factory()->create())
             ->withSession(['info' => 'Something worth reading at length'])
             ->get('/my-account')
             ->assertOk()
@@ -594,7 +594,7 @@ class PaidCoursesTest extends TestCase
         // Same reasoning as the validation summary: these are instructions, not
         // news. Only confirmations are safe to lose.
         foreach (['warning' => 'Careful', 'error' => 'That did not work'] as $level => $text) {
-            $html = $this->actingAs(User::factory()->create())
+            $html = $this->actingAs(Student::factory()->create())
                 ->withSession([$level => $text])
                 ->get('/my-account')
                 ->assertOk()
@@ -640,7 +640,7 @@ class PaidCoursesTest extends TestCase
     {
         // The wrapper used to render unconditionally, putting a stray empty
         // container above the content of every page in the site.
-        $html = $this->actingAs(User::factory()->create())
+        $html = $this->actingAs(Student::factory()->create())
             ->get('/my-account')
             ->assertOk()
             ->getContent();
@@ -748,7 +748,7 @@ class PaidCoursesTest extends TestCase
     public function test_the_mobile_account_button_keeps_its_label(): void
     {
         $signedOut = $this->get('/')->assertOk()->getContent();
-        $signedIn = $this->actingAs(User::factory()->create())->get('/')->assertOk()->getContent();
+        $signedIn = $this->actingAs(Student::factory()->create())->get('/')->assertOk()->getContent();
 
         $this->assertMatchesRegularExpression(
             '/btn-header-account[^>]*>\s*<i[^>]*><\/i>\s*<span(?![^>]*\bd-(none|sm-|md-|lg-|xl-))[^>]*>\s*Sign In\s*<\/span>/',
@@ -786,7 +786,7 @@ class PaidCoursesTest extends TestCase
      */
     public function test_the_header_account_icon_is_gapped_and_centred(): void
     {
-        $signedIn = $this->actingAs(User::factory()->create())
+        $signedIn = $this->actingAs(Student::factory()->create())
             ->get('/')
             ->assertOk()
             ->getContent();
@@ -1512,7 +1512,7 @@ class PaidCoursesTest extends TestCase
 
     public function test_a_visitor_can_sign_in(): void
     {
-        $user = User::factory()->create([
+        $student = Student::factory()->create([
             'email' => 'learner@example.com',
             'password' => 'Sup3rSecret!',
         ]);
@@ -1522,12 +1522,12 @@ class PaidCoursesTest extends TestCase
             'password' => 'Sup3rSecret!',
         ])->assertRedirect('/my-account');
 
-        $this->assertAuthenticatedAs($user);
+        $this->assertAuthenticatedAs($student);
     }
 
     public function test_login_is_rejected_with_bad_credentials(): void
     {
-        User::factory()->create([
+        Student::factory()->create([
             'email' => 'learner@example.com',
             'password' => 'Sup3rSecret!',
         ]);
@@ -1559,32 +1559,32 @@ class PaidCoursesTest extends TestCase
 
     public function test_checkout_uses_the_server_side_stripe_price_and_records_a_pending_purchase(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
         $captured = [];
         $this->fakeStripe($captured);
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->post('/checkout/life-in-the-uk-course', ['consent' => '1'])
             ->assertRedirect('https://checkout.stripe.com/c/pay/cs_test_life-in-the-uk-course');
 
         // The line item came from configuration, never from the request body.
         $this->assertSame('payment', $captured['mode']);
         $this->assertSame([['price' => 'price_test_course', 'quantity' => 1]], $captured['line_items']);
-        $this->assertSame((string) $user->id, $captured['client_reference_id']);
-        $this->assertSame((string) $user->id, $captured['metadata']['user_id']);
+        $this->assertSame((string) $student->id, $captured['client_reference_id']);
+        $this->assertSame((string) $student->id, $captured['metadata']['student_id']);
         $this->assertStringContainsString('session_id={CHECKOUT_SESSION_ID}', $captured['success_url']);
 
         $purchase = Purchase::where('stripe_checkout_session_id', 'cs_test_life-in-the-uk-course')->firstOrFail();
 
         $this->assertSame(Purchase::STATUS_PENDING, $purchase->status);
-        $this->assertSame($user->id, $purchase->user_id);
+        $this->assertSame($student->id, $purchase->student_id);
         $this->assertSame(9900, $purchase->amount);
         $this->assertSame('gbp', $purchase->currency);
         $this->assertNull($purchase->paid_at);
 
         // Pending is not paid, so it unlocks nothing.
-        $this->assertFalse($user->fresh()->hasPurchased('life-in-the-uk-course'));
+        $this->assertFalse($student->fresh()->hasPurchased('life-in-the-uk-course'));
     }
 
     /**
@@ -1597,12 +1597,12 @@ class PaidCoursesTest extends TestCase
      */
     public function test_a_checkout_session_is_given_a_bounded_expiry(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
         $captured = [];
         $this->fakeStripe($captured);
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->post('/checkout/24-mock-tests', ['consent' => '1'])
             ->assertRedirect();
 
@@ -1623,7 +1623,7 @@ class PaidCoursesTest extends TestCase
         $captured = [];
         $this->fakeStripe($captured);
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->post('/checkout/24-mock-tests', ['consent' => '1'])
             ->assertRedirect();
 
@@ -1643,7 +1643,7 @@ class PaidCoursesTest extends TestCase
     {
         config(['courses.terms_version' => '2026-01']);
 
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
         // The live lookup is what makes the second press of the button reuse
@@ -1652,7 +1652,7 @@ class PaidCoursesTest extends TestCase
         $created = 0;
         $this->fakeStripeWithLiveLookup($created);
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->post('/checkout/life-in-the-uk-course', ['consent' => '1'])
             ->assertRedirect();
 
@@ -1667,7 +1667,7 @@ class PaidCoursesTest extends TestCase
 
         $this->travel(1)->minutes();
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->post('/checkout/'.$course->slug, ['consent' => '1'])
             ->assertRedirect();
 
@@ -1690,13 +1690,13 @@ class PaidCoursesTest extends TestCase
      */
     public function test_a_checkout_without_consent_is_refused(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
         $captured = [];
         $this->fakeStripe($captured);
 
-        $response = $this->actingAs($user)
+        $response = $this->actingAs($student)
             ->post('/checkout/'.$course->slug);
 
         // The refusal goes back to the review page, which is the page with the
@@ -1705,7 +1705,7 @@ class PaidCoursesTest extends TestCase
         $response->assertSessionHasErrors('consent')
             ->assertRedirect(route('checkout.review', $course));
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get(route('checkout.review', $course))
             ->assertOk()
             ->assertSee('Check Your Order');
@@ -1725,15 +1725,15 @@ class PaidCoursesTest extends TestCase
      */
     public function test_a_second_click_reuses_the_open_stripe_session(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
         $created = 0;
 
         $this->fakeStripeWithLiveLookup($created);
 
-        $first = $this->actingAs($user)->post('/checkout/'.$course->slug, ['consent' => '1']);
-        $second = $this->actingAs($user)->post('/checkout/'.$course->slug, ['consent' => '1']);
+        $first = $this->actingAs($student)->post('/checkout/'.$course->slug, ['consent' => '1']);
+        $second = $this->actingAs($student)->post('/checkout/'.$course->slug, ['consent' => '1']);
 
         $first->assertRedirect('https://checkout.stripe.com/c/pay/cs_test_life-in-the-uk-course');
         $second->assertRedirect('https://checkout.stripe.com/c/pay/cs_test_life-in-the-uk-course');
@@ -1751,12 +1751,12 @@ class PaidCoursesTest extends TestCase
      */
     public function test_an_expired_stripe_session_is_replaced_rather_than_reused(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
         // A pending row inside the checkout lifetime whose session is gone.
         Purchase::create([
-            'user_id' => $user->id,
+            'student_id' => $student->id,
             'course_id' => $course->id,
             'stripe_checkout_session_id' => 'cs_test_dead',
             'amount' => $course->price,
@@ -1767,7 +1767,7 @@ class PaidCoursesTest extends TestCase
         $created = 0;
         $this->fakeStripeWithLiveLookup($created, existingStatus: 'expired');
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->post('/checkout/'.$course->slug, ['consent' => '1'])
             ->assertRedirect('https://checkout.stripe.com/c/pay/cs_test_life-in-the-uk-course');
 
@@ -1786,11 +1786,11 @@ class PaidCoursesTest extends TestCase
      */
     public function test_a_pending_session_that_turns_out_to_be_paid_is_recorded_not_duplicated(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
         Purchase::create([
-            'user_id' => $user->id,
+            'student_id' => $student->id,
             'course_id' => $course->id,
             'stripe_checkout_session_id' => 'cs_test_paid_elsewhere',
             'amount' => $course->price,
@@ -1803,17 +1803,17 @@ class PaidCoursesTest extends TestCase
             $created,
             existingStatus: 'complete',
             existingPaymentStatus: 'paid',
-            user: $user,
+            student: $student,
             course: $course,
         );
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->post('/checkout/'.$course->slug, ['consent' => '1'])
             ->assertRedirect(route('dashboard'));
 
         $this->assertSame(0, $created, 'No new session is opened for a course that has been paid.');
         $this->assertSame(1, Purchase::count());
-        $this->assertTrue($user->fresh()->hasPurchased($course));
+        $this->assertTrue($student->fresh()->hasPurchased($course));
     }
 
     /**
@@ -1826,17 +1826,17 @@ class PaidCoursesTest extends TestCase
      */
     public function test_a_concurrent_second_click_cannot_open_a_second_session(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
         $created = 0;
         $this->fakeStripeWithLiveLookup($created);
 
         // Take the lock the way a second request arriving mid-flight would.
-        $lock = Cache::lock("checkout:{$user->id}:{$course->id}", 10);
+        $lock = Cache::lock("checkout:{$student->id}:{$course->id}", 10);
         $this->assertTrue($lock->get());
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->post('/checkout/'.$course->slug, ['consent' => '1'])
             ->assertRedirect(route('checkout.review', $course));
 
@@ -1846,7 +1846,7 @@ class PaidCoursesTest extends TestCase
         $lock->release();
 
         // Once released, the same request succeeds.
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->post('/checkout/'.$course->slug, ['consent' => '1'])
             ->assertRedirect('https://checkout.stripe.com/c/pay/cs_test_life-in-the-uk-course');
 
@@ -1866,9 +1866,9 @@ class PaidCoursesTest extends TestCase
     {
         config(['stripe.prices.course' => null]);
 
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
-        $response = $this->actingAs($user)
+        $response = $this->actingAs($student)
             ->from('/')
             ->post('/checkout/life-in-the-uk-course', ['consent' => '1']);
 
@@ -1878,7 +1878,7 @@ class PaidCoursesTest extends TestCase
         $response->assertSessionHas('error');
 
         // ...and the message is actually rendered on that page.
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get('/checkout/life-in-the-uk-course/review')
             ->assertOk()
             ->assertSee('Online payments are temporarily unavailable');
@@ -1890,12 +1890,12 @@ class PaidCoursesTest extends TestCase
 
     public function test_client_supplied_prices_are_ignored(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
         $captured = [];
         $this->fakeStripe($captured);
 
-        $this->actingAs($user)->post('/checkout/24-mock-tests', [
+        $this->actingAs($student)->post('/checkout/24-mock-tests', [
             'consent' => '1',
             'price' => 1,
             'amount' => 1,
@@ -1907,14 +1907,14 @@ class PaidCoursesTest extends TestCase
         $this->assertSame(4900, Purchase::firstOrFail()->amount);
     }
 
-    public function test_a_user_cannot_checkout_a_course_they_already_own(): void
+    public function test_a_student_cannot_checkout_a_course_they_already_own(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
-        $this->markAsPaid($user, $this->course('24-mock-tests'), 'cs_test_existing');
+        $this->markAsPaid($student, $this->course('24-mock-tests'), 'cs_test_existing');
 
         // Stripe is deliberately not faked here: reaching Stripe would be a bug.
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->post('/checkout/24-mock-tests', ['consent' => '1'])
             ->assertRedirect('/my-account');
 
@@ -1923,14 +1923,14 @@ class PaidCoursesTest extends TestCase
 
     public function test_an_inactive_course_cannot_be_bought(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $this->course('24-mock-tests')->update(['is_active' => false]);
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->post('/checkout/24-mock-tests', ['consent' => '1'])
             ->assertNotFound();
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get('/checkout/24-mock-tests/review')
             ->assertNotFound();
     }
@@ -1941,13 +1941,13 @@ class PaidCoursesTest extends TestCase
 
     public function test_a_verified_webhook_records_the_purchase_and_grants_access(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
         $this->sendWebhook($this->event(
             'evt_completed_1',
             'checkout.session.completed',
-            $this->sessionObject($user, $course, 'paid')
+            $this->sessionObject($student, $course, 'paid')
         ))->assertOk();
 
         $purchase = Purchase::firstOrFail();
@@ -1959,18 +1959,18 @@ class PaidCoursesTest extends TestCase
         $this->assertSame(9900, $purchase->amount);
         $this->assertSame('gbp', $purchase->currency);
         $this->assertSame('evt_completed_1', $purchase->stripe_event_id);
-        $this->assertSame($user->email, $purchase->customer_email);
+        $this->assertSame($student->email, $purchase->customer_email);
         $this->assertNotNull($purchase->paid_at);
 
-        $this->assertTrue($user->fresh()->hasPurchased($course));
+        $this->assertTrue($student->fresh()->hasPurchased($course));
     }
 
     public function test_a_replayed_webhook_event_does_not_duplicate_the_purchase(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
-        $event = $this->event('evt_replayed', 'checkout.session.completed', $this->sessionObject($user, $course, 'paid'));
+        $event = $this->event('evt_replayed', 'checkout.session.completed', $this->sessionObject($student, $course, 'paid'));
 
         $this->sendWebhook($event)->assertOk();
         $this->sendWebhook($event)->assertOk();
@@ -1983,12 +1983,12 @@ class PaidCoursesTest extends TestCase
 
     public function test_two_distinct_events_for_one_session_still_produce_one_purchase(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
-        $this->sendWebhook($this->event('evt_a', 'checkout.session.completed', $this->sessionObject($user, $course, 'paid')))
+        $this->sendWebhook($this->event('evt_a', 'checkout.session.completed', $this->sessionObject($student, $course, 'paid')))
             ->assertOk();
-        $this->sendWebhook($this->event('evt_b', 'checkout.session.async_payment_succeeded', $this->sessionObject($user, $course, 'paid')))
+        $this->sendWebhook($this->event('evt_b', 'checkout.session.async_payment_succeeded', $this->sessionObject($student, $course, 'paid')))
             ->assertOk();
 
         $this->assertSame(1, Purchase::count());
@@ -1997,24 +1997,24 @@ class PaidCoursesTest extends TestCase
 
     public function test_a_completed_session_that_was_not_paid_does_not_grant_access(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
-        $this->sendWebhook($this->event('evt_unpaid', 'checkout.session.completed', $this->sessionObject($user, $course, 'unpaid')))
+        $this->sendWebhook($this->event('evt_unpaid', 'checkout.session.completed', $this->sessionObject($student, $course, 'unpaid')))
             ->assertOk();
 
-        $this->assertFalse($user->fresh()->hasPurchased($course));
+        $this->assertFalse($student->fresh()->hasPurchased($course));
         $this->assertSame(Purchase::STATUS_PENDING, Purchase::firstOrFail()->status);
     }
 
     public function test_a_failed_payment_is_recorded_as_failed(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
         // The row checkout opened before the card was declined.
         Purchase::create([
-            'user_id' => $user->id,
+            'student_id' => $student->id,
             'course_id' => $course->id,
             'stripe_checkout_session_id' => 'cs_test_declined',
             'amount' => 9900,
@@ -2026,7 +2026,7 @@ class PaidCoursesTest extends TestCase
             'id' => 'pi_test_intent',
             'object' => 'payment_intent',
             'metadata' => [
-                'user_id' => (string) $user->id,
+                'student_id' => (string) $student->id,
                 'course_id' => (string) $course->id,
             ],
             'last_payment_error' => ['message' => 'Your card was declined.'],
@@ -2038,22 +2038,22 @@ class PaidCoursesTest extends TestCase
         $this->assertSame('pi_test_intent', $purchase->stripe_payment_intent_id);
         $this->assertSame('cs_test_declined', $purchase->stripe_checkout_session_id);
         $this->assertSame('Your card was declined.', $purchase->failure_reason);
-        $this->assertFalse($user->fresh()->hasPurchased($course));
+        $this->assertFalse($student->fresh()->hasPurchased($course));
     }
 
     public function test_a_declined_card_cannot_overturn_a_payment_that_already_succeeded(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
-        $this->sendWebhook($this->event('evt_paid_first', 'checkout.session.completed', $this->sessionObject($user, $course, 'paid')))
+        $this->sendWebhook($this->event('evt_paid_first', 'checkout.session.completed', $this->sessionObject($student, $course, 'paid')))
             ->assertOk();
 
         $this->sendWebhook($this->event('evt_failed_later', 'payment_intent.payment_failed', [
             'id' => 'pi_test_intent',
             'object' => 'payment_intent',
             'metadata' => [
-                'user_id' => (string) $user->id,
+                'student_id' => (string) $student->id,
                 'course_id' => (string) $course->id,
             ],
             'last_payment_error' => ['message' => 'Your card was declined.'],
@@ -2061,12 +2061,12 @@ class PaidCoursesTest extends TestCase
 
         $this->assertSame(1, Purchase::count());
         $this->assertSame(Purchase::STATUS_PAID, Purchase::firstOrFail()->status);
-        $this->assertTrue($user->fresh()->hasPurchased($course));
+        $this->assertTrue($student->fresh()->hasPurchased($course));
     }
 
     public function test_a_failed_intent_we_never_started_is_ignored(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
         // Signed by Stripe, but describing a payment this site never opened.
@@ -2074,22 +2074,22 @@ class PaidCoursesTest extends TestCase
             'id' => 'pi_test_orphan',
             'object' => 'payment_intent',
             'metadata' => [
-                'user_id' => (string) $user->id,
+                'student_id' => (string) $student->id,
                 'course_id' => (string) $course->id,
             ],
             'last_payment_error' => ['message' => 'Your card was declined.'],
         ]))->assertOk();
 
         $this->assertSame(0, Purchase::count());
-        $this->assertFalse($user->fresh()->hasPurchased($course));
+        $this->assertFalse($student->fresh()->hasPurchased($course));
     }
 
     public function test_an_expired_session_is_marked_expired(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
         Purchase::create([
-            'user_id' => $user->id,
+            'student_id' => $student->id,
             'course_id' => $this->course('24-mock-tests')->id,
             'stripe_checkout_session_id' => 'cs_test_expired',
             'amount' => 4900,
@@ -2103,18 +2103,18 @@ class PaidCoursesTest extends TestCase
         ]))->assertOk();
 
         $this->assertSame(Purchase::STATUS_EXPIRED, Purchase::firstOrFail()->status);
-        $this->assertFalse($user->fresh()->hasPurchased('24-mock-tests'));
+        $this->assertFalse($student->fresh()->hasPurchased('24-mock-tests'));
     }
 
     public function test_a_refund_revokes_access(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
-        $this->sendWebhook($this->event('evt_paid', 'checkout.session.completed', $this->sessionObject($user, $course, 'paid')))
+        $this->sendWebhook($this->event('evt_paid', 'checkout.session.completed', $this->sessionObject($student, $course, 'paid')))
             ->assertOk();
 
-        $this->assertTrue($user->fresh()->hasPurchased($course));
+        $this->assertTrue($student->fresh()->hasPurchased($course));
 
         $this->sendWebhook($this->event('evt_refunded', 'charge.refunded', [
             'id' => 'ch_test_charge',
@@ -2126,18 +2126,18 @@ class PaidCoursesTest extends TestCase
         $purchase = Purchase::firstOrFail();
         $this->assertSame(Purchase::STATUS_REFUNDED, $purchase->status);
         $this->assertNotNull($purchase->refunded_at);
-        $this->assertFalse($user->fresh()->hasPurchased($course));
+        $this->assertFalse($student->fresh()->hasPurchased($course));
     }
 
     public function test_the_webhook_rejects_a_bad_signature(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
         $payload = json_encode($this->event(
             'evt_forged',
             'checkout.session.completed',
-            $this->sessionObject($user, $course, 'paid')
+            $this->sessionObject($student, $course, 'paid')
         ));
 
         $this->postRawWebhook($payload, 't='.time().',v1='.str_repeat('0', 64))
@@ -2149,8 +2149,8 @@ class PaidCoursesTest extends TestCase
 
     public function test_the_webhook_rejects_a_payload_signed_with_another_secret(): void
     {
-        $user = User::factory()->create();
-        $payload = json_encode($this->event('evt_wrongkey', 'checkout.session.completed', $this->sessionObject($user, $this->course('life-in-the-uk-course'), 'paid')));
+        $student = Student::factory()->create();
+        $payload = json_encode($this->event('evt_wrongkey', 'checkout.session.completed', $this->sessionObject($student, $this->course('life-in-the-uk-course'), 'paid')));
 
         $this->postRawWebhook($payload, $this->sign($payload, 'whsec_someone_elses_secret'))
             ->assertStatus(403);
@@ -2168,8 +2168,8 @@ class PaidCoursesTest extends TestCase
     {
         config(['stripe.webhook.secret' => null]);
 
-        $user = User::factory()->create();
-        $payload = json_encode($this->event('evt_unconfigured', 'checkout.session.completed', $this->sessionObject($user, $this->course('life-in-the-uk-course'), 'paid')));
+        $student = Student::factory()->create();
+        $payload = json_encode($this->event('evt_unconfigured', 'checkout.session.completed', $this->sessionObject($student, $this->course('life-in-the-uk-course'), 'paid')));
 
         $this->postRawWebhook($payload, $this->sign($payload, 'whsec_test_secret'))
             ->assertStatus(500);
@@ -2199,50 +2199,50 @@ class PaidCoursesTest extends TestCase
         $this->get(route('learn.index', $course))->assertRedirect('/login');
     }
 
-    public function test_a_signed_in_user_without_the_purchase_gets_a_403(): void
+    public function test_a_signed_in_student_without_the_purchase_gets_a_403(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
-        $this->actingAs($user)->get(route('learn.index', $course))->assertForbidden();
+        $this->actingAs($student)->get(route('learn.index', $course))->assertForbidden();
     }
 
     public function test_a_purchaser_can_open_the_learning_area(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
-        $this->markAsPaid($user, $course, 'cs_test_open');
+        $this->markAsPaid($student, $course, 'cs_test_open');
 
-        $this->actingAs($user)->get(route('learn.index', $course))->assertOk();
+        $this->actingAs($student)->get(route('learn.index', $course))->assertOk();
     }
 
     public function test_the_course_does_not_unlock_the_mock_test_package(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
         $mocks = $this->course('24-mock-tests');
 
-        $this->markAsPaid($user, $course, 'cs_test_course_only');
+        $this->markAsPaid($student, $course, 'cs_test_course_only');
 
-        $this->assertTrue($user->fresh()->hasPurchased($course));
-        $this->assertFalse($user->fresh()->hasPurchased($mocks));
+        $this->assertTrue($student->fresh()->hasPurchased($course));
+        $this->assertFalse($student->fresh()->hasPurchased($mocks));
 
-        $this->actingAs($user)->get(route('learn.index', $mocks))->assertForbidden();
+        $this->actingAs($student)->get(route('learn.index', $mocks))->assertForbidden();
     }
 
     public function test_the_mock_test_package_does_not_unlock_the_course(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
         $mocks = $this->course('24-mock-tests');
 
-        $this->markAsPaid($user, $mocks, 'cs_test_mocks_only');
+        $this->markAsPaid($student, $mocks, 'cs_test_mocks_only');
 
-        $this->assertTrue($user->fresh()->hasPurchased($mocks));
-        $this->assertFalse($user->fresh()->hasPurchased($course));
+        $this->assertTrue($student->fresh()->hasPurchased($mocks));
+        $this->assertFalse($student->fresh()->hasPurchased($course));
 
-        $this->actingAs($user)->get(route('learn.index', $course))->assertForbidden();
+        $this->actingAs($student)->get(route('learn.index', $course))->assertForbidden();
     }
 
     /**
@@ -2270,18 +2270,18 @@ class PaidCoursesTest extends TestCase
 
     public function test_the_success_page_does_not_grant_access_on_its_own(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
         // Stripe is stubbed to fail: the page must not treat the URL as proof.
         $this->stubStripeLookupToFail();
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get('/checkout/success?session_id=cs_test_never_paid')
             ->assertOk()
             ->assertSee('We Are Confirming Your Payment');
 
-        $this->assertFalse($user->fresh()->hasPurchased($course));
+        $this->assertFalse($student->fresh()->hasPurchased($course));
         $this->assertSame(0, Purchase::count());
     }
 
@@ -2295,18 +2295,18 @@ class PaidCoursesTest extends TestCase
      */
     public function test_a_confirmed_payment_redirects_to_the_account_page_with_the_course_highlighted(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
-        $this->markAsPaid($user, $course, 'cs_test_confirmed');
+        $this->markAsPaid($student, $course, 'cs_test_confirmed');
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get('/checkout/success?session_id=cs_test_confirmed')
             ->assertRedirect(route('dashboard'))
             ->assertSessionHas('success', 'Payment received. Your course is ready below.')
             ->assertSessionHas('highlight_course', 'life-in-the-uk-course');
 
-        $this->actingAs($user)->get('/my-account')
+        $this->actingAs($student)->get('/my-account')
             ->assertOk()
             ->assertSee('New')
             ->assertSee('Payment received. This is yours.')
@@ -2323,17 +2323,17 @@ class PaidCoursesTest extends TestCase
      */
     public function test_the_success_page_does_not_claim_a_receipt_was_emailed(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
-        $this->markAsPaid($user, $this->course('life-in-the-uk-course'), 'cs_test_no_receipt');
+        $this->markAsPaid($student, $this->course('life-in-the-uk-course'), 'cs_test_no_receipt');
 
-        $response = $this->actingAs($user)
+        $response = $this->actingAs($student)
             ->get('/checkout/success?session_id=cs_test_no_receipt')
             ->assertRedirect(route('dashboard'));
 
         $response->assertSessionMissing('success_receipt');
 
-        $this->actingAs($user)->get('/my-account')
+        $this->actingAs($student)->get('/my-account')
             ->assertOk()
             ->assertDontSee('receipt has been sent', escape: false)
             ->assertDontSee('A receipt has been sent', escape: false);
@@ -2350,12 +2350,12 @@ class PaidCoursesTest extends TestCase
      */
     public function test_the_waiting_page_refreshes_until_the_maximum_attempt_then_stops(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
         $this->stubStripeLookupToFail();
 
         // Still waiting: it refreshes, and says so.
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get('/checkout/success?session_id=cs_test_pending')
             ->assertOk()
             ->assertSee('We Are Confirming Your Payment')
@@ -2366,7 +2366,7 @@ class PaidCoursesTest extends TestCase
 
         // The last attempt: no further refresh, and a message that gets help
         // rather than spinning.
-        $final = $this->actingAs($user)
+        $final = $this->actingAs($student)
             ->get('/checkout/success?session_id=cs_test_pending&attempt=10')
             ->assertOk()
             ->assertSee('This Is Taking Longer Than Usual')
@@ -2374,7 +2374,7 @@ class PaidCoursesTest extends TestCase
             ->assertSee(route('dashboard'), escape: false);
 
         $this->assertStringNotContainsString('http-equiv="refresh"', $final->getContent());
-        $this->assertFalse($user->fresh()->hasPurchased('life-in-the-uk-course'));
+        $this->assertFalse($student->fresh()->hasPurchased('life-in-the-uk-course'));
     }
 
     /**
@@ -2387,18 +2387,18 @@ class PaidCoursesTest extends TestCase
      */
     public function test_the_attempt_counter_cannot_be_pushed_past_the_maximum(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
         $this->stubStripeLookupToFail();
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get('/checkout/success?session_id=cs_test_pending&attempt=9999')
             ->assertOk()
             ->assertSee('This Is Taking Longer Than Usual');
 
         // Absurd or negative values are treated as the first attempt, not
         // echoed into the page.
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get('/checkout/success?session_id=cs_test_pending&attempt=-5')
             ->assertOk()
             ->assertSee('(1 of 10)', escape: false);
@@ -2410,34 +2410,34 @@ class PaidCoursesTest extends TestCase
      */
     public function test_the_success_page_is_throttled(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
         $this->stubStripeLookupToFail();
 
         for ($i = 0; $i < 30; $i++) {
-            $this->actingAs($user)
+            $this->actingAs($student)
                 ->get('/checkout/success?session_id=cs_test_'.$i)
                 ->assertOk();
         }
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get('/checkout/success?session_id=cs_test_over_the_limit')
             ->assertStatus(429);
     }
 
     public function test_the_success_page_validates_the_session_id(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get('/checkout/success?session_id='.urlencode("cs_test_' OR 1=1--"))
             ->assertSessionHasErrors('session_id');
     }
 
-    public function test_the_success_page_will_not_show_another_users_purchase(): void
+    public function test_the_success_page_will_not_show_another_students_purchase(): void
     {
-        $owner = User::factory()->create();
-        $other = User::factory()->create();
+        $owner = Student::factory()->create();
+        $other = Student::factory()->create();
 
         $this->markAsPaid($owner, $this->course('life-in-the-uk-course'), 'cs_test_someone_elses');
 
@@ -2457,21 +2457,21 @@ class PaidCoursesTest extends TestCase
 
     public function test_a_cancelled_payment_is_never_recorded_as_paid(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
-        $this->actingAs($user)->get('/checkout/cancel')->assertOk()->assertSee('No Payment Was Taken');
+        $this->actingAs($student)->get('/checkout/cancel')->assertOk()->assertSee('No Payment Was Taken');
 
         $this->assertSame(0, Purchase::where('status', Purchase::STATUS_PAID)->count());
-        $this->assertFalse($user->fresh()->hasPurchased('24-mock-tests'));
+        $this->assertFalse($student->fresh()->hasPurchased('24-mock-tests'));
     }
 
     public function test_the_cancel_page_offers_a_retry_for_the_course_that_was_abandoned(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
         // The slug remembered when checkout was started, as it is in
         // PurchaseService::beginCheckout().
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->withSession(['checkout.course' => '24-mock-tests'])
             ->get('/checkout/cancel')
             ->assertOk()
@@ -2483,7 +2483,7 @@ class PaidCoursesTest extends TestCase
             ->assertDontSee(action([CheckoutController::class, 'store'], '24-mock-tests'), escape: false);
 
         // Consumed, so a later visit to the cancel page does not repeat it.
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get('/checkout/cancel')
             ->assertOk()
             ->assertDontSee('Try 24 Mock Tests Package Again');
@@ -2491,10 +2491,10 @@ class PaidCoursesTest extends TestCase
 
     public function test_the_cancel_page_does_not_offer_a_retry_for_an_inactive_course(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $this->course('24-mock-tests')->update(['is_active' => false]);
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->withSession(['checkout.course' => '24-mock-tests'])
             ->get('/checkout/cancel')
             ->assertOk()
@@ -2513,7 +2513,7 @@ class PaidCoursesTest extends TestCase
 
     public function test_a_guest_is_sent_to_login_and_not_shown_a_paywall_bypass(): void
     {
-        // A sitting is a database row keyed to a user, so a guest cannot be
+        // A sitting is a database row keyed to a student, so a guest cannot be
         // let in to take a quiz, and there is no longer any state in which
         // one could be waved through.
         $this->get(route('learn.index', $this->course('life-in-the-uk-course')))
@@ -2522,10 +2522,10 @@ class PaidCoursesTest extends TestCase
 
     public function test_a_signed_in_account_without_a_purchase_cannot_open_either_course(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
         foreach (['life-in-the-uk-course', '24-mock-tests'] as $slug) {
-            $this->actingAs($user)
+            $this->actingAs($student)
                 ->get(route('learn.index', $this->course($slug)))
                 ->assertForbidden();
         }
@@ -2538,7 +2538,7 @@ class PaidCoursesTest extends TestCase
             ->assertSee('Buy Now')
             ->assertDontSee('Start Learning');
 
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(Student::factory()->create())
             ->get('/courses/life-in-the-uk-course')
             ->assertOk()
             ->assertSee('Buy Now')
@@ -2734,30 +2734,30 @@ class PaidCoursesTest extends TestCase
      | Account page
      | ----------------------------------------------------------------- */
 
-    public function test_the_account_page_lists_only_what_the_user_owns(): void
+    public function test_the_account_page_lists_only_what_the_student_owns(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
         // Nothing is owned, so the purchase card must be absent. The
         // marketing copy may still name the course, so this asserts on the
         // part of the page that only a purchase produces.
-        $this->actingAs($user)->get('/my-account')
+        $this->actingAs($student)->get('/my-account')
             ->assertOk()
             ->assertSee('You have not purchased anything yet')
             ->assertDontSee('Your material')
             ->assertDontSee('Open the course');
 
-        $this->markAsPaid($user, $this->course('life-in-the-uk-course'), 'cs_test_dashboard');
+        $this->markAsPaid($student, $this->course('life-in-the-uk-course'), 'cs_test_dashboard');
 
-        $this->actingAs($user)->get('/my-account')
+        $this->actingAs($student)->get('/my-account')
             ->assertOk()
             ->assertSee('Your material')
             ->assertSee('Open the course')
             ->assertSee(route('learn.index', $this->course('life-in-the-uk-course')), escape: false);
 
-        $this->markAsPaid($user, $this->course('24-mock-tests'), 'cs_test_dashboard_mocks');
+        $this->markAsPaid($student, $this->course('24-mock-tests'), 'cs_test_dashboard_mocks');
 
-        $this->actingAs($user)->get('/my-account')
+        $this->actingAs($student)->get('/my-account')
             ->assertOk()
             ->assertSee('24 Mock Tests Package')
             ->assertSee('Life in the UK Course');
@@ -2771,11 +2771,11 @@ class PaidCoursesTest extends TestCase
      */
     public function test_the_account_page_offers_no_downloads(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
-        $this->markAsPaid($user, $this->course('life-in-the-uk-course'), 'cs_test_no_downloads');
+        $this->markAsPaid($student, $this->course('life-in-the-uk-course'), 'cs_test_no_downloads');
 
-        $response = $this->actingAs($user)->get('/my-account')->assertOk();
+        $response = $this->actingAs($student)->get('/my-account')->assertOk();
 
         $response->assertDontSee('Download', escape: false);
         $response->assertDontSee('/my-account/downloads/', escape: false);
@@ -3185,17 +3185,17 @@ class PaidCoursesTest extends TestCase
     public function test_the_learn_buttons_are_readable_in_dark_mode(): void
     {
         $course = $this->course('life-in-the-uk-course');
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
-        $this->markAsPaid($user, $course, 'cs_test_learn_buttons');
+        $this->markAsPaid($student, $course, 'cs_test_learn_buttons');
 
         [$lesson] = $this->makeLessons($course, 1);
 
-        $this->actingAs($user)->post(route('learn.lessons.complete', [$course, $lesson]));
+        $this->actingAs($student)->post(route('learn.lessons.complete', [$course, $lesson]));
 
         // The unread button only appears once the lesson is read, so this is the
         // state the new button actually ships in.
-        $html = $this->actingAs($user)->get(route('learn.lessons.show', [$course, $lesson]))
+        $html = $this->actingAs($student)->get(route('learn.lessons.show', [$course, $lesson]))
             ->assertOk()
             ->assertSee('Mark as unread')
             ->getContent();
@@ -3324,15 +3324,15 @@ class PaidCoursesTest extends TestCase
     public function test_the_paper_sidebar_scrolls_away_with_the_page(): void
     {
         $course = $this->course('life-in-the-uk-course');
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
-        $this->markAsPaid($user, $course, 'cs_test_paper_sidebar');
+        $this->markAsPaid($student, $course, 'cs_test_paper_sidebar');
 
         // 24 questions, so the jump grid is three or four rows deep - the shape
         // that made the pinned rail outgrow the space below the header.
         $quiz = $this->makeQuiz($course, 'mock_test', 1, ['a', 'b', 'c', 'd'], 24);
 
-        $html = $this->actingAs($user)->get(route('learn.quizzes.play', [$course, $quiz]))
+        $html = $this->actingAs($student)->get(route('learn.quizzes.play', [$course, $quiz]))
             ->assertOk()
             ->getContent();
 
@@ -3540,7 +3540,7 @@ class PaidCoursesTest extends TestCase
         int &$created,
         string $existingStatus = 'open',
         string $existingPaymentStatus = 'unpaid',
-        ?User $user = null,
+        ?Student $student = null,
         ?Course $course = null
     ): void {
         $onCreate = function (array $params) use (&$created) {
@@ -3550,7 +3550,7 @@ class PaidCoursesTest extends TestCase
         $mock = $this->stripeMock($onCreate);
 
         $mock->shouldReceive('retrieveCheckoutSession')->andReturnUsing(
-            function (string $sessionId) use ($existingStatus, $existingPaymentStatus, $user, $course) {
+            function (string $sessionId) use ($existingStatus, $existingPaymentStatus, $student, $course) {
                 $session = [
                     'id' => $sessionId,
                     'object' => 'checkout.session',
@@ -3559,17 +3559,17 @@ class PaidCoursesTest extends TestCase
                     'url' => "https://checkout.stripe.com/c/pay/{$sessionId}",
                 ];
 
-                if ($user && $course) {
+                if ($student && $course) {
                     $session += [
-                        'client_reference_id' => (string) $user->id,
+                        'client_reference_id' => (string) $student->id,
                         'metadata' => [
-                            'user_id' => (string) $user->id,
+                            'student_id' => (string) $student->id,
                             'course_id' => (string) $course->id,
                             'course_slug' => $course->slug,
                         ],
                         'customer_details' => [
-                            'email' => $user->email,
-                            'name' => $user->name,
+                            'email' => $student->email,
+                            'name' => $student->name,
                         ],
                         'amount_total' => $course->price,
                         'currency' => $course->currency,
@@ -3611,10 +3611,10 @@ class PaidCoursesTest extends TestCase
         return $mock;
     }
 
-    protected function markAsPaid(User $user, Course $course, string $sessionId): Purchase
+    protected function markAsPaid(Student $student, Course $course, string $sessionId): Purchase
     {
         return Purchase::create([
-            'user_id' => $user->id,
+            'student_id' => $student->id,
             'course_id' => $course->id,
             'stripe_checkout_session_id' => $sessionId,
             'stripe_payment_intent_id' => 'pi_'.substr(sha1($sessionId), 0, 12),
@@ -3625,7 +3625,7 @@ class PaidCoursesTest extends TestCase
         ]);
     }
 
-    protected function sessionObject(User $user, Course $course, string $paymentStatus): array
+    protected function sessionObject(Student $student, Course $course, string $paymentStatus): array
     {
         return [
             'id' => 'cs_test_completed',
@@ -3634,15 +3634,15 @@ class PaidCoursesTest extends TestCase
             'status' => 'complete',
             'amount_total' => $course->price,
             'currency' => $course->currency,
-            'client_reference_id' => (string) $user->id,
+            'client_reference_id' => (string) $student->id,
             'customer' => 'cus_test_customer',
             'payment_intent' => 'pi_test_intent',
             'customer_details' => [
-                'email' => $user->email,
-                'name' => $user->name,
+                'email' => $student->email,
+                'name' => $student->name,
             ],
             'metadata' => [
-                'user_id' => (string) $user->id,
+                'student_id' => (string) $student->id,
                 'course_id' => (string) $course->id,
                 'course_slug' => $course->slug,
             ],

@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Course;
 use App\Models\Purchase;
-use App\Models\User;
+use App\Models\Student;
 use App\Notifications\EmailVerificationCode;
 use App\Services\StripeService;
 use Database\Seeders\CourseSeeder;
@@ -117,10 +117,10 @@ class CheckoutJourneyTest extends TestCase
 
         $this->assertGuest();
 
-        $user = User::where('email', 'sam@example.com')->firstOrFail();
+        $student = Student::where('email', 'sam@example.com')->firstOrFail();
 
-        $this->assertNull($user->email_verified_at);
-        $this->assertFalse($user->hasPurchased($course));
+        $this->assertNull($student->email_verified_at);
+        $this->assertFalse($student->hasPurchased($course));
 
         // 4. The code page, and the course is still there.
         $this->get(route('verification.notice'))
@@ -130,11 +130,11 @@ class CheckoutJourneyTest extends TestCase
 
         // 5. The code is accepted, the account is verified and they are signed
         //    in - and they land on the review, not the dashboard.
-        $this->post(route('verification.verify'), ['code' => $this->capturedCode($user)])
+        $this->post(route('verification.verify'), ['code' => $this->capturedCode($student)])
             ->assertRedirect(route('checkout.review', $course));
 
-        $this->assertAuthenticatedAs($user->fresh());
-        $this->assertNotNull($user->fresh()->email_verified_at);
+        $this->assertAuthenticatedAs($student->fresh());
+        $this->assertNotNull($student->fresh()->email_verified_at);
 
         // 6. The review page shows the right course at the right price.
         $this->get(route('checkout.review', $course))
@@ -166,7 +166,7 @@ class CheckoutJourneyTest extends TestCase
         // remembered so the code form is a single field.
         Notification::fake();
 
-        $unverified = User::factory()->unverified()->create();
+        $unverified = Student::factory()->unverified()->create();
 
         $this->actingAs($unverified)
             ->get(route('checkout.start', $course))
@@ -176,7 +176,7 @@ class CheckoutJourneyTest extends TestCase
         Notification::assertSentTo($unverified, EmailVerificationCode::class);
 
         // Signed in and verified: straight to the order review.
-        $verified = User::factory()->create();
+        $verified = Student::factory()->create();
 
         $this->actingAs($verified)
             ->get(route('checkout.start', $course))
@@ -211,11 +211,11 @@ class CheckoutJourneyTest extends TestCase
     {
         $course = $this->course('life-in-the-uk-course');
 
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
-        $this->actingAs($user)->get(route('checkout.start', $course))->assertRedirect();
+        $this->actingAs($student)->get(route('checkout.start', $course))->assertRedirect();
 
-        $this->actingAs(User::factory()->unverified()->create())
+        $this->actingAs(Student::factory()->unverified()->create())
             ->get(route('checkout.start', $course))
             ->assertRedirect();
 
@@ -229,17 +229,17 @@ class CheckoutJourneyTest extends TestCase
     public function test_the_start_route_is_throttled(): void
     {
         $course = $this->course('life-in-the-uk-course');
-        $user = User::factory()->unverified()->create();
+        $student = Student::factory()->unverified()->create();
 
         Notification::fake();
 
         for ($i = 0; $i < 30; $i++) {
-            $this->actingAs($user)
+            $this->actingAs($student)
                 ->get(route('checkout.start', $course))
                 ->assertRedirect();
         }
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get(route('checkout.start', $course))
             ->assertStatus(429);
     }
@@ -253,7 +253,7 @@ class CheckoutJourneyTest extends TestCase
      */
     public function test_a_slug_that_no_longer_resolves_leads_nowhere(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
         $this->withSession(['checkout.intended_course' => '../../etc/passwd'])
             ->get(route('verification.notice'))
@@ -263,7 +263,7 @@ class CheckoutJourneyTest extends TestCase
         $course = $this->course('24-mock-tests');
         $course->update(['is_active' => false]);
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get(route('checkout.review', $course))
             ->assertNotFound();
     }
@@ -279,11 +279,11 @@ class CheckoutJourneyTest extends TestCase
     public function test_signing_in_with_an_intended_course_goes_to_the_review(): void
     {
         $course = $this->course('24-mock-tests');
-        $user = User::factory()->create(['password' => 'correct-horse-battery']);
+        $student = Student::factory()->create(['password' => 'correct-horse-battery']);
 
         $this->withSession(['checkout.intended_course' => $course->slug])
             ->post(route('login'), [
-                'email' => $user->email,
+                'email' => $student->email,
                 'password' => 'correct-horse-battery',
             ])
             ->assertRedirect(route('checkout.review', $course));
@@ -295,10 +295,10 @@ class CheckoutJourneyTest extends TestCase
      */
     public function test_signing_in_without_an_intended_course_goes_to_the_dashboard(): void
     {
-        $user = User::factory()->create(['password' => 'correct-horse-battery']);
+        $student = Student::factory()->create(['password' => 'correct-horse-battery']);
 
         $this->post(route('login'), [
-            'email' => $user->email,
+            'email' => $student->email,
             'password' => 'correct-horse-battery',
         ])->assertRedirect(route('dashboard'));
     }
@@ -309,13 +309,13 @@ class CheckoutJourneyTest extends TestCase
     public function test_signing_in_with_an_owned_intended_course_goes_to_the_dashboard(): void
     {
         $course = $this->course('24-mock-tests');
-        $user = User::factory()->create(['password' => 'correct-horse-battery']);
+        $student = Student::factory()->create(['password' => 'correct-horse-battery']);
 
-        $this->markAsPaid($user, $course);
+        $this->markAsPaid($student, $course);
 
         $this->withSession(['checkout.intended_course' => $course->slug])
             ->post(route('login'), [
-                'email' => $user->email,
+                'email' => $student->email,
                 'password' => 'correct-horse-battery',
             ])
             ->assertRedirect(route('dashboard'));
@@ -336,22 +336,22 @@ class CheckoutJourneyTest extends TestCase
 
         Notification::fake();
 
-        $user = User::factory()->unverified()->create(['password' => 'correct-horse-battery']);
+        $student = Student::factory()->unverified()->create(['password' => 'correct-horse-battery']);
 
         $this->withSession(['checkout.intended_course' => $course->slug])
             ->post(route('login'), [
-                'email' => $user->email,
+                'email' => $student->email,
                 'password' => 'correct-horse-battery',
             ])
             ->assertRedirect(route('verification.notice'))
             ->assertSessionHas('checkout.intended_course', $course->slug)
-            ->assertSessionHas('verification.email', $user->email);
+            ->assertSessionHas('verification.email', $student->email);
 
         // Still a guest: a correct password is not proof of the address.
         $this->assertGuest();
 
         // And the journey still finishes.
-        $this->post(route('verification.verify'), ['code' => $this->capturedCode($user)])
+        $this->post(route('verification.verify'), ['code' => $this->capturedCode($student)])
             ->assertRedirect(route('checkout.review', $course));
     }
 
@@ -371,7 +371,7 @@ class CheckoutJourneyTest extends TestCase
     {
         Notification::fake();
 
-        $user = User::factory()->unverified()->create([
+        $student = Student::factory()->unverified()->create([
             'name' => 'Old Name',
             'password' => 'the-first-password',
         ]);
@@ -380,23 +380,23 @@ class CheckoutJourneyTest extends TestCase
 
         $this->post(route('register'), [
             'name' => 'New Name',
-            'email' => $user->email,
+            'email' => $student->email,
             'password' => 'a-completely-different-password',
             'password_confirmation' => 'a-completely-different-password',
         ])->assertRedirect(route('verification.notice'));
 
         // No second row.
-        $this->assertSame(1, User::where('email', $user->email)->count());
+        $this->assertSame(1, Student::where('email', $student->email)->count());
 
-        $user->refresh();
+        $student->refresh();
 
-        $this->assertSame('New Name', $user->name);
-        $this->assertTrue(Hash::check('a-completely-different-password', $user->password));
-        $this->assertFalse(Hash::check('the-first-password', $user->password));
-        $this->assertNull($user->email_verified_at);
+        $this->assertSame('New Name', $student->name);
+        $this->assertTrue(Hash::check('a-completely-different-password', $student->password));
+        $this->assertFalse(Hash::check('the-first-password', $student->password));
+        $this->assertNull($student->email_verified_at);
 
-        Notification::assertSentTo($user, EmailVerificationCode::class);
-        $this->assertTrue($user->verificationCodeMatches($this->capturedCode($user)));
+        Notification::assertSentTo($student, EmailVerificationCode::class);
+        $this->assertTrue($student->verificationCodeMatches($this->capturedCode($student)));
     }
 
     /**
@@ -412,24 +412,24 @@ class CheckoutJourneyTest extends TestCase
     {
         Notification::fake();
 
-        $user = User::factory()->create([
+        $student = Student::factory()->create([
             'name' => 'The Real Owner',
             'password' => 'their-own-password',
         ]);
 
         $this->post(route('register'), [
             'name' => 'Someone Else',
-            'email' => $user->email,
+            'email' => $student->email,
             'password' => 'a-password-i-made-up',
             'password_confirmation' => 'a-password-i-made-up',
         ])->assertRedirect(route('login'))
             ->assertSessionHas('info', 'You already have an account with this email. Please log in.');
 
-        $user->refresh();
+        $student->refresh();
 
-        $this->assertSame('The Real Owner', $user->name);
-        $this->assertTrue(Hash::check('their-own-password', $user->password));
-        $this->assertNotNull($user->email_verified_at);
+        $this->assertSame('The Real Owner', $student->name);
+        $this->assertTrue(Hash::check('their-own-password', $student->password));
+        $this->assertNotNull($student->email_verified_at);
 
         // No code was mailed, and nobody is signed in.
         Notification::assertNothingSent();
@@ -442,12 +442,12 @@ class CheckoutJourneyTest extends TestCase
     public function test_a_verified_duplicate_sign_up_keeps_the_intended_course(): void
     {
         $course = $this->course('life-in-the-uk-course');
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
         $this->withSession(['checkout.intended_course' => $course->slug])
             ->post(route('register'), [
                 'name' => 'Someone',
-                'email' => $user->email,
+                'email' => $student->email,
                 'password' => 'a-password-i-made-up',
                 'password_confirmation' => 'a-password-i-made-up',
             ])
@@ -472,35 +472,35 @@ class CheckoutJourneyTest extends TestCase
 
         config(['courses.code_resend_cooldown_seconds' => 60]);
 
-        $user = User::factory()->unverified()->create();
+        $student = Student::factory()->unverified()->create();
 
-        $this->post(route('verification.resend'), ['email' => $user->email])
+        $this->post(route('verification.resend'), ['email' => $student->email])
             ->assertRedirect(route('verification.notice'))
             ->assertSessionHas('success');
 
-        $firstSentAt = $user->fresh()->verification_code_sent_at;
+        $firstSentAt = $student->fresh()->verification_code_sent_at;
 
         // Ten seconds later, still inside the window.
         $this->travel(10)->seconds();
 
-        $this->post(route('verification.resend'), ['email' => $user->email])
+        $this->post(route('verification.resend'), ['email' => $student->email])
             ->assertRedirect(route('verification.notice'))
             ->assertSessionHas('info');
 
         $this->assertTrue(
-            $firstSentAt->equalTo($user->fresh()->verification_code_sent_at),
+            $firstSentAt->equalTo($student->fresh()->verification_code_sent_at),
             'No new code may be issued inside the cooldown.',
         );
 
         // Past the window, it mails again.
         $this->travel(60)->seconds();
 
-        $this->post(route('verification.resend'), ['email' => $user->email])
+        $this->post(route('verification.resend'), ['email' => $student->email])
             ->assertRedirect(route('verification.notice'))
             ->assertSessionHas('success');
 
         $this->assertTrue(
-            $user->fresh()->verification_code_sent_at->isAfter($firstSentAt),
+            $student->fresh()->verification_code_sent_at->isAfter($firstSentAt),
         );
     }
 
@@ -512,14 +512,14 @@ class CheckoutJourneyTest extends TestCase
     {
         Notification::fake();
 
-        $user = User::factory()->unverified()->create();
+        $student = Student::factory()->unverified()->create();
 
         // A code went out on the abandoned attempt a moment ago.
-        $user->forceFill(['verification_code_sent_at' => now()])->save();
+        $student->forceFill(['verification_code_sent_at' => now()])->save();
 
         $this->post(route('register'), [
             'name' => 'Back Again',
-            'email' => $user->email,
+            'email' => $student->email,
             'password' => 'a-new-password-here',
             'password_confirmation' => 'a-new-password-here',
         ])->assertRedirect(route('verification.notice'))
@@ -541,9 +541,9 @@ class CheckoutJourneyTest extends TestCase
 
         config(['courses.code_resend_cooldown_seconds' => 0]);
 
-        $user = User::factory()->unverified()->create();
+        $student = Student::factory()->unverified()->create();
 
-        $this->post(route('verification.resend'), ['email' => $user->email])
+        $this->post(route('verification.resend'), ['email' => $student->email])
             ->assertRedirect(route('verification.notice'))
             ->assertSessionHas('success', 'If that address needs verifying, a fresh code is on its way.');
 
@@ -561,10 +561,10 @@ class CheckoutJourneyTest extends TestCase
      */
     public function test_the_review_page_shows_the_server_price(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('24-mock-tests');
 
-        $this->actingAs($user)->get(route('checkout.review', $course))
+        $this->actingAs($student)->get(route('checkout.review', $course))
             ->assertOk()
             ->assertSee('£49')
             ->assertDontSee('£1.00');
@@ -580,11 +580,11 @@ class CheckoutJourneyTest extends TestCase
      */
     public function test_the_review_page_refuses_a_post_without_consent(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
         foreach ([[], ['consent' => ''], ['consent' => '0'], ['consent' => 'no']] as $payload) {
-            $this->actingAs($user)
+            $this->actingAs($student)
                 ->post(route('checkout.store', $course), $payload)
                 ->assertSessionHasErrors('consent');
         }
@@ -596,17 +596,17 @@ class CheckoutJourneyTest extends TestCase
      * Somebody who already owns the course is sent to it rather than shown a
      * page offering to sell it to them.
      */
-    public function test_the_review_page_blocks_a_course_the_user_already_owns(): void
+    public function test_the_review_page_blocks_a_course_the_student_already_owns(): void
     {
         $course = $this->course('life-in-the-uk-course');
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
-        $this->markAsPaid($user, $course);
+        $this->markAsPaid($student, $course);
 
-        $this->actingAs($user)->get(route('checkout.review', $course))
+        $this->actingAs($student)->get(route('checkout.review', $course))
             ->assertRedirect(route('dashboard'));
 
-        $this->actingAs($user)->post(route('checkout.store', $course), ['consent' => '1'])
+        $this->actingAs($student)->post(route('checkout.store', $course), ['consent' => '1'])
             ->assertRedirect(route('dashboard'));
 
         $this->assertSame(1, Purchase::count());
@@ -621,7 +621,7 @@ class CheckoutJourneyTest extends TestCase
 
         $this->get(route('checkout.review', $course))->assertRedirect(route('login'));
 
-        $this->actingAs(User::factory()->unverified()->create())
+        $this->actingAs(Student::factory()->unverified()->create())
             ->get(route('checkout.review', $course))
             ->assertRedirect(route('verification.notice'));
     }
@@ -635,9 +635,9 @@ class CheckoutJourneyTest extends TestCase
     {
         config(['courses.consent_text' => 'A wording the owner has changed.']);
 
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->get(route('checkout.review', $this->course('life-in-the-uk-course')))
             ->assertOk()
             ->assertSee('A wording the owner has changed.');
@@ -652,12 +652,12 @@ class CheckoutJourneyTest extends TestCase
      */
     public function test_the_dashboard_highlights_the_course_that_was_just_bought(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('life-in-the-uk-course');
 
-        $this->markAsPaid($user, $course);
+        $this->markAsPaid($student, $course);
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->withSession(['highlight_course' => $course->slug])
             ->get(route('dashboard'))
             ->assertOk()
@@ -666,7 +666,7 @@ class CheckoutJourneyTest extends TestCase
             ->assertSee('Start learning');
 
         // It is a one-off. A badge that never goes away stops meaning anything.
-        $this->actingAs($user)->get(route('dashboard'))
+        $this->actingAs($student)->get(route('dashboard'))
             ->assertOk()
             ->assertDontSee('Payment received. This is yours.');
     }
@@ -677,9 +677,9 @@ class CheckoutJourneyTest extends TestCase
      */
     public function test_the_dashboard_will_not_highlight_an_unowned_course(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
-        $this->actingAs($user)
+        $this->actingAs($student)
             ->withSession(['highlight_course' => 'life-in-the-uk-course'])
             ->get(route('dashboard'))
             ->assertOk()
@@ -694,13 +694,13 @@ class CheckoutJourneyTest extends TestCase
      */
     public function test_the_dashboard_lists_one_entry_per_unfinished_course(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('24-mock-tests');
 
         // Three attempts at one course.
         foreach (range(1, 3) as $i) {
             Purchase::create([
-                'user_id' => $user->id,
+                'student_id' => $student->id,
                 'course_id' => $course->id,
                 'stripe_checkout_session_id' => 'cs_test_attempt_'.$i,
                 'amount' => $course->price,
@@ -709,7 +709,7 @@ class CheckoutJourneyTest extends TestCase
             ]);
         }
 
-        $response = $this->actingAs($user)->get(route('dashboard'))->assertOk();
+        $response = $this->actingAs($student)->get(route('dashboard'))->assertOk();
 
         $response->assertSee('Complete your purchase')
             ->assertSee('24 Mock Tests Package')
@@ -732,12 +732,12 @@ class CheckoutJourneyTest extends TestCase
      */
     public function test_the_dashboard_does_not_list_a_paid_course_as_unfinished(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
         $course = $this->course('24-mock-tests');
 
-        $this->markAsPaid($user, $course);
+        $this->markAsPaid($student, $course);
 
-        $this->actingAs($user)->get(route('dashboard'))
+        $this->actingAs($student)->get(route('dashboard'))
             ->assertOk()
             ->assertDontSee('Complete your purchase');
     }
@@ -751,10 +751,10 @@ class CheckoutJourneyTest extends TestCase
         return Course::where('slug', $slug)->firstOrFail();
     }
 
-    protected function markAsPaid(User $user, Course $course, string $sessionId = 'cs_test_paid'): Purchase
+    protected function markAsPaid(Student $student, Course $course, string $sessionId = 'cs_test_paid'): Purchase
     {
         return Purchase::create([
-            'user_id' => $user->id,
+            'student_id' => $student->id,
             'course_id' => $course->id,
             'stripe_checkout_session_id' => $sessionId,
             'amount' => $course->price,
@@ -765,25 +765,25 @@ class CheckoutJourneyTest extends TestCase
     }
 
     /**
-     * The real digits of the code that was mailed to this user.
+     * The real digits of the code that was mailed to this student.
      *
      * Only a keyed hash is stored, so the code cannot be read back out of the
      * database - which is the point of storing a hash. That it can be recovered
      * this way is a fact about the test, not about the model.
      */
-    private function capturedCode(User $user): string
+    private function capturedCode(Student $student): string
     {
-        $issued = $user->fresh()->verification_code_hash;
+        $issued = $student->fresh()->verification_code_hash;
 
-        $this->assertNotNull($issued, 'no code is outstanding for this user');
+        $this->assertNotNull($issued, 'no code is outstanding for this student');
 
         $captured = null;
 
         Notification::assertSentTo(
-            $user,
+            $student,
             EmailVerificationCode::class,
-            function (EmailVerificationCode $notification) use ($user, $issued, &$captured) {
-                if (hash_hmac('sha256', $user->id.'|'.$notification->code, config('app.key')) === $issued) {
+            function (EmailVerificationCode $notification) use ($student, $issued, &$captured) {
+                if (hash_hmac('sha256', $student->id.'|'.$notification->code, config('app.key')) === $issued) {
                     $captured = $notification->code;
                 }
 

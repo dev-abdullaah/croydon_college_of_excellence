@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
+use App\Models\Student;
 use App\Notifications\EmailVerificationCode;
 use Database\Seeders\CourseSeeder;
 use Illuminate\Auth\Events\Verified;
@@ -63,7 +63,7 @@ class EmailVerificationCodeTest extends TestCase
         $this->assertGuest();
 
         Notification::assertSentTo(
-            User::where('email', 'sajib@example.com')->firstOrFail(),
+            Student::where('email', 'sajib@example.com')->firstOrFail(),
             EmailVerificationCode::class,
         );
     }
@@ -80,7 +80,7 @@ class EmailVerificationCodeTest extends TestCase
         ]);
 
         $this->assertNull(
-            User::where('email', 'sajib@example.com')->firstOrFail()->email_verified_at
+            Student::where('email', 'sajib@example.com')->firstOrFail()->email_verified_at
         );
     }
 
@@ -92,10 +92,10 @@ class EmailVerificationCodeTest extends TestCase
     {
         Notification::fake();
 
-        $user = User::factory()->unverified()->create();
+        $student = Student::factory()->unverified()->create();
 
         $this->post('/login', [
-            'email' => $user->email,
+            'email' => $student->email,
             'password' => 'password',
         ])->assertRedirect('/email/verify');
 
@@ -105,27 +105,27 @@ class EmailVerificationCodeTest extends TestCase
 
         // And a fresh code goes out, since the likeliest reason for this is a
         // code that expired or was never opened.
-        Notification::assertSentTo($user, EmailVerificationCode::class);
+        Notification::assertSentTo($student, EmailVerificationCode::class);
     }
 
     public function test_a_verified_account_can_still_sign_in(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
         $this->post('/login', [
-            'email' => $user->email,
+            'email' => $student->email,
             'password' => 'password',
         ])->assertRedirect('/my-account');
 
-        $this->assertAuthenticatedAs($user);
+        $this->assertAuthenticatedAs($student);
     }
 
     public function test_a_wrong_password_is_still_refused(): void
     {
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
         $this->post('/login', [
-            'email' => $user->email,
+            'email' => $student->email,
             'password' => 'not-the-password',
         ])->assertSessionHasErrors('email');
 
@@ -141,28 +141,28 @@ class EmailVerificationCodeTest extends TestCase
 
     public function test_an_unverified_account_cannot_reach_the_dashboard(): void
     {
-        $this->actingAs(User::factory()->unverified()->create())
+        $this->actingAs(Student::factory()->unverified()->create())
             ->get('/my-account')
             ->assertRedirect('/email/verify');
     }
 
     public function test_an_unverified_account_cannot_reach_checkout(): void
     {
-        $this->actingAs(User::factory()->unverified()->create())
+        $this->actingAs(Student::factory()->unverified()->create())
             ->post('/checkout/life-in-the-uk-course')
             ->assertRedirect('/email/verify');
     }
 
     public function test_an_unverified_account_cannot_reach_the_learning_area(): void
     {
-        $this->actingAs(User::factory()->unverified()->create())
+        $this->actingAs(Student::factory()->unverified()->create())
             ->get('/my-account/courses/life-in-the-uk-course')
             ->assertRedirect('/email/verify');
     }
 
     public function test_a_verified_account_reaches_the_dashboard(): void
     {
-        $this->actingAs(User::factory()->create())
+        $this->actingAs(Student::factory()->create())
             ->get('/my-account')
             ->assertOk();
     }
@@ -175,63 +175,63 @@ class EmailVerificationCodeTest extends TestCase
     {
         Event::fake([Verified::class]);
 
-        $user = User::factory()->unverified()->create();
-        $code = $user->issueVerificationCode();
+        $student = Student::factory()->unverified()->create();
+        $code = $student->issueVerificationCode();
 
         $this->post('/email/verify', [
-            'email' => $user->email,
+            'email' => $student->email,
             'code' => $code,
         ])->assertRedirect('/my-account');
 
-        $this->assertNotNull($user->fresh()->email_verified_at);
-        $this->assertAuthenticatedAs($user->fresh());
+        $this->assertNotNull($student->fresh()->email_verified_at);
+        $this->assertAuthenticatedAs($student->fresh());
 
         Event::assertDispatched(Verified::class);
     }
 
     public function test_a_code_with_the_wrong_digits_is_refused(): void
     {
-        $user = User::factory()->unverified()->create();
-        $code = $user->issueVerificationCode();
+        $student = Student::factory()->unverified()->create();
+        $code = $student->issueVerificationCode();
 
         $wrong = str_pad((string) ((int) $code === 0 ? 1 : ((int) $code + 1) % 1000000), 6, '0', STR_PAD_LEFT);
 
         $this->post('/email/verify', [
-            'email' => $user->email,
+            'email' => $student->email,
             'code' => $wrong,
         ])->assertSessionHasErrors('code');
 
-        $this->assertNull($user->fresh()->email_verified_at);
+        $this->assertNull($student->fresh()->email_verified_at);
         $this->assertGuest();
     }
 
     public function test_a_code_is_required_to_be_six_digits(): void
     {
-        $user = User::factory()->unverified()->create();
-        $user->issueVerificationCode();
+        $student = Student::factory()->unverified()->create();
+        $student->issueVerificationCode();
 
         $this->post('/email/verify', [
-            'email' => $user->email,
+            'email' => $student->email,
             'code' => '123',
         ])->assertSessionHasErrors('code');
 
-        $this->assertNull($user->fresh()->email_verified_at);
+        $this->assertNull($student->fresh()->email_verified_at);
     }
 
     public function test_leading_zeroes_are_preserved(): void
     {
         // A code may legitimately be 000123. Storing it as an integer anywhere
-        // would silently turn that into 123 and the user's entry would fail.
-        $user = User::factory()->unverified()->create();
+        // would silently turn that into 123 and the student's entry would fail.
+        $student = Student::factory()->unverified()->create();
 
-        $this->forceCode($user, '000123');
+        $this->forceCode($student, '000123');
 
         $this->post('/email/verify', [
-            'email' => $user->email,
+            'email' => $student->email,
             'code' => '000123',
         ])->assertRedirect('/my-account');
 
-        $this->assertNotNull($user->fresh()->email_verified_at);
+        $this->assertNotNull($student->fresh()->email_verified_at);
     }
 
     /* -----------------------------------------------------------------
@@ -243,18 +243,18 @@ class EmailVerificationCodeTest extends TestCase
 
     public function test_only_a_hash_of_the_code_is_stored(): void
     {
-        $user = User::factory()->unverified()->create();
-        $code = $user->issueVerificationCode();
+        $student = Student::factory()->unverified()->create();
+        $code = $student->issueVerificationCode();
 
-        $this->assertNotSame($code, $user->fresh()->verification_code_hash);
-        $this->assertSame($this->digest($user, $code), $user->fresh()->verification_code_hash);
+        $this->assertNotSame($code, $student->fresh()->verification_code_hash);
+        $this->assertSame($this->digest($student, $code), $student->fresh()->verification_code_hash);
 
         // And it must not be reachable through serialisation, which is how it
         // would end up in an API response or a queued payload.
-        $this->assertArrayNotHasKey('verification_code_hash', $user->fresh()->toArray());
+        $this->assertArrayNotHasKey('verification_code_hash', $student->fresh()->toArray());
         $this->assertStringNotContainsString(
             $code,
-            json_encode($user->fresh()->toArray(), JSON_THROW_ON_ERROR),
+            json_encode($student->fresh()->toArray(), JSON_THROW_ON_ERROR),
         );
     }
 
@@ -263,7 +263,7 @@ class EmailVerificationCodeTest extends TestCase
      *
      * A plain `hash('sha256', $code)` is not much of a secret for six digits.
      * There are a million possible codes, so anybody holding a copy of the
-     * users table - a backup, a replica, an over-broad SQL grant, and none of
+     * students table - a backup, a replica, an over-broad SQL grant, and none of
      * those need write access - can hash all a million and look for a match in
      * under a second. Keying it with the application key, which never leaves
      * the server, means the table on its own is worth nothing.
@@ -274,24 +274,24 @@ class EmailVerificationCodeTest extends TestCase
      */
     public function test_the_stored_code_cannot_be_reversed_without_the_application_key(): void
     {
-        $user = User::factory()->unverified()->create();
-        $code = $user->issueVerificationCode();
+        $student = Student::factory()->unverified()->create();
+        $code = $student->issueVerificationCode();
 
-        $stored = $user->fresh()->verification_code_hash;
+        $stored = $student->fresh()->verification_code_hash;
 
         $this->assertNotSame(hash('sha256', $code), $stored, 'A bare SHA-256 is brute-forceable.');
         $this->assertSame(
-            hash_hmac('sha256', $user->id.'|'.$code, config('app.key')),
+            hash_hmac('sha256', $student->id.'|'.$code, config('app.key')),
             $stored,
         );
 
         // The key is bound in twice: the account id is in the message, so two
         // accounts sent the same six digits do not produce the same row value
         // and one account's code cannot be validated against another's.
-        $other = User::factory()->unverified()->create();
+        $other = Student::factory()->unverified()->create();
 
         $this->assertNotSame(
-            $user->verificationCodeDigestForTest($code),
+            $student->verificationCodeDigestForTest($code),
             $other->verificationCodeDigestForTest($code),
         );
 
@@ -299,7 +299,7 @@ class EmailVerificationCodeTest extends TestCase
         // point of using one.
         $this->assertNotSame(
             $stored,
-            hash_hmac('sha256', $user->id.'|'.$code, 'a-different-app-key'),
+            hash_hmac('sha256', $student->id.'|'.$code, 'a-different-app-key'),
         );
     }
 
@@ -311,68 +311,68 @@ class EmailVerificationCodeTest extends TestCase
     {
         Notification::fake();
 
-        $user = User::factory()->unverified()->create();
-        $code = $user->issueVerificationCode();
+        $student = Student::factory()->unverified()->create();
+        $code = $student->issueVerificationCode();
 
         $max = (int) config('auth.verification_code.max_attempts', 5);
 
         for ($i = 0; $i < $max; $i++) {
-            $this->post('/email/verify', ['email' => $user->email, 'code' => '000000'])
+            $this->post('/email/verify', ['email' => $student->email, 'code' => '000000'])
                 ->assertSessionHasErrors('code');
         }
 
-        $this->assertTrue($user->fresh()->verificationCodeLocked());
-        $this->assertNull($user->fresh()->email_verified_at);
+        $this->assertTrue($student->fresh()->verificationCodeLocked());
+        $this->assertNull($student->fresh()->email_verified_at);
 
         // A correct code is refused too, because the lockout is on the code
         // rather than on the count of wrong answers alone.
-        $this->post('/email/verify', ['email' => $user->email, 'code' => $code])
+        $this->post('/email/verify', ['email' => $student->email, 'code' => $code])
             ->assertSessionHasErrors('code');
 
-        $this->assertNull($user->fresh()->email_verified_at);
+        $this->assertNull($student->fresh()->email_verified_at);
     }
 
     public function test_an_expired_code_is_refused(): void
     {
-        $user = User::factory()->unverified()->create();
-        $code = $user->issueVerificationCode();
+        $student = Student::factory()->unverified()->create();
+        $code = $student->issueVerificationCode();
 
         $this->travel(config('auth.verification_code.expire') + 1)->minutes();
 
         $this->post('/email/verify', [
-            'email' => $user->email,
+            'email' => $student->email,
             'code' => $code,
         ])->assertSessionHasErrors('code');
 
-        $this->assertNull($user->fresh()->email_verified_at);
+        $this->assertNull($student->fresh()->email_verified_at);
     }
 
     public function test_wrong_attempts_are_counted_and_the_code_locks_out(): void
     {
-        $user = User::factory()->unverified()->create();
-        $code = $user->issueVerificationCode();
+        $student = Student::factory()->unverified()->create();
+        $code = $student->issueVerificationCode();
 
         $max = config('auth.verification_code.max_attempts');
 
         // One short of the allowance: still refused, still counted.
         for ($i = 1; $i < $max; $i++) {
-            $this->post('/email/verify', ['email' => $user->email, 'code' => '000000'])
+            $this->post('/email/verify', ['email' => $student->email, 'code' => '000000'])
                 ->assertSessionHasErrors('code');
         }
 
-        $this->assertSame($max - 1, $user->fresh()->verification_code_attempts);
+        $this->assertSame($max - 1, $student->fresh()->verification_code_attempts);
 
         // The last one trips the lockout...
-        $this->post('/email/verify', ['email' => $user->email, 'code' => '000000'])
+        $this->post('/email/verify', ['email' => $student->email, 'code' => '000000'])
             ->assertSessionHasErrors('code');
 
-        $this->assertTrue($user->fresh()->verificationCodeLocked());
+        $this->assertTrue($student->fresh()->verificationCodeLocked());
 
         // ...and the correct code is now refused too, which is the whole point.
-        $this->post('/email/verify', ['email' => $user->email, 'code' => $code])
+        $this->post('/email/verify', ['email' => $student->email, 'code' => $code])
             ->assertSessionHasErrors('code');
 
-        $this->assertNull($user->fresh()->email_verified_at);
+        $this->assertNull($student->fresh()->email_verified_at);
         $this->assertGuest();
     }
 
@@ -380,47 +380,47 @@ class EmailVerificationCodeTest extends TestCase
     {
         // Somebody who fumbled five guesses is not an attacker, and locking
         // them out of their own account is the wrong answer.
-        $user = User::factory()->unverified()->create();
-        $user->issueVerificationCode();
+        $student = Student::factory()->unverified()->create();
+        $student->issueVerificationCode();
 
-        $this->post('/email/verify', ['email' => $user->email, 'code' => '000000'])
+        $this->post('/email/verify', ['email' => $student->email, 'code' => '000000'])
             ->assertSessionHasErrors('code');
 
-        $this->assertSame(1, $user->fresh()->verification_code_attempts);
+        $this->assertSame(1, $student->fresh()->verification_code_attempts);
 
-        $code = $user->issueVerificationCode();
+        $code = $student->issueVerificationCode();
 
-        $this->assertSame(0, $user->fresh()->verification_code_attempts);
+        $this->assertSame(0, $student->fresh()->verification_code_attempts);
 
-        $this->post('/email/verify', ['email' => $user->email, 'code' => $code])
+        $this->post('/email/verify', ['email' => $student->email, 'code' => $code])
             ->assertRedirect('/my-account');
     }
 
     public function test_the_lockout_expires(): void
     {
-        $user = User::factory()->unverified()->create();
-        $user->issueVerificationCode();
+        $student = Student::factory()->unverified()->create();
+        $student->issueVerificationCode();
 
         $max = config('auth.verification_code.max_attempts');
         for ($i = 0; $i < $max; $i++) {
-            $this->post('/email/verify', ['email' => $user->email, 'code' => '000000']);
+            $this->post('/email/verify', ['email' => $student->email, 'code' => '000000']);
         }
 
-        $this->assertTrue($user->fresh()->verificationCodeLocked());
+        $this->assertTrue($student->fresh()->verificationCodeLocked());
 
         $this->travel(config('auth.verification_code.lockout_minutes') + 1)->minutes();
 
-        $this->assertFalse($user->fresh()->verificationCodeLocked());
+        $this->assertFalse($student->fresh()->verificationCodeLocked());
     }
 
     public function test_a_redeemed_code_cannot_be_replayed(): void
     {
         // The old link could be prefetched by a mail client; a code copied into
         // a shared thread must be equally spent afterwards.
-        $user = User::factory()->unverified()->create();
-        $code = $user->issueVerificationCode();
+        $student = Student::factory()->unverified()->create();
+        $code = $student->issueVerificationCode();
 
-        $this->post('/email/verify', ['email' => $user->email, 'code' => $code])
+        $this->post('/email/verify', ['email' => $student->email, 'code' => $code])
             ->assertRedirect('/my-account');
 
         $this->post('/logout');
@@ -428,18 +428,18 @@ class EmailVerificationCodeTest extends TestCase
         // Replay lands on the "already verified" path rather than an error,
         // which is the same harmless outcome the link had. What matters is that
         // it does not sign anybody in, and that the code is genuinely spent.
-        $this->post('/email/verify', ['email' => $user->email, 'code' => $code])
+        $this->post('/email/verify', ['email' => $student->email, 'code' => $code])
             ->assertRedirect('/my-account')
             ->assertSessionHas('info');
 
         $this->assertGuest();
 
         // The hash is gone, not merely marked used.
-        $this->assertNull($user->fresh()->verification_code_hash);
+        $this->assertNull($student->fresh()->verification_code_hash);
 
         // And so a replayed code cannot verify somebody else's fresh account
         // either, because there is no stored value left to compare against.
-        $other = User::factory()->unverified()->create();
+        $other = Student::factory()->unverified()->create();
 
         $this->post('/logout');
         $this->post('/email/verify', ['email' => $other->email, 'code' => $code])
@@ -452,15 +452,15 @@ class EmailVerificationCodeTest extends TestCase
     {
         // Two live codes at once would leave the recipient holding one the
         // server rejects, with no way to tell that from a mistype.
-        $user = User::factory()->unverified()->create();
+        $student = Student::factory()->unverified()->create();
 
-        $first = $user->issueVerificationCode();
-        $second = $user->issueVerificationCode();
+        $first = $student->issueVerificationCode();
+        $second = $student->issueVerificationCode();
 
-        $this->post('/email/verify', ['email' => $user->email, 'code' => $first])
+        $this->post('/email/verify', ['email' => $student->email, 'code' => $first])
             ->assertSessionHasErrors('code');
 
-        $this->post('/email/verify', ['email' => $user->email, 'code' => $second])
+        $this->post('/email/verify', ['email' => $student->email, 'code' => $second])
             ->assertRedirect('/my-account');
     }
 
@@ -470,8 +470,8 @@ class EmailVerificationCodeTest extends TestCase
 
     public function test_an_unknown_address_fails_exactly_like_a_wrong_code(): void
     {
-        $user = User::factory()->unverified()->create();
-        $user->issueVerificationCode();
+        $student = Student::factory()->unverified()->create();
+        $student->issueVerificationCode();
 
         $this->post('/email/verify', [
             'email' => 'nobody@example.com',
@@ -480,7 +480,7 @@ class EmailVerificationCodeTest extends TestCase
         $unknownMessage = session('errors')->first('code');
 
         $this->post('/email/verify', [
-            'email' => $user->email,
+            'email' => $student->email,
             'code' => '123456',
         ])->assertSessionHasErrors('code');
         $wrongMessage = session('errors')->first('code');
@@ -493,10 +493,10 @@ class EmailVerificationCodeTest extends TestCase
     {
         // The one answer that may differ, because it reveals nothing an
         // attacker did not already supply.
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
         $this->post('/email/verify', [
-            'email' => $user->email,
+            'email' => $student->email,
             'code' => '123456',
         ])->assertRedirect('/my-account')
             ->assertSessionHas('info');
@@ -527,9 +527,9 @@ class EmailVerificationCodeTest extends TestCase
     {
         Notification::fake();
 
-        $user = User::factory()->unverified()->create();
+        $student = Student::factory()->unverified()->create();
 
-        $this->post('/email/resend', ['email' => $user->email]);
+        $this->post('/email/resend', ['email' => $student->email]);
 
         $html = $this->get('/email/verify')->assertOk()->getContent();
 
@@ -572,11 +572,11 @@ class EmailVerificationCodeTest extends TestCase
 
     public function test_the_address_is_shown_in_full_on_screen(): void
     {
-        // The address is no longer masked - it's shown in full so the user can
+        // The address is no longer masked - it's shown in full so the student can
         // confirm it's correct without ambiguity.
-        $user = User::factory()->unverified()->create(['email' => 'student@example.com']);
+        $student = Student::factory()->unverified()->create(['email' => 'student@example.com']);
 
-        $this->post('/email/resend', ['email' => $user->email]);
+        $this->post('/email/resend', ['email' => $student->email]);
 
         $html = $this->get('/email/verify')->assertOk()->getContent();
 
@@ -587,9 +587,9 @@ class EmailVerificationCodeTest extends TestCase
     public function test_a_short_local_part_is_shown_in_full(): void
     {
         // Short local parts are also shown in full.
-        $user = User::factory()->unverified()->create(['email' => 'a@example.com']);
+        $student = Student::factory()->unverified()->create(['email' => 'a@example.com']);
 
-        $this->post('/email/resend', ['email' => $user->email]);
+        $this->post('/email/resend', ['email' => $student->email]);
 
         $html = $this->get('/email/verify')->assertOk()->getContent();
 
@@ -603,19 +603,19 @@ class EmailVerificationCodeTest extends TestCase
         // the form must not require it back.
         Notification::fake();
 
-        $user = User::factory()->unverified()->create();
+        $student = Student::factory()->unverified()->create();
 
         // Resending is what puts the address in the session, and it mints the
         // code - the same two effects the rendered pages rely on.
-        $this->post('/email/resend', ['email' => $user->email]);
+        $this->post('/email/resend', ['email' => $student->email]);
 
-        $code = $this->capturedCode($user);
+        $code = $this->capturedCode($student);
 
         // Only the code is posted, exactly as the rendered form does.
         $this->post('/email/verify', ['code' => $code])
             ->assertRedirect('/my-account');
 
-        $this->assertNotNull($user->fresh()->email_verified_at);
+        $this->assertNotNull($student->fresh()->email_verified_at);
     }
 
     public function test_a_missing_address_sends_the_person_to_the_resend_page(): void
@@ -646,26 +646,26 @@ class EmailVerificationCodeTest extends TestCase
     }
 
     /**
-     * The real digits of the code currently outstanding for this user.
+     * The real digits of the code currently outstanding for this student.
      *
      * Only a hash is stored, so the code genuinely cannot be read back out of
      * the database - which is the point of storing a hash, and the reason
      * this goes to the notification instead. That it can be recovered this way
      * in a test is a fact about the test, not about the model.
      */
-    private function capturedCode(User $user): string
+    private function capturedCode(Student $student): string
     {
-        $issued = $user->fresh()->verification_code_hash;
+        $issued = $student->fresh()->verification_code_hash;
 
-        $this->assertNotNull($issued, 'no code is outstanding for this user');
+        $this->assertNotNull($issued, 'no code is outstanding for this student');
 
         $captured = null;
 
         Notification::assertSentTo(
-            $user,
+            $student,
             EmailVerificationCode::class,
-            function (EmailVerificationCode $notification) use ($user, $issued, &$captured) {
-                if ($this->digest($user, $notification->code) === $issued) {
+            function (EmailVerificationCode $notification) use ($student, $issued, &$captured) {
+                if ($this->digest($student, $notification->code) === $issued) {
                     $captured = $notification->code;
                 }
 
@@ -694,21 +694,21 @@ class EmailVerificationCodeTest extends TestCase
     {
         Notification::fake();
 
-        $user = User::factory()->unverified()->create();
+        $student = Student::factory()->unverified()->create();
 
-        $this->post('/email/resend', ['email' => $user->email])
+        $this->post('/email/resend', ['email' => $student->email])
             ->assertRedirect('/email/verify');
 
-        Notification::assertSentTo($user, EmailVerificationCode::class);
+        Notification::assertSentTo($student, EmailVerificationCode::class);
     }
 
     public function test_resending_to_a_verified_address_sends_nothing(): void
     {
         Notification::fake();
 
-        $user = User::factory()->create();
+        $student = Student::factory()->create();
 
-        $this->post('/email/resend', ['email' => $user->email])
+        $this->post('/email/resend', ['email' => $student->email])
             ->assertRedirect('/email/verify');
 
         Notification::assertNothingSent();
@@ -739,15 +739,15 @@ class EmailVerificationCodeTest extends TestCase
         // out, and the test would be asserting a 429 rather than the lockout.
         Notification::fake();
 
-        $user = User::factory()->unverified()->create();
-        $user->issueVerificationCode();
+        $student = Student::factory()->unverified()->create();
+        $student->issueVerificationCode();
 
         $max = config('auth.verification_code.max_attempts');
-        $user->forceFill(['verification_code_attempts' => $max])->save();
+        $student->forceFill(['verification_code_attempts' => $max])->save();
 
-        $this->assertTrue($user->fresh()->verificationCodeLocked());
+        $this->assertTrue($student->fresh()->verificationCodeLocked());
 
-        $this->post('/email/resend', ['email' => $user->email])
+        $this->post('/email/resend', ['email' => $student->email])
             ->assertRedirect('/email/verify');
 
         Notification::assertNothingSent();
@@ -757,12 +757,12 @@ class EmailVerificationCodeTest extends TestCase
      | Wiring
      * ----------------------------------------------------------------- */
 
-    public function test_the_user_model_actually_claims_to_need_verification(): void
+    public function test_the_student_model_actually_claims_to_need_verification(): void
     {
         // Guards the whole feature. Without this contract the `verified`
         // middleware has nothing to check and lets everybody through, so it
         // would fail silently rather than loudly.
-        $this->assertInstanceOf(MustVerifyEmail::class, new User);
+        $this->assertInstanceOf(MustVerifyEmail::class, new Student);
     }
 
     public function test_the_code_carries_the_digits_that_were_mailed(): void
@@ -771,17 +771,17 @@ class EmailVerificationCodeTest extends TestCase
         // rather than a second, independently generated one.
         Notification::fake();
 
-        $user = User::factory()->unverified()->create();
+        $student = Student::factory()->unverified()->create();
 
-        $this->post('/email/resend', ['email' => $user->email]);
+        $this->post('/email/resend', ['email' => $student->email]);
 
         Notification::assertSentTo(
-            $user,
+            $student,
             EmailVerificationCode::class,
-            function (EmailVerificationCode $notification) use ($user) {
-                return $notification->code === $user->fresh()->verification_code_hash
+            function (EmailVerificationCode $notification) use ($student) {
+                return $notification->code === $student->fresh()->verification_code_hash
                     ? false
-                    : $user->fresh()->verificationCodeMatches($notification->code);
+                    : $student->fresh()->verificationCodeMatches($notification->code);
             },
         );
     }
@@ -789,10 +789,10 @@ class EmailVerificationCodeTest extends TestCase
     /**
      * Pin a known code, so leading zeroes can be tested.
      */
-    private function forceCode(User $user, string $code): void
+    private function forceCode(Student $student, string $code): void
     {
-        $user->forceFill([
-            'verification_code_hash' => $this->digest($user, $code),
+        $student->forceFill([
+            'verification_code_hash' => $this->digest($student, $code),
             'verification_code_sent_at' => now(),
             'verification_code_attempts' => 0,
             'verification_code_locked_until' => null,
@@ -802,13 +802,13 @@ class EmailVerificationCodeTest extends TestCase
     /**
      * The stored form of a code, worked out the same way the model does.
      *
-     * Deliberately not `$user->verificationCodeMatches()`, which would make
+     * Deliberately not `$student->verificationCodeMatches()`, which would make
      * these assertions circular: the test has to state independently what the
      * stored value ought to be, or it proves only that the model agrees with
      * itself.
      */
-    private function digest(User $user, string $code): string
+    private function digest(Student $student, string $code): string
     {
-        return hash_hmac('sha256', $user->id.'|'.$code, config('app.key'));
+        return hash_hmac('sha256', $student->id.'|'.$code, config('app.key'));
     }
 }

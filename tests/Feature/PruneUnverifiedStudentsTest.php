@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Course;
 use App\Models\Purchase;
-use App\Models\User;
+use App\Models\Student;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -17,7 +17,7 @@ use Tests\TestCase;
  * to matter - a customer who verified late, or paid - is worse than leaving
  * rows behind. So every test here is really about a row that must survive.
  */
-class PruneUnverifiedUsersTest extends TestCase
+class PruneUnverifiedStudentsTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -34,14 +34,14 @@ class PruneUnverifiedUsersTest extends TestCase
         $unverifiedWithPurchase = $this->unverified('bought@example.com', 30);
         $this->purchaseFor($unverifiedWithPurchase);
 
-        $this->artisan('users:prune-unverified')->assertSuccessful();
+        $this->artisan('students:prune-unverified')->assertSuccessful();
 
-        $this->assertDatabaseMissing('users', ['email' => 'stale@example.com']);
+        $this->assertDatabaseMissing('students', ['email' => 'stale@example.com']);
 
         // The four reasons to keep an account.
-        $this->assertDatabaseHas('users', ['email' => 'fresh@example.com']);
-        $this->assertDatabaseHas('users', ['email' => 'verified@example.com']);
-        $this->assertDatabaseHas('users', ['email' => 'bought@example.com']);
+        $this->assertDatabaseHas('students', ['email' => 'fresh@example.com']);
+        $this->assertDatabaseHas('students', ['email' => 'verified@example.com']);
+        $this->assertDatabaseHas('students', ['email' => 'bought@example.com']);
     }
 
     /**
@@ -55,13 +55,13 @@ class PruneUnverifiedUsersTest extends TestCase
     {
         config(['courses.prune_unverified_days' => 7]);
 
-        $user = $this->unverified('abandoned@example.com', 30);
+        $student = $this->unverified('abandoned@example.com', 30);
 
-        $this->purchaseFor($user, Purchase::STATUS_PENDING);
+        $this->purchaseFor($student, Purchase::STATUS_PENDING);
 
-        $this->artisan('users:prune-unverified')->assertSuccessful();
+        $this->artisan('students:prune-unverified')->assertSuccessful();
 
-        $this->assertDatabaseHas('users', ['email' => 'abandoned@example.com']);
+        $this->assertDatabaseHas('students', ['email' => 'abandoned@example.com']);
     }
 
     /**
@@ -75,10 +75,10 @@ class PruneUnverifiedUsersTest extends TestCase
         $exactly = $this->unverified('exactly@example.com', 7);
         $older = $this->unverified('older@example.com', 8);
 
-        $this->artisan('users:prune-unverified')->assertSuccessful();
+        $this->artisan('students:prune-unverified')->assertSuccessful();
 
-        $this->assertDatabaseHas('users', ['email' => 'exactly@example.com']);
-        $this->assertDatabaseMissing('users', ['email' => 'older@example.com']);
+        $this->assertDatabaseHas('students', ['email' => 'exactly@example.com']);
+        $this->assertDatabaseMissing('students', ['email' => 'older@example.com']);
     }
 
     /**
@@ -92,9 +92,9 @@ class PruneUnverifiedUsersTest extends TestCase
 
         $this->unverified('stale@example.com', 30);
 
-        $this->artisan('users:prune-unverified --dry-run')->assertSuccessful();
+        $this->artisan('students:prune-unverified --dry-run')->assertSuccessful();
 
-        $this->assertDatabaseHas('users', ['email' => 'stale@example.com']);
+        $this->assertDatabaseHas('students', ['email' => 'stale@example.com']);
     }
 
     /**
@@ -105,24 +105,24 @@ class PruneUnverifiedUsersTest extends TestCase
     {
         config(['courses.prune_unverified_days' => 7]);
 
-        $user = $this->unverified('stale@example.com', 3);
+        $student = $this->unverified('stale@example.com', 3);
 
         // Inside the default seven-day window...
-        $this->artisan('users:prune-unverified')->assertSuccessful();
-        $this->assertDatabaseHas('users', ['email' => 'stale@example.com']);
+        $this->artisan('students:prune-unverified')->assertSuccessful();
+        $this->assertDatabaseHas('students', ['email' => 'stale@example.com']);
 
         // ...but outside a one-day window.
-        $this->artisan('users:prune-unverified --days=1')->assertSuccessful();
-        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+        $this->artisan('students:prune-unverified --days=1')->assertSuccessful();
+        $this->assertDatabaseMissing('students', ['id' => $student->id]);
     }
 
     public function test_a_nonsense_window_is_refused_rather_than_deleting_everything(): void
     {
         $this->unverified('stale@example.com', 30);
 
-        $this->artisan('users:prune-unverified --days=0')->assertFailed();
+        $this->artisan('students:prune-unverified --days=0')->assertFailed();
 
-        $this->assertDatabaseHas('users', ['email' => 'stale@example.com']);
+        $this->assertDatabaseHas('students', ['email' => 'stale@example.com']);
     }
 
     /**
@@ -134,22 +134,22 @@ class PruneUnverifiedUsersTest extends TestCase
         $schedule = app(Schedule::class);
 
         $events = collect($schedule->events())
-            ->filter(fn ($event) => str_contains($event->command ?? '', 'users:prune-unverified'));
+            ->filter(fn ($event) => str_contains($event->command ?? '', 'students:prune-unverified'));
 
         $this->assertCount(1, $events, 'The command should be scheduled exactly once.');
         $this->assertSame('0 0 * * *', $events->first()->expression);
     }
 
-    private function unverified(string $email, int $daysOld): User
+    private function unverified(string $email, int $daysOld): Student
     {
-        return User::factory()->unverified()->create([
+        return Student::factory()->unverified()->create([
             'email' => $email,
             'created_at' => now()->subDays($daysOld),
             'updated_at' => now()->subDays($daysOld),
         ]);
     }
 
-    private function purchaseFor(User $user, string $status = Purchase::STATUS_PAID): Purchase
+    private function purchaseFor(Student $student, string $status = Purchase::STATUS_PAID): Purchase
     {
         $courseId = Course::query()->value('id')
             ?? Course::query()->create([
@@ -161,7 +161,7 @@ class PruneUnverifiedUsersTest extends TestCase
             ])->id;
 
         return Purchase::create([
-            'user_id' => $user->id,
+            'student_id' => $student->id,
             'course_id' => $courseId,
             'amount' => 1000,
             'currency' => 'gbp',
