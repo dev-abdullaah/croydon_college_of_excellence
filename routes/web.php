@@ -270,6 +270,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
 /*
+| Redirect old misspelled URL to correct one.
+| Avoids 404s from old bookmarks or cached search results.
+*/
+Route::redirect('/free-assesment', '/free-assessment');
+
+/*
 | Static pages - consolidated into a single parameterized route.
 |
 | The slug is validated against a whitelist in StaticPageController,
