@@ -1,191 +1,344 @@
 # 🎓 Croydon College of Excellence — Project Review
 
-> **Reviewed:** 4 October 2026  
-> **Stack:** Laravel 13 · PHP 8.3 · MySQL · Stripe Checkout · Bootstrap 5  
+> **Reviewed:** 5 October 2026
+> **Stack:** Laravel 13 · PHP 8.3 · MySQL · Stripe Checkout · Bootstrap 5
 > **Type:** Educational platform with paid course purchasing, lesson reading, and quiz testing
 
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [✅ Strengths](#-strengths)
-- [⚠️ Weaknesses](#️-weaknesses)
-- [🔧 Items to Fix](#-items-to-fix)
-  - [Critical](#critical)
-  - [High Priority](#high-priority)
-  - [Medium Priority](#medium-priority)
-  - [Low Priority](#low-priority)
+- [✅ Strengths (Do Not Touch)](#-strengths-do-not-touch)
+- [🔧 Work To Be Done](#-work-to-be-done)
+  - [Priority 1 — Admin Panel](#-priority-1--admin-panel-detailed-plan)
 
 ---
 
-## Overview
+## ✅ Strengths (Do Not Touch)
 
-This is a Laravel 13 application for a UK-based college that offers free information pages (courses, team, enroll, contact) and a paid e-learning area with Stripe-based checkout, lesson reading (study cards), and quiz papers. The architecture has a clean separation between the public marketing site and the authenticated/paid learning area.
+These areas are solid and should not be refactored or reworked.
 
----
+### 1. Security Posture
 
-## ✅ Strengths
+- **HMAC-hashed verification codes** — plain codes are never stored. HMAC is keyed with the app key and scoped per-user ([`User.php`](file:///var/www/html/croydon_college_of_excellence/app/Models/User.php)).
+- **Session fixation prevention** — session ID regenerated on login, invalidated on logout and failed verification ([`LoginController`](file:///var/www/html/croydon_college_of_excellence/app/Http/Controllers/Auth/LoginController.php)).
+- **Stripe webhook signature verification** — validates `Stripe-Signature` header before processing, with idempotent recording via unique `event_id` index ([`StripeWebhookController`](file:///var/www/html/croydon_college_of_excellence/app/Http/Controllers/StripeWebhookController.php)).
+- **No price from browser** — amount charged is always read from server-side `Course` model ([`CheckoutController`](file:///var/www/html/croydon_college_of_excellence/app/Http/Controllers/CheckoutController.php)).
+- **Brute-force protection** — per-account attempt counting, time-locked lockouts, code expiry, single-use consumption.
+- **Generic error messages** — login and verification failures give deliberately vague responses to prevent account enumeration.
+- **CSRF on all forms** — every `<form method="POST">` uses `@csrf`.
+- **XSS protection** — all `{!! !!}` usages wrap content safely. Consent text uses `Str::markdown()`.
+- **Rate limiting** — all public mail form endpoints throttled at `3,1`. Auth endpoints throttled appropriately.
+- **Config-driven email** — recipient address uses `config('mail.college_inbox')` backed by env variable.
+- **Security headers** — `robots.txt` blocks auth/private routes. External links use `rel="noopener noreferrer"`.
 
-### 1. Excellent Security Posture
+### 2. Payment Integration
 
-- **Verification codes are HMAC-hashed** (`User.php` L104–117) — the plain code is never stored. The HMAC is keyed with the app key and scoped per-user, so even identical codes produce different stored values. This is significantly better than storing codes in plain text.
-- **Session fixation prevention** — `LoginController` regenerates the session ID on login (L94), and invalidates the session on logout and on failed verification (L74–75).
-- **Stripe webhook signature verification** — `StripeWebhookController` (L47–63) properly validates the `Stripe-Signature` header before processing any event, with idempotent processing via a unique `event_id` index.
-- **No price from browser** — The amount charged is always read from the server-side `Course` model, never from request input (`CheckoutController` L109–112).
-- **Verification code brute-force protection** — per-account attempt counting (`User::recordFailedVerificationAttempt()`), time-locked lockouts, code expiry, and single-use consumption after redemption.
-- **Generic error messages** — Login and verification failures give deliberately vague responses (e.g., "Those credentials do not match our records") to prevent account enumeration.
-- **CSRF tokens on all forms** — Every `<form method="POST">` across all Blade templates uses `@csrf`.
-- **XSS protection** — All `{!! !!}` usages wrap content in `e()` for escaping (e.g., `{!! nl2br(e($item->question)) !!}`). The one exception is `$consentText` in the checkout review page, which is sourced from server-side config.
+- **Idempotent payment recording** — handles Stripe webhook replays gracefully using `updateOrCreate` with unique database indexes ([`PurchaseService`](file:///var/www/html/croydon_college_of_excellence/app/Services/PurchaseService.php)).
+- **Concurrent checkout lock** — `Cache::lock()` prevents double-sessions on rapid button clicks.
+- **Session reuse** — pending Stripe sessions are reused, checked against Stripe's live status.
+- **Payment status never downgrades** — a `paid` purchase cannot be overwritten to `failed` or `pending`.
+- **`PaymentsDoctor` artisan command** — diagnostic tool for verifying Stripe configuration health.
+- **Terms consent tracking** — `terms_accepted_at` and `terms_version` columns record exactly when and which version was agreed to.
 
-### 2. Robust Payment Integration
+### 3. Architecture
 
-- **Idempotent payment recording** — `PurchaseService` handles Stripe webhook replays gracefully using `updateOrCreate` keyed on session/intent IDs with unique database indexes.
-- **Concurrent checkout lock** — A cache lock (`Cache::lock()`) in `beginCheckout()` prevents double-sessions when a user rapidly clicks the pay button.
-- **Session reuse** — Pending checkout sessions are reused instead of creating duplicates, checked against Stripe's live status.
-- **Payment status never downgrades** — A `paid` purchase cannot be overwritten to `failed` or `pending` (`PurchaseService` L362, L432).
-- **`PaymentsDoctor` artisan command** — A diagnostic command for verifying Stripe configuration health.
-- **Terms consent tracking** — The `terms_accepted_at` and `terms_version` columns record exactly when and which version of terms the customer agreed to.
+- **Service layer** — business logic lives in dedicated service classes under `app/Services/`, not in controllers.
+- **Content separated from database** — lesson/quiz content lives in JSON files (`database/data/`), read once per request via `CourseContent` singleton.
+- **Proper Laravel features** — route model binding via slug, middleware for purchase gating, Eloquent scopes (`paid()`, `forCourse()`, `active()`, `ordered()`), casts, `$fillable`.
+- **Scoped content binding** — [`AppServiceProvider::bindCourseContent()`](file:///var/www/html/croydon_college_of_excellence/app/Providers/AppServiceProvider.php) scopes lesson/quiz lookups to their parent course, preventing cross-course access.
+- **`StaticPageController` whitelist** — static pages use a constant whitelist with regex route constraint, preventing arbitrary view rendering ([`StaticPageController`](file:///var/www/html/croydon_college_of_excellence/app/Http/Controllers/StaticPageController.php)).
+- **Single source of truth** — account management (password, email, sessions) centralised in [`AccountCenterController`](file:///var/www/html/croydon_college_of_excellence/app/Http/Controllers/AccountCenterController.php).
 
-### 3. Well-Structured Architecture
+### 4. Testing
 
-- **Clean Service Layer** — Business logic (purchasing, quiz attempts, learning progress, content parsing) lives in dedicated service classes under `app/Services/`, not in controllers.
-- **Content separated from database** — Lesson/quiz content lives in JSON files (`database/data/`), keeping the database for transactional data. The `CourseContent` singleton reads them once per request.
-- **Proper use of Laravel features** — Route model binding via slug, middleware for purchase gating, singletons for expensive services, Eloquent scopes (`paid()`, `forCourse()`, `active()`, `ordered()`), proper use of casts and `$fillable`.
-- **Custom route parameter binding** — `AppServiceProvider::bindCourseContent()` scopes lesson/quiz lookups to their parent course, preventing cross-course access.
+- **8,267+ lines of feature tests** across 8+ test files covering checkout, verification, paid courses, learning area, content files, and account management.
+- **4 unit test files** — [`CourseContentTest`](file:///var/www/html/croydon_college_of_excellence/tests/Unit/CourseContentTest.php), [`CourseTest`](file:///var/www/html/croydon_college_of_excellence/tests/Unit/CourseTest.php), [`PurchaseStatusTest`](file:///var/www/html/croydon_college_of_excellence/tests/Unit/PurchaseStatusTest.php), [`UserVerificationCodeTest`](file:///var/www/html/croydon_college_of_excellence/tests/Unit/UserVerificationCodeTest.php).
+- **Complete model factories** — all models have factories in [`database/factories/`](file:///var/www/html/croydon_college_of_excellence/database/factories/).
+- **`InteractsWithCourseContent` test trait** — shared helpers for consistent course content setup.
+- **Edge case coverage** — concurrent webhooks, session reuse, abandoned checkouts, double-submission.
 
-### 4. Thorough Testing
+### 5. Code Documentation
 
-- **8,267 lines of tests** across 8 feature test files — an excellent test suite covering checkout journeys, email verification, paid courses, learning area, content files, and account management.
-- **`InteractsWithCourseContent` test trait** — Shared test helpers for consistent course content setup.
-- **Edge case coverage** — Tests for concurrent webhook delivery, session reuse, abandoned checkouts, and double-submission.
+- Security decisions are explained inline with clear reasoning throughout the codebase.
+- [`routes/web.php`](file:///var/www/html/croydon_college_of_excellence/routes/web.php) comments explain *why* design decisions were made, not just what the code does.
 
-### 5. Thoughtful Code Comments
+### 6. User Flow
 
-- The codebase has **unusually good documentation**. Critical security decisions (why codes are hashed, why error messages are vague, why sessions are invalidated) are explained inline with clear reasoning. This makes the code maintainable and auditable.
-
-### 6. Solid User Flow
-
-- **Unverified account re-registration** — Users who abandoned registration can re-register with the same email (the password is updated, a fresh code is sent), rather than being told the email is "taken" (`RegisterController` L47–87).
-- **Intended course preservation** — The course a user was trying to buy survives the registration → verification → login flow (`IntendedCourse` helper).
-
----
-
-## ⚠️ Weaknesses
-
-### 1. `.env` File Is Tracked in Git
-
-The `.gitignore` has `.env` **commented out** (`#.env`). This means the `.env` file — containing the `APP_KEY`, database credentials (`DB_PASSWORD=665422`), and the structure for Stripe keys — is committed to version control. While the live Stripe keys are intentionally left blank, the app key and database password are exposed to anyone with repository access.
-
-### 2. Massive Route Duplication
-
-`routes/web.php` contains **~35 nearly identical closure routes** for static course pages (e.g., `/regular-english`, `/regular-math`, `/send-english`, `/send-math`). Each one just returns a view with no logic. This should be a single parameterized route.
-
-### 3. No Admin Panel / Back-Office
-
-There is no admin interface. Course management, user management, purchase oversight, and content updates all require direct database access or artisan commands. For a live educational platform, this is a significant operational gap.
-
-### 4. Duplicate Password/Email Change Logic
-
-Password change logic exists in **both** `DashboardController` and `AccountCenterController`. The `DashboardController` has `updatePassword()` (L152–173) and `updateEmail()` (L188–216) methods, while `AccountCenterController` also has `updatePassword()` (L262–283). This violates DRY and risks the two falling out of sync.
-
-### 5. No Unit Tests
-
-The `tests/Unit/` directory contains only the default `ExampleTest` (16 lines). All business logic in models and services (verification code handling, purchase status transitions, content parsing) is only tested through feature tests. Targeted unit tests would be faster and more precise.
-
-### 6. Public-Facing Mail Controllers Lack Rate Limiting
-
-`ContactMailController`, `AssesmentMailController`, `EnrollMailController`, and `TutorMailController` have no rate limiting at the route or controller level. An attacker could trigger unlimited outbound emails to `info@croydoncollegeofexcellence.co.uk`, causing spam and potentially getting the domain blacklisted.
-
-### 7. Hardcoded Recipient Email
-
-All mail controllers hardcode `info@croydoncollegeofexcellence.co.uk` as the recipient. This should be a config/env value for easier management across environments.
-
-### 8. Heavy Frontend Asset Loading
-
-The master layout loads **16 CSS files** and **30+ JavaScript files** synchronously, many of which are not needed on every page (e.g., `jodit.min.js`, `plyr.js`, `countdown.js`, `isotop.js`). This severely impacts page load performance.
-
-### 9. Missing Accessibility (a11y)
-
-- Multiple `<img>` tags in footer and course pages are **missing `alt` attributes entirely**.
-- No ARIA labels on interactive elements (dark mode switcher, mobile menu toggle).
-- The dark/light mode switcher uses `javascript: void(0)` links without keyboard accessibility.
-
-### 10. Spelling Errors in Code
-
-- `AssesmentMailController` / `assesment.send` — should be "Assessment"
-- `free_assesment.blade.php` — should be "free_assessment"
-- These propagate into URLs (`/free-assesment`) and route names, meaning fixing them later is a breaking change.
-
-### 11. `.bak` File in Production Code
-
-`app/Providers/AppServiceProvider.php.bak` is a backup file sitting in the app directory. It should not be in version control.
-
-### 12. Unused/Dead Code in `AppServiceProvider`
-
-- `useBootstrapPagination()` (L55–58) and `limitApiRequests()` (L63–68) are defined as `protected` methods but **never called** from `boot()`.
-- `Paginator::useBootstrapFive()` is called **directly in `boot()`** (L128) instead of through the defined method.
-- The Route macros for `lesson` and `quiz` defined at L133–147 appear unused — the actual binding is done by `bindCourseContent()` which is also never called from `boot()`.
+- **Unverified account re-registration** — users who abandoned registration can re-register with the same email.
+- **Intended course preservation** — the course a user was trying to buy survives the registration → verification → login flow.
+- **Full password reset flow** — forgot/reset password with branded email notifications.
+- **Multi-email management** — add, verify, set primary, and remove secondary email addresses.
+- **Dedicated course catalog** — `/courses` page with its own controller.
 
 ---
 
-## 🔧 Items to Fix
-
-### Critical
-
-| # | Issue | Location | Detail |
-|---|-------|----------|--------|
-| 1 | **`.env` committed to Git** | `.gitignore` L13 | Uncomment `.env` from `.gitignore`. Rotate the `APP_KEY` and `DB_PASSWORD` immediately. Use `git rm --cached .env` to remove it from history. |
-| 2 | **No rate limiting on public mail forms** | `ContactMailController`, `AssesmentMailController`, `EnrollMailController`, `TutorMailController` routes in `web.php` | Add `->middleware('throttle:3,1')` to the four `/send` routes. Without this, the mail endpoints can be abused to spam the college inbox or overwhelm the mail server. |
-| 3 | **`$consentText` rendered unescaped** | `checkout/review.blade.php` L113 | `{!! $consentText !!}` outputs raw HTML from `config('courses.consent_text')`. While this is server-controlled config, it should use `{{ }}` or `{!! Str::markdown(...) !!}` to be safe by default — especially if the config is ever moved to a database or CMS. |
-
-### High Priority
-
-| # | Issue | Location | Detail |
-|---|-------|----------|--------|
-| 4 | **Consolidate 35+ static route closures** | `routes/web.php` L163–320+ | Replace all individual course-view routes with a parameterized approach, e.g. `Route::get('/regular-{subject}', fn($subject) => ...)` with a whitelist, or a single controller method. |
-| 5 | **Eliminate duplicate password/email logic** | `DashboardController` L144–237 vs `AccountCenterController` L262–283 | Pick one location (AccountCenterController) and redirect the old dashboard routes there. Having two diverging implementations is a maintenance risk and a security surface. |
-| 6 | **Remove `.bak` file** | `app/Providers/AppServiceProvider.php.bak` | Delete this backup file from the repository. |
-| 7 | **Clean up `AppServiceProvider`** | `app/Providers/AppServiceProvider.php` | Either call `useBootstrapPagination()`, `limitApiRequests()`, and `bindCourseContent()` from `boot()`, or remove the dead methods. Currently, `bindCourseContent()` is not invoked, meaning the content-scoping logic described in its docblock may not be active. |
-| 8 | **Move hardcoded email to config** | All mail controllers | Replace `'info@croydoncollegeofexcellence.co.uk'` with `config('mail.college_inbox')` or similar, across `ContactMailController`, `AssesmentMailController`, `EnrollMailController`, `TutorMailController`. |
-
-### Medium Priority
-
-| # | Issue | Location | Detail |
-|---|-------|----------|--------|
-| 9 | **Add missing `alt` attributes** | `footer.blade.php`, `courses_send.blade.php`, others | All `<img>` tags must have descriptive `alt` text for accessibility (WCAG 2.1 compliance). The footer logo images and course category images are the worst offenders. |
-| 10 | **Lazy-load or conditionally load JS/CSS** | `layouts/master.blade.php` L35–52 | Use `defer` on scripts, load page-specific assets via `@push('scripts')` stacks, and consider bundling with Vite (which is already configured but seemingly underutilized). |
-| 11 | **Add unit tests** | `tests/Unit/` | Write unit tests for: `User` verification code logic, `PurchaseService` status transitions, `CourseContent` JSON parsing, `Course::formattedPrice()`. These are fast, targeted, and complement the existing feature tests. |
-| 12 | **Fix spelling: "Assesment" → "Assessment"** | Controller, Mail, routes, views | This is a breaking URL change, so add a `Route::redirect('/free-assesment', '/free-assessment')` and update all references. It's better to fix this now than after SEO and bookmarks accumulate. |
-| 13 | **Dynamic page `<title>` tags** | `layouts/master.blade.php` L7 | Every page shows `<title>Croydon College of Excellence</title>`. Add a `@yield('title', 'Croydon College of Excellence')` and set `@section('title')` per page for SEO. |
-| 14 | **`robots.txt` is wide open** | `public/robots.txt` | `Disallow:` (empty) allows all crawlers everywhere. Auth-protected routes like `/my-account`, `/checkout`, `/login` should be disallowed to prevent useless crawl traffic and index pollution. |
-| 15 | **Missing `README.md`** | Project root | No README exists. A new developer would have no setup instructions, no architecture overview, and no onboarding path. |
-
-### Low Priority
-
-| # | Issue | Location | Detail |
-|---|-------|----------|--------|
-| 16 | **No model factories for non-User models** | `database/factories/` | Only `UserFactory.php` exists. Add factories for `Course`, `Purchase`, `QuizAttempt`, `LessonProgress` to make test setup faster and more expressive. |
-| 17 | **No database indexes on frequently queried columns** | Migrations | `lesson_progress.user_id` + `course_slug` and `quiz_attempts.user_id` + `course_slug` combinations should have composite indexes for dashboard performance. |
-| 18 | **`LoginHistory` model has no factory** | `app/Models/LoginHistory.php` | The Account Center and Dashboard both query login history. A factory would make testing these views simpler. |
-| 19 | **No queued mail** | `QUEUE_CONNECTION=sync` in `.env` | All emails (contact, enrollment, verification codes) are sent synchronously, blocking the HTTP response. Switch to a queue driver (e.g., `database`) for production. |
-| 20 | **Font Awesome loaded twice** | `master.blade.php` L35, L43 | Both CDN Font Awesome (`cdnjs` L35) and a local copy (`fontawesome.min.css` L43) are loaded. Remove one. |
-| 21 | **Missing `rel="noopener"` on external links** | `home.blade.php` L31–49 | Social media links to Facebook, Instagram, LinkedIn open without `target="_blank"` but also lack `rel="noopener noreferrer"` for security. |
-| 22 | **No pagination for login history** | `AccountCenterController` L64–67, `DashboardController` L46–49 | Login history is limited to 10 with `->limit(10)` but has no pagination. A user with many sessions can't see older entries. |
-| 23 | **Consider adding a `CacheTag` or Redis for production** | `.env` | `CACHE_DRIVER=file` is fine for development but sluggish under load. Consider Redis for production. |
+## 🔧 Work To Be Done
 
 ---
 
-## Summary Scorecard
+### 🔴 Priority 1 — Admin Panel (Detailed Plan)
 
-| Area | Rating | Notes |
-|------|--------|-------|
-| **Security** | ⭐⭐⭐⭐⭐ | Exemplary. HMAC-hashed codes, session fixation prevention, generic errors, Stripe signature verification, no price from browser. |
-| **Architecture** | ⭐⭐⭐⭐ | Good service layer, clean content separation. Loses a star for the route duplication and duplicate logic. |
-| **Code Quality** | ⭐⭐⭐⭐ | Excellent comments and documentation. Some dead code and a `.bak` file bring it down slightly. |
-| **Testing** | ⭐⭐⭐⭐ | Strong feature tests. Needs unit tests and more factories. |
-| **Frontend** | ⭐⭐⭐ | Functional but bloated asset loading, poor accessibility, static page titles. |
-| **DevOps / Config** | ⭐⭐ | `.env` in git is the biggest issue. No CI/CD, no README, sync mail, file cache. |
-| **Scalability** | ⭐⭐⭐ | Fine for current traffic. Would need queue workers, Redis, and asset bundling to scale. |
+> [!CAUTION]
+> **DO NOT start working on the admin panel automatically.** Wait for explicit user approval before writing any code for this feature.
 
-> **Overall: A solid, security-conscious Laravel application with strong business logic — held back by frontend performance, accessibility gaps, and a few configuration/hygiene issues that should be addressed before production launch.**
+Build a custom admin panel (no third-party packages like Filament or Nova) using the existing Bootstrap 5 stack and Laravel conventions already established in the project.
+
+---
+
+#### Step 1: Database — Add `is_admin` column and `contact_submissions` table
+
+**Migration 1 — `add_is_admin_to_users_table`:**
+
+| Column | Type | Default | Notes |
+|--------|------|---------|-------|
+| `is_admin` | `boolean` | `false` | Added to `users` table. Determines admin access. |
+
+**Migration 2 — `create_contact_submissions_table`:**
+
+Store form submissions from the 4 public mail forms so admin can view them in the panel instead of relying solely on email.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | bigIncrements | PK |
+| `type` | string | One of: `contact`, `enrollment`, `assessment`, `tutor` |
+| `name` | string | Sender name |
+| `email` | string | Sender email |
+| `phone` | string, nullable | Sender phone |
+| `subject` | string, nullable | Message subject |
+| `message` | text | Message body |
+| `metadata` | json, nullable | Any extra form fields (e.g. course preference, qualification) |
+| `read_at` | timestamp, nullable | When an admin marked it as read |
+| `timestamps` | | `created_at` / `updated_at` |
+
+**Migration 3 — Seeder command:**
+
+Artisan command `admin:create` that takes an email address and sets `is_admin = true` on an existing user. No admin registration through the web.
+
+---
+
+#### Step 2: Model and Middleware
+
+**`ContactSubmission` model:**
+- `fillable`: `type`, `name`, `email`, `phone`, `subject`, `message`, `metadata`, `read_at`
+- `casts`: `metadata` → `array`, `read_at` → `datetime`
+- Scopes: `scopeUnread()`, `scopeOfType($type)`
+- Relationship: none (standalone)
+
+**`User` model update:**
+- Add `is_admin` to `$casts` as `boolean`
+- Add helper method: `isAdmin(): bool`
+
+**`EnsureUserIsAdmin` middleware:**
+- Check `auth()->user()->isAdmin()`, abort 403 if not.
+- Register in `bootstrap/app.php` as alias `admin`.
+
+**Update mail controllers** (`ContactMailController`, `EnrollMailController`, `AssessmentMailController`, `TutorMailController`):
+- After sending the email, also create a `ContactSubmission` record with the appropriate `type` so submissions are stored in the database.
+
+---
+
+#### Step 3: Routes
+
+All admin routes in a dedicated route group in [`routes/web.php`](file:///var/www/html/croydon_college_of_excellence/routes/web.php):
+
+```php
+Route::prefix('admin')
+    ->middleware(['auth', 'verified', 'admin'])
+    ->name('admin.')
+    ->group(function () {
+
+        // Dashboard
+        Route::get('/', [AdminDashboardController::class, 'index'])
+            ->name('dashboard');
+
+        // Users
+        Route::get('/users', [AdminUserController::class, 'index'])
+            ->name('users.index');
+        Route::get('/users/{user}', [AdminUserController::class, 'show'])
+            ->name('users.show');
+        Route::patch('/users/{user}/toggle', [AdminUserController::class, 'toggle'])
+            ->name('users.toggle');
+
+        // Purchases
+        Route::get('/purchases', [AdminPurchaseController::class, 'index'])
+            ->name('purchases.index');
+        Route::get('/purchases/{purchase}', [AdminPurchaseController::class, 'show'])
+            ->name('purchases.show');
+
+        // Courses
+        Route::get('/courses', [AdminCourseController::class, 'index'])
+            ->name('courses.index');
+        Route::get('/courses/{course}/edit', [AdminCourseController::class, 'edit'])
+            ->name('courses.edit');
+        Route::put('/courses/{course}', [AdminCourseController::class, 'update'])
+            ->name('courses.update');
+        Route::patch('/courses/{course}/toggle', [AdminCourseController::class, 'toggle'])
+            ->name('courses.toggle');
+
+        // Analytics
+        Route::get('/analytics', [AdminAnalyticsController::class, 'index'])
+            ->name('analytics.index');
+
+        // Contact Submissions
+        Route::get('/submissions', [AdminSubmissionController::class, 'index'])
+            ->name('submissions.index');
+        Route::get('/submissions/{submission}', [AdminSubmissionController::class, 'show'])
+            ->name('submissions.show');
+        Route::patch('/submissions/{submission}/read', [AdminSubmissionController::class, 'markRead'])
+            ->name('submissions.read');
+    });
+```
+
+---
+
+#### Step 4: Controllers
+
+All placed in `app/Http/Controllers/Admin/`:
+
+**`AdminDashboardController`** — `index()`
+- Total registered users (all, verified, unverified)
+- Total revenue (sum of `purchases.amount` where `status = paid`, divided by 100 for display)
+- Total purchases by status (paid, pending, failed)
+- Active courses count
+- Recent 10 signups (with verification status)
+- Recent 10 purchases (with user, course, amount, status)
+- Unread contact submissions count
+
+**`AdminUserController`** — `index()`, `show($user)`, `toggle($user)`
+- `index`: Paginated list of all users. Search by name/email. Filter by: verified/unverified, has purchases/no purchases. Sort by: created_at, name, email. Columns: name, email, verified status, purchase count, joined date.
+- `show`: Full user detail — profile info, email verification status, all secondary emails (`UserEmail`), purchase history, quiz attempt summary, lesson progress summary, login history (last 20).
+- `toggle`: Enable/disable an account (add `is_active` boolean to users migration or use `locked_until` with a far-future date).
+
+**`AdminPurchaseController`** — `index()`, `show($purchase)`
+- `index`: Paginated list of all purchases. Filter by: status (paid/pending/failed), course, date range. Sort by: created_at, amount. Columns: user name/email, course name, amount (formatted as £), status, date, Stripe session ID.
+- `show`: Full purchase detail — user info, course info, Stripe session ID, payment intent ID, amount, currency, status, terms accepted at/version, timestamps.
+
+**`AdminCourseController`** — `index()`, `edit($course)`, `update($course)`, `toggle($course)`
+- `index`: All courses sorted by `sort_order`. Columns: name, slug, price (formatted), is_active status, purchase count, total revenue.
+- `edit`: Form to update `name`, `tagline`, `description`, `price` (input in pounds, store in pence), `sort_order`.
+- `update`: Validate and save. Price stored as integer pence (multiply input by 100).
+- `toggle`: Toggle `is_active` boolean.
+
+**`AdminAnalyticsController`** — `index()`
+- Per-course stats: total purchases, total revenue, completion rate (lessons completed / total lessons), average quiz score.
+- Quiz breakdown: per quiz — attempt count, average percentage, pass rate (>= 50%).
+- Student progress: per course — enrolled students, students who completed all lessons, students who attempted all quizzes.
+
+**`AdminSubmissionController`** — `index()`, `show($submission)`, `markRead($submission)`
+- `index`: Paginated list of all contact submissions. Filter by: type (contact/enrollment/assessment/tutor), read/unread. Sort by: created_at. Columns: type badge, name, email, subject (truncated), date, read status.
+- `show`: Full submission detail with all fields. Marks as read automatically on view.
+- `markRead`: Toggle read status.
+
+---
+
+#### Step 5: Views
+
+All in `resources/views/admin/`:
+
+**Layout — `resources/views/admin/layouts/app.blade.php`:**
+- Separate admin layout, not sharing the public website's `master.blade.php`.
+- Simple Bootstrap 5 layout with:
+  - Top navbar: "Admin Panel" branding, logged-in user name, link back to public site, logout button.
+  - Left sidebar: navigation links to Dashboard, Users, Purchases, Courses, Analytics, Submissions (with unread badge count).
+  - Main content area with `@yield('content')`.
+  - Flash message support via `@include('admin.partials.flash')`.
+- Uses the same Bootstrap 5 CSS already loaded on the site. No extra CSS frameworks.
+- Page-specific JS only where needed (e.g. charts on analytics page).
+
+**Views structure:**
+
+```
+resources/views/admin/
+├── layouts/
+│   └── app.blade.php              # Admin layout with sidebar
+├── partials/
+│   ├── sidebar.blade.php          # Sidebar navigation
+│   ├── flash.blade.php            # Flash messages
+│   └── stats-card.blade.php       # Reusable summary card component
+├── dashboard.blade.php            # Summary cards + recent activity tables
+├── users/
+│   ├── index.blade.php            # Paginated user list with search/filters
+│   └── show.blade.php             # User detail (tabs: profile, purchases, progress, logins)
+├── purchases/
+│   ├── index.blade.php            # Paginated purchase list with filters
+│   └── show.blade.php             # Purchase detail with Stripe IDs
+├── courses/
+│   ├── index.blade.php            # Course list with revenue stats
+│   └── edit.blade.php             # Course edit form
+├── analytics/
+│   └── index.blade.php            # Per-course stats, quiz breakdown
+└── submissions/
+    ├── index.blade.php            # Submission list with type badges, read status
+    └── show.blade.php             # Full submission detail
+```
+
+---
+
+#### Step 6: Testing
+
+**Feature tests in `tests/Feature/AdminPanelTest.php`:**
+
+| Test | What it verifies |
+|------|-----------------|
+| `non_admin_cannot_access_admin_routes` | A verified non-admin user gets 403 on all admin routes. |
+| `guest_is_redirected_to_login` | Unauthenticated user is redirected to `/login`. |
+| `unverified_admin_cannot_access` | An admin with unverified email cannot access admin routes. |
+| `admin_can_see_dashboard` | Dashboard loads with correct stats (user count, revenue, purchase counts). |
+| `admin_can_list_users` | User index page shows paginated users with correct data. |
+| `admin_can_search_users` | Search by name and email returns correct results. |
+| `admin_can_view_user_detail` | User show page displays profile, purchases, progress, logins. |
+| `admin_can_toggle_user` | Toggle endpoint changes user's active status. |
+| `admin_can_list_purchases` | Purchase index shows all purchases with correct filters. |
+| `admin_can_filter_purchases_by_status` | Status filter returns only matching purchases. |
+| `admin_can_view_purchase_detail` | Purchase show page displays all fields including Stripe IDs. |
+| `admin_can_list_courses` | Course index shows all courses with revenue totals. |
+| `admin_can_edit_course` | Edit form loads with current values pre-filled. |
+| `admin_can_update_course` | Update saves new values. Price in pounds converts to pence correctly. |
+| `admin_can_toggle_course` | Toggle changes `is_active` status. |
+| `admin_can_view_analytics` | Analytics page loads with per-course stats. |
+| `admin_can_list_submissions` | Submission index shows all submissions with correct type badges. |
+| `admin_can_view_submission` | Viewing a submission marks it as read. |
+| `admin_can_filter_submissions_by_type` | Type filter returns only matching submissions. |
+| `contact_form_creates_submission` | Submitting the contact form creates a `ContactSubmission` record. |
+| `enrollment_form_creates_submission` | Submitting the enrollment form creates a `ContactSubmission` record. |
+
+---
+
+#### Step 7: File Summary
+
+| Category | Files | Count |
+|----------|-------|-------|
+| Migrations | `add_is_admin_to_users_table`, `create_contact_submissions_table` | 2 |
+| Model | `ContactSubmission` | 1 |
+| Model update | `User` (add `isAdmin()`, `is_admin` cast) | 1 |
+| Middleware | `EnsureUserIsAdmin` | 1 |
+| Artisan command | `admin:create` | 1 |
+| Controllers | `AdminDashboardController`, `AdminUserController`, `AdminPurchaseController`, `AdminCourseController`, `AdminAnalyticsController`, `AdminSubmissionController` | 6 |
+| Mail controller updates | `ContactMailController`, `EnrollMailController`, `AssessmentMailController`, `TutorMailController` | 4 |
+| Views | Layout + sidebar + partials + 10 page views | ~14 |
+| Routes | Admin route group in `web.php` | 1 block |
+| Tests | `AdminPanelTest.php` (~20 test methods) | 1 |
+| Factory | `ContactSubmissionFactory` | 1 |
+| **Total new files** | | **~28** |
+
+---
+
+#### Database Schema Reference (Existing)
+
+For reference, the existing models the admin panel will read from:
+
+| Model | Key Columns | Key Relationships |
+|-------|------------|-------------------|
+| `User` | `id`, `name`, `email`, `email_verified_at`, `password`, `verification_code`, `locked_until` | `purchases()`, `quizAttempts()`, `lessonProgress()`, `loginHistories()`, `emails()` |
+| `Course` | `id`, `name`, `slug`, `tagline`, `description`, `price` (pence), `is_active`, `sort_order` | `purchases()` |
+| `Purchase` | `id`, `user_id`, `course_id`, `stripe_checkout_session_id`, `stripe_payment_intent_id`, `status`, `amount`, `currency`, `terms_accepted_at`, `terms_version`, `paid_at` | `user()`, `course()` |
+| `QuizAttempt` | `id`, `user_id`, `course_slug`, `quiz_slug`, `score`, `total`, `percentage`, `answers` (json) | `user()` |
+| `LessonProgress` | `id`, `user_id`, `course_slug`, `lesson_slug`, `completed_at` | `user()` |
+| `LoginHistory` | `id`, `user_id`, `ip_address`, `user_agent`, `platform`, `browser`, `device_type`, `login_at`, `is_current` | `user()` |
+| `UserEmail` | `id`, `user_id`, `email`, `is_primary`, `verified_at`, `verification_token` | `user()` |
+| `StripeWebhookEvent` | `id`, `event_id`, `event_type`, `payload` (json), `processed_at` | — |
+
+---
+
+> **Bottom line:** The application is architecturally sound, secure, and well-tested. The biggest gap is the lack of an admin panel for day-to-day operations. Everything else is optimisation and polish.
