@@ -138,7 +138,7 @@ Edit copy and prices in `config/catalog.php`, then re-run the seeder.
   `pdo_sqlite` if you want to run the test suite with the default settings)
 * Composer 2
 * MySQL 5.7+ / MariaDB 10.3+ / PostgreSQL 10+ (the project already ships a
-  MySQL `users` table; nothing exotic is required)
+  MySQL `students` table; nothing exotic is required)
 * A [Stripe](https://dashboard.stripe.com) account — use the **test** account
   while you are setting this up
 * The [Stripe CLI](https://stripe.com/docs/stripe-cli) for local webhook
@@ -217,7 +217,7 @@ there for when you want to change one without a deploy.
 | `code_resend_cooldown_seconds` | `COURSES_CODE_RESEND_COOLDOWN` | `60` | Minimum gap between verification emails. Applies to sign-up, to signing in with an unverified account, and to the resend form |
 | `success_refresh_interval_seconds` | — | `3` | How often the return-from-Stripe page re-checks while it waits for the webhook |
 | `success_refresh_max_attempts` | — | `10` | How many times it re-checks before it stops and shows the support details. The `attempt` query parameter is clamped to this |
-| `prune_unverified_days` | — | `7` | How long an account can stay unverified before `users:prune-unverified` may remove it |
+| `prune_unverified_days` | — | `7` | How long an account can stay unverified before `students:prune-unverified` may remove it |
 | `terms_version` | — | `null` | Stored alongside `terms_accepted_at`. **Set this to something like `'2026-01'`** so a later change of wording can be traced |
 | `consent_text` | — | *(see below)* | The wording of the tick box on the check-your-order page |
 
@@ -231,9 +231,9 @@ Account creation is the first step of buying, so every abandoned sign-up leaves
 a row behind that will never be verified and never used:
 
 ```bash
-php artisan users:prune-unverified --dry-run   # report only, deletes nothing
-php artisan users:prune-unverified             # do it
-php artisan users:prune-unverified --days=1    # clear a backlog after downtime
+php artisan students:prune-unverified --dry-run   # report only, deletes nothing
+php artisan students:prune-unverified             # do it
+php artisan students:prune-unverified --days=1    # clear a backlog after downtime
 ```
 
 Scheduled daily in `routes/console.php`, so it only runs if the scheduler does:
@@ -288,7 +288,7 @@ Run the migrations:
 php artisan migrate
 ```
 
-This creates the tables the feature needs (the pre-existing `users` table is used
+This creates the tables the feature needs (the pre-existing `students` table is used
 as-is):
 
 **`courses`** — the catalogue
@@ -301,7 +301,7 @@ per-course override), `is_active`, `sort_order`, timestamps.
 There is no `course_documents` table: no course has files attached to it.
 
 **`purchases`** — one row per payment attempt
-`id`, `user_id`, `course_id`, `stripe_checkout_session_id` (**unique**),
+`id`, `student_id`, `course_id`, `stripe_checkout_session_id` (**unique**),
 `stripe_payment_intent_id` (**unique**), `stripe_customer_id`, `stripe_event_id`,
 `customer_email`, `customer_name`, `amount` (pence), `currency`, `status`,
 `metadata` (JSON), `paid_at`, `refunded_at`, `failure_reason`,
@@ -526,12 +526,12 @@ message naming exactly where it is broken.
 Two tables are created by `php artisan migrate`:
 
 **`lesson_progress`** — one row per learner per lesson read:
-`id`, `user_id`, `course_slug`, `lesson_slug`, `completed_at`, timestamps.
-Unique on (`user_id`, `course_slug`, `lesson_slug`), so a double-click cannot
+`id`, `student_id`, `course_slug`, `lesson_slug`, `completed_at`, timestamps.
+Unique on (`student_id`, `course_slug`, `lesson_slug`), so a double-click cannot
 create two rows.
 
 **`quiz_attempts`** — one row per sitting of a paper:
-`id`, `user_id`, `course_slug`, `quiz_slug`, `status`
+`id`, `student_id`, `course_slug`, `quiz_slug`, `status`
 (`in_progress`/`submitted`), `current_position`, `answers` (JSON map of question
 **position** → `"a"`–`"d"`), `score`, `total`, `percentage`, `passed`,
 `time_taken_seconds`, `started_at`, `submitted_at`, timestamps.
@@ -755,14 +755,14 @@ states that no payment was taken. No access is granted.
 
 ### The important negative tests
 
-* Sign in as a **different** user and try the course hub the first user bought
+* Sign in as a **different** student and try the course hub the first student bought
   → **403**.
 * Buy the £99 course, then try the 24 mock tests' hub → **403**.
 * Try `/my-account/downloads/1` → **404**. There is no download route at all.
 * Try `/course-files/Life%20in%20the%20UK%20Lesson%201-10.docx` → **404**.
 * Visit `/checkout/success?session_id=cs_test_anything` without paying →
   the page says it is still confirming, and nothing is unlocked.
-* Visit that URL while signed in as a **different** user → the other user's
+* Visit that URL while signed in as a **different** student → the other student's
   purchase is not shown.
 
 ---
@@ -878,7 +878,7 @@ purchases are unaffected.
   on the server. Storing a URL would make the session a redirect target that
   anybody could plant; a slug cannot be pointed anywhere.
 * **One payment per attempt.** A second press of Pay reuses the open Stripe
-  Checkout Session instead of opening a second one, guarded by a per-user,
+  Checkout Session instead of opening a second one, guarded by a per-student,
   per-course cache lock so two clicks arriving together still make one session.
 * **No secret ever reaches a view or a log.** `STRIPE_SECRET` is read only by
   `StripeService`. Logs record ids, slugs and amounts, never keys or full
@@ -901,7 +901,7 @@ purchases are unaffected.
   (`throttle:10,1` and `throttle:20,1`).
 * **Input validation.** The success page validates the `session_id` shape
   before using it, and only ever displays a purchase belonging to the signed-in
-  user. Registration and login validate and sanitise input; a failed login gives
+  student. Registration and login validate and sanitise input; a failed login gives
   a deliberately vague message so the form cannot be used to discover which
   email addresses have accounts.
 * **Session hygiene.** The session id is regenerated on sign in and sign out.
@@ -1059,12 +1059,12 @@ Everything added or changed for this feature:
 
 **Tooling**
 * `app/Console/Commands/PaymentsDoctor.php` — `php artisan payments:doctor`
-* `app/Console/Commands/PruneUnverifiedUsers.php` — `php artisan users:prune-unverified`
+* `app/Console/Commands/PruneUnverifiedStudents.php` — `php artisan students:prune-unverified`
 * `app/Console/Commands/CoursesExtract.php` — `php artisan courses:extract`
   (only needed if the source `.docx` files come back; `--dry-run` reports
   without writing)
 * `tests/Feature/PaidCoursesTest.php`, `tests/Feature/LearningAreaTest.php`,
-  `tests/Feature/CheckoutJourneyTest.php`, `tests/Feature/PruneUnverifiedUsersTest.php`,
+  `tests/Feature/CheckoutJourneyTest.php`, `tests/Feature/PruneUnverifiedStudentsTest.php`,
   `tests/Feature/CourseContentFilesTest.php`
 
 **Untouched by design**

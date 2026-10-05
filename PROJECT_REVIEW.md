@@ -20,7 +20,7 @@ These areas are solid and should not be refactored or reworked.
 
 ### 1. Security Posture
 
-- **HMAC-hashed verification codes** — plain codes are never stored. HMAC is keyed with the app key and scoped per-user ([`User.php`](file:///var/www/html/croydon_college_of_excellence/app/Models/User.php)).
+- **HMAC-hashed verification codes** — plain codes are never stored. HMAC is keyed with the app key and scoped per-student ([`Student.php`](file:///var/www/html/croydon_college_of_excellence/app/Models/Student.php)).
 - **Session fixation prevention** — session ID regenerated on login, invalidated on logout and failed verification ([`LoginController`](file:///var/www/html/croydon_college_of_excellence/app/Http/Controllers/Auth/LoginController.php)).
 - **Stripe webhook signature verification** — validates `Stripe-Signature` header before processing, with idempotent recording via unique `event_id` index ([`StripeWebhookController`](file:///var/www/html/croydon_college_of_excellence/app/Http/Controllers/StripeWebhookController.php)).
 - **No price from browser** — amount charged is always read from server-side `Course` model ([`CheckoutController`](file:///var/www/html/croydon_college_of_excellence/app/Http/Controllers/CheckoutController.php)).
@@ -53,7 +53,7 @@ These areas are solid and should not be refactored or reworked.
 ### 4. Testing
 
 - **8,267+ lines of feature tests** across 8+ test files covering checkout, verification, paid courses, learning area, content files, and account management.
-- **4 unit test files** — [`CourseContentTest`](file:///var/www/html/croydon_college_of_excellence/tests/Unit/CourseContentTest.php), [`CourseTest`](file:///var/www/html/croydon_college_of_excellence/tests/Unit/CourseTest.php), [`PurchaseStatusTest`](file:///var/www/html/croydon_college_of_excellence/tests/Unit/PurchaseStatusTest.php), [`UserVerificationCodeTest`](file:///var/www/html/croydon_college_of_excellence/tests/Unit/UserVerificationCodeTest.php).
+- **4 unit test files** — [`CourseContentTest`](file:///var/www/html/croydon_college_of_excellence/tests/Unit/CourseContentTest.php), [`CourseTest`](file:///var/www/html/croydon_college_of_excellence/tests/Unit/CourseTest.php), [`PurchaseStatusTest`](file:///var/www/html/croydon_college_of_excellence/tests/Unit/PurchaseStatusTest.php), [`StudentVerificationCodeTest`](file:///var/www/html/croydon_college_of_excellence/tests/Unit/StudentVerificationCodeTest.php).
 - **Complete model factories** — all models have factories in [`database/factories/`](file:///var/www/html/croydon_college_of_excellence/database/factories/).
 - **`InteractsWithCourseContent` test trait** — shared helpers for consistent course content setup.
 - **Edge case coverage** — concurrent webhooks, session reuse, abandoned checkouts, double-submission.
@@ -63,10 +63,10 @@ These areas are solid and should not be refactored or reworked.
 - Security decisions are explained inline with clear reasoning throughout the codebase.
 - [`routes/web.php`](file:///var/www/html/croydon_college_of_excellence/routes/web.php) comments explain *why* design decisions were made, not just what the code does.
 
-### 6. User Flow
+### 6. Student Flow
 
-- **Unverified account re-registration** — users who abandoned registration can re-register with the same email.
-- **Intended course preservation** — the course a user was trying to buy survives the registration → verification → login flow.
+- **Unverified account re-registration** — students who abandoned registration can re-register with the same email.
+- **Intended course preservation** — the course a student was trying to buy survives the registration → verification → login flow.
 - **Full password reset flow** — forgot/reset password with branded email notifications.
 - **Multi-email management** — add, verify, set primary, and remove secondary email addresses.
 - **Dedicated course catalog** — `/courses` page with its own controller.
@@ -84,15 +84,17 @@ These areas are solid and should not be refactored or reworked.
 
 Build a custom admin panel (no third-party packages like Filament or Nova) using the existing Bootstrap 5 stack and Laravel conventions already established in the project.
 
+> **Terminology Note:** Throughout the admin panel, "users" refers to **administrators** (staff who log into the admin panel). The people who buy courses are **students** (stored in the `students` table). This clear separation avoids confusion between the two distinct roles.
+
 ---
 
 #### Step 1: Database — Add `is_admin` column and `contact_submissions` table
 
-**Migration 1 — `add_is_admin_to_users_table`:**
+**Migration 1 — `add_is_admin_to_students_table`:**
 
 | Column | Type | Default | Notes |
 |--------|------|---------|-------|
-| `is_admin` | `boolean` | `false` | Added to `users` table. Determines admin access. |
+| `is_admin` | `boolean` | `false` | Added to `students` table. Determines admin access. |
 
 **Migration 2 — `create_contact_submissions_table`:**
 
@@ -113,7 +115,7 @@ Store form submissions from the 4 public mail forms so admin can view them in th
 
 **Migration 3 — Seeder command:**
 
-Artisan command `admin:create` that takes an email address and sets `is_admin = true` on an existing user. No admin registration through the web.
+Artisan command `admin:create` that takes an email address and sets `is_admin = true` on an existing student. No admin registration through the web.
 
 ---
 
@@ -125,7 +127,7 @@ Artisan command `admin:create` that takes an email address and sets `is_admin = 
 - Scopes: `scopeUnread()`, `scopeOfType($type)`
 - Relationship: none (standalone)
 
-**`User` model update:**
+**`Student` model update:**
 - Add `is_admin` to `$casts` as `boolean`
 - Add helper method: `isAdmin(): bool`
 
@@ -152,13 +154,13 @@ Route::prefix('admin')
         Route::get('/', [AdminDashboardController::class, 'index'])
             ->name('dashboard');
 
-        // Users
-        Route::get('/users', [AdminUserController::class, 'index'])
-            ->name('users.index');
-        Route::get('/users/{user}', [AdminUserController::class, 'show'])
-            ->name('users.show');
-        Route::patch('/users/{user}/toggle', [AdminUserController::class, 'toggle'])
-            ->name('users.toggle');
+        // Students (Learners)
+        Route::get('/students', [AdminStudentController::class, 'index'])
+            ->name('students.index');
+        Route::get('/students/{student}', [AdminStudentController::class, 'show'])
+            ->name('students.show');
+        Route::patch('/students/{student}/toggle', [AdminStudentController::class, 'toggle'])
+            ->name('students.toggle');
 
         // Purchases
         Route::get('/purchases', [AdminPurchaseController::class, 'index'])
@@ -197,22 +199,22 @@ Route::prefix('admin')
 All placed in `app/Http/Controllers/Admin/`:
 
 **`AdminDashboardController`** — `index()`
-- Total registered users (all, verified, unverified)
+- Total registered students (all, verified, unverified)
 - Total revenue (sum of `purchases.amount` where `status = paid`, divided by 100 for display)
 - Total purchases by status (paid, pending, failed)
 - Active courses count
 - Recent 10 signups (with verification status)
-- Recent 10 purchases (with user, course, amount, status)
+- Recent 10 purchases (with student, course, amount, status)
 - Unread contact submissions count
 
-**`AdminUserController`** — `index()`, `show($user)`, `toggle($user)`
-- `index`: Paginated list of all users. Search by name/email. Filter by: verified/unverified, has purchases/no purchases. Sort by: created_at, name, email. Columns: name, email, verified status, purchase count, joined date.
-- `show`: Full user detail — profile info, email verification status, all secondary emails (`UserEmail`), purchase history, quiz attempt summary, lesson progress summary, login history (last 20).
-- `toggle`: Enable/disable an account (add `is_active` boolean to users migration or use `locked_until` with a far-future date).
+**`AdminStudentController`** — `index()`, `show($student)`, `toggle($student)`
+- `index`: Paginated list of all students. Search by name/email. Filter by: verified/unverified, has purchases/no purchases. Sort by: created_at, name, email. Columns: name, email, verified status, purchase count, joined date.
+- `show`: Full student detail — profile info, email verification status, all secondary emails (`StudentEmail`), purchase history, quiz attempt summary, lesson progress summary, login history (last 20).
+- `toggle`: Enable/disable a student account (add `is_active` boolean to students migration or use `locked_until` with a far-future date).
 
 **`AdminPurchaseController`** — `index()`, `show($purchase)`
-- `index`: Paginated list of all purchases. Filter by: status (paid/pending/failed), course, date range. Sort by: created_at, amount. Columns: user name/email, course name, amount (formatted as £), status, date, Stripe session ID.
-- `show`: Full purchase detail — user info, course info, Stripe session ID, payment intent ID, amount, currency, status, terms accepted at/version, timestamps.
+- `index`: Paginated list of all purchases. Filter by: status (paid/pending/failed), course, date range. Sort by: created_at, amount. Columns: student name/email, course name, amount (formatted as £), status, date, Stripe session ID.
+- `show`: Full purchase detail — student info, course info, Stripe session ID, payment intent ID, amount, currency, status, terms accepted at/version, timestamps.
 
 **`AdminCourseController`** — `index()`, `edit($course)`, `update($course)`, `toggle($course)`
 - `index`: All courses sorted by `sort_order`. Columns: name, slug, price (formatted), is_active status, purchase count, total revenue.
@@ -239,8 +241,8 @@ All in `resources/views/admin/`:
 **Layout — `resources/views/admin/layouts/app.blade.php`:**
 - Separate admin layout, not sharing the public website's `master.blade.php`.
 - Simple Bootstrap 5 layout with:
-  - Top navbar: "Admin Panel" branding, logged-in user name, link back to public site, logout button.
-  - Left sidebar: navigation links to Dashboard, Users, Purchases, Courses, Analytics, Submissions (with unread badge count).
+  - Top navbar: "Admin Panel" branding, logged-in admin name, link back to public site, logout button.
+  - Left sidebar: navigation links to Dashboard, Students, Purchases, Courses, Analytics, Submissions (with unread badge count).
   - Main content area with `@yield('content')`.
   - Flash message support via `@include('admin.partials.flash')`.
 - Uses the same Bootstrap 5 CSS already loaded on the site. No extra CSS frameworks.
@@ -257,9 +259,9 @@ resources/views/admin/
 │   ├── flash.blade.php            # Flash messages
 │   └── stats-card.blade.php       # Reusable summary card component
 ├── dashboard.blade.php            # Summary cards + recent activity tables
-├── users/
-│   ├── index.blade.php            # Paginated user list with search/filters
-│   └── show.blade.php             # User detail (tabs: profile, purchases, progress, logins)
+├── students/
+│   ├── index.blade.php            # Paginated student list with search/filters
+│   └── show.blade.php             # Student detail (tabs: profile, purchases, progress, logins)
 ├── purchases/
 │   ├── index.blade.php            # Paginated purchase list with filters
 │   └── show.blade.php             # Purchase detail with Stripe IDs
@@ -281,14 +283,14 @@ resources/views/admin/
 
 | Test | What it verifies |
 |------|-----------------|
-| `non_admin_cannot_access_admin_routes` | A verified non-admin user gets 403 on all admin routes. |
+| `non_admin_cannot_access_admin_routes` | A verified non-admin student gets 403 on all admin routes. |
 | `guest_is_redirected_to_login` | Unauthenticated user is redirected to `/login`. |
 | `unverified_admin_cannot_access` | An admin with unverified email cannot access admin routes. |
-| `admin_can_see_dashboard` | Dashboard loads with correct stats (user count, revenue, purchase counts). |
-| `admin_can_list_users` | User index page shows paginated users with correct data. |
-| `admin_can_search_users` | Search by name and email returns correct results. |
-| `admin_can_view_user_detail` | User show page displays profile, purchases, progress, logins. |
-| `admin_can_toggle_user` | Toggle endpoint changes user's active status. |
+| `admin_can_see_dashboard` | Dashboard loads with correct stats (student count, revenue, purchase counts). |
+| `admin_can_list_students` | Student index page shows paginated students with correct data. |
+| `admin_can_search_students` | Search by name and email returns correct results. |
+| `admin_can_view_student_detail` | Student show page displays profile, purchases, progress, logins. |
+| `admin_can_toggle_student` | Toggle endpoint changes student's active status. |
 | `admin_can_list_purchases` | Purchase index shows all purchases with correct filters. |
 | `admin_can_filter_purchases_by_status` | Status filter returns only matching purchases. |
 | `admin_can_view_purchase_detail` | Purchase show page displays all fields including Stripe IDs. |
@@ -309,12 +311,12 @@ resources/views/admin/
 
 | Category | Files | Count |
 |----------|-------|-------|
-| Migrations | `add_is_admin_to_users_table`, `create_contact_submissions_table` | 2 |
+| Migrations | `add_is_admin_to_students_table`, `create_contact_submissions_table` | 2 |
 | Model | `ContactSubmission` | 1 |
-| Model update | `User` (add `isAdmin()`, `is_admin` cast) | 1 |
+| Model update | `Student` (add `isAdmin()`, `is_admin` cast) | 1 |
 | Middleware | `EnsureUserIsAdmin` | 1 |
 | Artisan command | `admin:create` | 1 |
-| Controllers | `AdminDashboardController`, `AdminUserController`, `AdminPurchaseController`, `AdminCourseController`, `AdminAnalyticsController`, `AdminSubmissionController` | 6 |
+| Controllers | `AdminDashboardController`, `AdminStudentController`, `AdminPurchaseController`, `AdminCourseController`, `AdminAnalyticsController`, `AdminSubmissionController` | 6 |
 | Mail controller updates | `ContactMailController`, `EnrollMailController`, `AssessmentMailController`, `TutorMailController` | 4 |
 | Views | Layout + sidebar + partials + 10 page views | ~14 |
 | Routes | Admin route group in `web.php` | 1 block |
@@ -330,13 +332,13 @@ For reference, the existing models the admin panel will read from:
 
 | Model | Key Columns | Key Relationships |
 |-------|------------|-------------------|
-| `User` | `id`, `name`, `email`, `email_verified_at`, `password`, `verification_code`, `locked_until` | `purchases()`, `quizAttempts()`, `lessonProgress()`, `loginHistories()`, `emails()` |
+| `Student` | `id`, `name`, `email`, `email_verified_at`, `password`, `verification_code_hash`, `verification_code_sent_at`, `verification_code_attempts`, `verification_code_locked_until`, `locked_until`, `is_admin` | `purchases()`, `quizAttempts()`, `lessonProgress()`, `loginHistories()`, `emails()` |
 | `Course` | `id`, `name`, `slug`, `tagline`, `description`, `price` (pence), `is_active`, `sort_order` | `purchases()` |
-| `Purchase` | `id`, `user_id`, `course_id`, `stripe_checkout_session_id`, `stripe_payment_intent_id`, `status`, `amount`, `currency`, `terms_accepted_at`, `terms_version`, `paid_at` | `user()`, `course()` |
-| `QuizAttempt` | `id`, `user_id`, `course_slug`, `quiz_slug`, `score`, `total`, `percentage`, `answers` (json) | `user()` |
-| `LessonProgress` | `id`, `user_id`, `course_slug`, `lesson_slug`, `completed_at` | `user()` |
-| `LoginHistory` | `id`, `user_id`, `ip_address`, `user_agent`, `platform`, `browser`, `device_type`, `login_at`, `is_current` | `user()` |
-| `UserEmail` | `id`, `user_id`, `email`, `is_primary`, `verified_at`, `verification_token` | `user()` |
+| `Purchase` | `id`, `student_id`, `course_id`, `stripe_checkout_session_id`, `stripe_payment_intent_id`, `status`, `amount`, `currency`, `terms_accepted_at`, `terms_version`, `paid_at` | `student()`, `course()` |
+| `QuizAttempt` | `id`, `student_id`, `course_slug`, `quiz_slug`, `score`, `total`, `percentage`, `answers` (json) | `student()` |
+| `LessonProgress` | `id`, `student_id`, `course_slug`, `lesson_slug`, `completed_at` | `student()` |
+| `LoginHistory` | `id`, `student_id`, `email`, `ip_address`, `user_agent`, `platform`, `browser`, `device_type`, `login_at`, `logout_at`, `status`, `is_current` | `student()` |
+| `StudentEmail` | `id`, `student_id`, `email`, `is_primary`, `verified_at`, `verification_token` | `student()` |
 | `StripeWebhookEvent` | `id`, `event_id`, `event_type`, `payload` (json), `processed_at` | — |
 
 ---
