@@ -132,24 +132,15 @@ class AppServiceProvider extends ServiceProvider
         // LogSuccessfulLogin and LogSuccessfulLogout are auto-discovered by Laravel 11
         // from the app/Listeners directory. No manual registration needed.
 
-        \Illuminate\Support\Facades\Route::macro('lesson', function (string $uri, ?string $name = null, ?string $default = null) {
-            return $this->bind($uri, $name, 'lesson_id', function (\App\Content\CourseContent $content, string $slug, string $id) {
-                $lesson = $content->findLesson($slug, $id);
-                abort_if($lesson === null, 404, "There is no lesson \"{$id}\" in this course.");
-                return $lesson;
-            }, $default);
-        });
-
-        \Illuminate\Support\Facades\Route::macro('quiz', function (string $uri, ?string $name = null, ?string $default = null) {
-            return $this->bind($uri, $name, 'quiz_id', function (\App\Content\CourseContent $content, string $slug, string $id) {
-                $quiz = $content->findQuiz($slug, $id);
-                abort_if($quiz === null, 404, "There is no paper or mock test \"{$id}\" in this course.");
-                return $quiz;
-            }, $default);
-        });
-
         $this->bootBrandEmail();
     }
+
+    /**
+     * Route macros for lesson/quiz binding were removed because they duplicated
+     * the scoped binding logic in bindCourseContent() and were not used by any route.
+     * The scoped bindings in bindCourseContent() handle lesson/quiz resolution
+     * with proper course-scoping security.
+     */
 
     private function bootBrandEmail(): void
     {
