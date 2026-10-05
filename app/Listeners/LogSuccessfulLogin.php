@@ -14,9 +14,9 @@ class LogSuccessfulLogin
 
     public function handle(Login $event): void
     {
-        $user = $event->user;
+        $student = $event->user;
 
-        if (! $user->hasVerifiedEmail()) {
+        if (! $student->hasVerifiedEmail()) {
             return;
         }
 
@@ -24,8 +24,8 @@ class LogSuccessfulLogin
 
         try {
             LoginHistory::create([
-                'user_id'         => $user->id,
-                'email'           => $user->email,
+                'student_id'         => $student->id,
+                'email'           => $student->email,
                 'ip_address'      => $this->request->ip(),
                 'device_type'     => $agent->device() ?? 'Desktop',
                 'browser'         => $agent->browser(),
@@ -38,7 +38,7 @@ class LogSuccessfulLogin
         } catch (\Throwable $e) {
             // Never block authentication because logging failed
             Log::error('Failed to record login history', [
-                'user_id' => $user->id,
+                'student_id' => $student->id,
                 'error'   => $e->getMessage(),
             ]);
         }

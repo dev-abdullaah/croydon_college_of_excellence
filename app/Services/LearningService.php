@@ -7,7 +7,7 @@ use App\Content\Lesson;
 use App\Content\Quiz;
 use App\Models\Course;
 use App\Models\LessonProgress;
-use App\Models\User;
+use App\Models\Student;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -41,13 +41,13 @@ class LearningService
      *     best: Collection<string, float>
      * }
      */
-    public function courseOverview(User $user, Course $course): array
+    public function courseOverview(Student $student, Course $course): array
     {
         $lessons = $this->content->lessons($course->slug);
-        $read = LessonProgress::readSlugsFor($user, $course->slug);
+        $read = LessonProgress::readSlugsFor($student, $course->slug);
 
         $quizzes = $this->content->quizzes($course->slug);
-        $best = $this->attempts->bestScoresBySlug($user, $course->slug);
+        $best = $this->attempts->bestScoresBySlug($student, $course->slug);
 
         $groups = [];
 
@@ -90,10 +90,10 @@ class LearningService
     /**
      * When a learner marked a lesson as finished, or null if they have not.
      */
-    public function completedAt(User $user, Course $course, Lesson $lesson): ?Carbon
+    public function completedAt(Student $student, Course $course, Lesson $lesson): ?Carbon
     {
         return LessonProgress::query()
-            ->for($user)
+            ->for($student)
             ->where('course_slug', $course->slug)
             ->where('lesson_slug', $lesson->slug)
             ->value('completed_at');

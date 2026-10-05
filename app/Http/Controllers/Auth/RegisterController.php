@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Models\Student;
 use App\Support\IntendedCourse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,7 +15,7 @@ use Illuminate\View\View;
  * Self-service account creation.
  *
  * An account is what ties a Stripe payment to a person; the webhook matches
- * the payment back to this user through the metadata set at checkout.
+ * the payment back to this student through the metadata set at checkout.
  */
 class RegisterController extends Controller
 {
@@ -33,7 +33,7 @@ class RegisterController extends Controller
     public function store(Request $request): RedirectResponse
     {
         /*
-         | Deliberately no `unique:users,email` rule.
+         | Deliberately no `unique:students,email` rule.
          |
          | The rule was doing the right thing for the wrong reason: it stopped
          | a second row with the same address, but it also said "that email is
@@ -66,7 +66,7 @@ class RegisterController extends Controller
 
         $email = $validated['email'];
 
-        $existing = User::where('email', $email)->first();
+        $existing = Student::where('email', $email)->first();
 
         if ($existing && $existing->hasVerifiedEmail()) {
             /*
@@ -86,7 +86,7 @@ class RegisterController extends Controller
             return $this->resumeRegistration($request, $existing, $validated);
         }
 
-        $user = User::create([
+        $student = Student::create([
             'name' => $validated['name'],
             'email' => $email,
             'password' => Hash::make($validated['password']),
@@ -107,12 +107,12 @@ class RegisterController extends Controller
          | before they have shown they own the address is what let an account
          | be created against an address its owner never sees.
          */
-        $user->sendEmailVerificationCodeNotification();
+        $student->sendEmailVerificationCodeNotification();
 
         // Only for rendering the notice, so the guest who has just registered
         // can see which address the code went to, and enter it without typing
         // the address again.
-        $request->session()->put('verification.email', $user->email);
+        $request->session()->put('verification.email', $student->email);
         $request->session()->put('verification.email_locked', true);
 
         return redirect()->route('verification.notice')
@@ -135,9 +135,9 @@ class RegisterController extends Controller
      * nothing to take over - an address nobody has claimed is not an account
      * anybody can lose.
      */
-    private function resumeRegistration(Request $request, User $user, array $validated): RedirectResponse
+    private function resumeRegistration(Request $request, Student $student, array $validated): RedirectResponse
     {
-        $user->forceFill([
+        $student->forceFill([
             'name' => $validated['name'],
             'password' => Hash::make($validated['password']),
         ])->save();
@@ -145,9 +145,9 @@ class RegisterController extends Controller
         // A code may already be on its way from the abandoned attempt, in
         // which case another email helps nobody. The cooldown message is
         // honest about that: no promise that a code was just sent.
-        $sent = $user->sendVerificationCodeIfDue();
+        $sent = $student->sendVerificationCodeIfDue();
 
-        $request->session()->put('verification.email', $user->email);
+        $request->session()->put('verification.email', $student->email);
         $request->session()->put('verification.email_locked', true);
 
         if (! $sent) {

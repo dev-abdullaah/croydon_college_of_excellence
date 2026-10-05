@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\LoginHistory;
-use App\Models\User;
-use App\Models\UserEmail;
+use App\Models\Student;
+use App\Models\StudentEmail;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,28 +33,28 @@ class AccountCenterController extends Controller
      */
     public function index(Request $request): View
     {
-        /** @var User $user */
-        $user = $request->user();
-        $user->load('emails');
+        /** @var Student $student */
+        $student = $request->user();
+        $student->load('emails');
 
-        $emails = $user->emails->sortByDesc('is_primary');
+        $emails = $student->emails->sortByDesc('is_primary');
 
-        // Ensure the user's primary email (from users table) is included
-        // If it's not already in user_emails, add it as the primary
-        $primaryEmailFromUser = $user->email;
-        $hasPrimaryInUserEmails = $emails->contains('email', $primaryEmailFromUser);
+        // Ensure the student's primary email (from students table) is included
+        // If it's not already in student_emails, add it as the primary
+        $primaryEmailFromStudent = $student->email;
+        $hasPrimaryInStudentEmails = $emails->contains('email', $primaryEmailFromStudent);
 
-        if (! $hasPrimaryInUserEmails) {
+        if (! $hasPrimaryInStudentEmails) {
             $emails = $emails->prepend((object)[
                 'id' => 0,
-                'email' => $primaryEmailFromUser,
+                'email' => $primaryEmailFromStudent,
                 'is_primary' => true,
-                'is_verified' => $user->hasVerifiedEmail(),
+                'is_verified' => $student->hasVerifiedEmail(),
             ]);
         }
 
         // Active sessions: not revoked, not logged out, no logout_at
-        $activeSessions = LoginHistory::forUser($user->id)
+        $activeSessions = LoginHistory::forStudent($student->id)
             ->where('status', 'success')
             ->whereNull('logout_at')
             ->latest('login_at')
@@ -62,7 +62,7 @@ class AccountCenterController extends Controller
             ->get();
 
         // Full login history (including revoked/logged out) with pagination
-        $loginHistory = LoginHistory::forUser($user->id)
+        $loginHistory = LoginHistory::forStudent($student->id)
             ->latest('login_at')
             ->paginate(10)
             ->withQueryString();
@@ -109,11 +109,11 @@ class AccountCenterController extends Controller
      */
     public function addEmail(Request $request): RedirectResponse
     {
-        /** @var User $user */
-        $user = $request->user();
+        /** @var Student $student */
+        $student = $request->user();
 
-        // Rate limit: 5 requests per hour per user
-        $key = 'add-email:' . $user->id;
+        // Rate limit: 5 requests per hour per student
+        $key = 'add-email:' . $student->id;
 
         if (RateLimiter::tooManyAttempts($key, 5)) {
             $seconds = RateLimiter::availableIn($key);
@@ -124,21 +124,21 @@ class AccountCenterController extends Controller
 
         $request->validate([
             'current_password' => ['required', 'current_password'],
-            'email' => ['required', 'email', 'max:255', 'unique:user_emails,email'],
+            'email' => ['required', 'email', 'max:255', 'unique:student_emails,email'],
         ]);
 
         RateLimiter::hit($key, 3600); // 1 hour decay
 
         // Create the new email record (unverified, not primary)
-        $userEmail = UserEmail::create([
-            'user_id' => $user->id,
+        $studentEmail = StudentEmail::create([
+            'student_id' => $student->id,
             'email' => $request->string('email')->lower(),
             'is_primary' => false,
             'is_verified' => false,
         ]);
 
         // Send verification email
-        $userEmail->sendVerificationNotification();
+        $studentEmail->sendVerificationNotification();
 
         return $this->backToTab($request)->with('status', 'email-added');
     }
@@ -146,21 +146,21 @@ class AccountCenterController extends Controller
     /**
      * Send verification email for an unverified email.
      */
-    public function resendVerification(Request $request, UserEmail $userEmail): RedirectResponse
+    public function resendVerification(Request $request, StudentEmail $studentEmail): RedirectResponse
     {
-        /** @var User $user */
-        $user = $request->user();
+        /** @var Student $student */
+        $student = $request->user();
 
-        if ($userEmail->user_id !== $user->id) {
+        if ($studentEmail->student_id !== $student->id) {
             abort(403);
         }
 
-        if ($userEmail->is_verified) {
+        if ($studentEmail->is_verified) {
             return $this->backToTab($request)->withErrors(['email' => 'This email is already verified.']);
         }
 
         // Rate limit: 2 requests per 10 minutes per email
-        $key = 'resend-verification:' . $userEmail->id;
+        $key = 'resend-verification:' . $studentEmail->id;
 
         if (RateLimiter::tooManyAttempts($key, 2)) {
             $seconds = RateLimiter::availableIn($key);
@@ -171,7 +171,7 @@ class AccountCenterController extends Controller
 
         RateLimiter::hit($key, 600); // 10 minutes decay
 
-        $userEmail->sendVerificationNotification();
+        $studentEmail->sendVerificationNotification();
 
         return $this->backToTab($request)->with('status', 'verification-sent');
     }
@@ -186,13 +186,13 @@ class AccountCenterController extends Controller
         // the reader is sent whether it worked or not.
         $redirect = redirect()->route('account.center', ['tab' => 'emails']);
 
-        $userEmail = UserEmail::where('verification_token', $token)->first();
+        $studentEmail = StudentEmail::where('verification_token', $token)->first();
 
-        if (! $userEmail) {
+        if (! $studentEmail) {
             return $redirect->withErrors(['email' => 'Invalid or expired verification link.']);
         }
 
-        if ($userEmail->verifyToken($token)) {
+        if ($studentEmail->verifyToken($token)) {
             return $redirect->with('status', 'email-verified');
         }
 
@@ -202,20 +202,20 @@ class AccountCenterController extends Controller
     /**
      * Set an email as primary (requires password).
      */
-    public function setPrimary(Request $request, UserEmail $userEmail): RedirectResponse
+    public function setPrimary(Request $request, StudentEmail $studentEmail): RedirectResponse
     {
-        /** @var User $user */
-        $user = $request->user();
+        /** @var Student $student */
+        $student = $request->user();
 
-        if ($userEmail->user_id !== $user->id) {
+        if ($studentEmail->student_id !== $student->id) {
             abort(403);
         }
 
-        if (! $userEmail->is_verified) {
+        if (! $studentEmail->is_verified) {
             return $this->backToTab($request)->withErrors(['email' => 'You must verify this email before making it primary.']);
         }
 
-        if ($userEmail->is_primary) {
+        if ($studentEmail->is_primary) {
             return $this->backToTab($request)->with('status', 'already-primary');
         }
 
@@ -224,10 +224,10 @@ class AccountCenterController extends Controller
         ]);
 
         // Unset current primary
-        $user->emails()->where('is_primary', true)->update(['is_primary' => false]);
+        $student->emails()->where('is_primary', true)->update(['is_primary' => false]);
 
         // Set new primary
-        $userEmail->update(['is_primary' => true]);
+        $studentEmail->update(['is_primary' => true]);
 
         return $this->backToTab($request)->with('status', 'primary-changed');
     }
@@ -235,16 +235,16 @@ class AccountCenterController extends Controller
     /**
      * Remove an email address (requires password).
      */
-    public function removeEmail(Request $request, UserEmail $userEmail): RedirectResponse
+    public function removeEmail(Request $request, StudentEmail $studentEmail): RedirectResponse
     {
-        /** @var User $user */
-        $user = $request->user();
+        /** @var Student $student */
+        $student = $request->user();
 
-        if ($userEmail->user_id !== $user->id) {
+        if ($studentEmail->student_id !== $student->id) {
             abort(403);
         }
 
-        if ($userEmail->is_primary) {
+        if ($studentEmail->is_primary) {
             return $this->backToTab($request)->withErrors(['email' => 'Cannot remove primary email. Set another email as primary first.']);
         }
 
@@ -252,7 +252,7 @@ class AccountCenterController extends Controller
             'current_password' => ['required', 'current_password'],
         ]);
 
-        $userEmail->delete();
+        $studentEmail->delete();
 
         return $this->backToTab($request)->with('status', 'email-removed');
     }
@@ -262,8 +262,8 @@ class AccountCenterController extends Controller
      */
     public function updatePassword(Request $request): RedirectResponse
     {
-        /** @var User $user */
-        $user = $request->user();
+        /** @var Student $student */
+        $student = $request->user();
 
         $request->validate([
             'current_password' => ['required', 'current_password'],
@@ -271,14 +271,14 @@ class AccountCenterController extends Controller
         ]);
 
         // Prevent reusing current password
-        if (Hash::check($request->string('password'), $user->password)) {
+        if (Hash::check($request->string('password'), $student->password)) {
             return $this->backToTab($request)->withErrors([
                 'password' => 'The new password must be different from your current password.',
             ])->withInput($request->except('password', 'password_confirmation'));
         }
 
-        $user->password = Hash::make($request->string('password'));
-        $user->save();
+        $student->password = Hash::make($request->string('password'));
+        $student->save();
 
         return $this->backToTab($request)->with('status', 'password-changed');
     }
@@ -288,10 +288,10 @@ class AccountCenterController extends Controller
      */
     public function revokeSession(Request $request, LoginHistory $loginHistory): RedirectResponse
     {
-        /** @var User $user */
-        $user = $request->user();
+        /** @var Student $student */
+        $student = $request->user();
 
-        if ($loginHistory->user_id !== $user->id) {
+        if ($loginHistory->student_id !== $student->id) {
             abort(403);
         }
 

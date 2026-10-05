@@ -6,7 +6,7 @@ use App\Exceptions\AlreadyPurchasedException;
 use App\Exceptions\PaymentException;
 use App\Models\Course;
 use App\Models\Purchase;
-use App\Models\User;
+use App\Models\Student;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -55,7 +55,7 @@ class PurchaseService
      * one. The lock makes the second request wait, and makes the first one to
      * arrive do the work.
      */
-    public function beginCheckout(User $user, Course $course, bool $termsAccepted = false): Session
+    public function beginCheckout(Student $student, Course $course, bool $termsAccepted = false): Session
     {
         $priceId = $course->stripePriceId();
 
@@ -66,7 +66,7 @@ class PurchaseService
             ));
         }
 
-        $lock = Cache::lock($this->checkoutLockKey($user, $course), 10);
+        $lock = Cache::lock($this->checkoutLockKey($student, $course), 10);
 
         if (! $lock->get()) {
             /*
@@ -84,7 +84,7 @@ class PurchaseService
         }
 
         try {
-            return $this->openCheckoutSession($user, $course, $priceId, $termsAccepted);
+            return $this->openCheckoutSession($student, $course, $priceId, $termsAccepted);
         } finally {
             $lock->release();
         }
@@ -93,9 +93,9 @@ class PurchaseService
     /**
      * The work of beginCheckout, with the lock already held.
      */
-    protected function openCheckoutSession(User $user, Course $course, string $priceId, bool $termsAccepted): Session
+    protected function openCheckoutSession(Student $student, Course $course, string $priceId, bool $termsAccepted): Session
     {
-        if ($existing = $this->reusableSession($user, $course)) {
+        if ($existing = $this->reusableSession($student, $course)) {
             return $existing;
         }
 
@@ -104,8 +104,8 @@ class PurchaseService
             'line_items' => [
                 ['price' => $priceId, 'quantity' => 1],
             ],
-            'client_reference_id' => (string) $user->id,
-            'customer_email' => $user->email,
+            'client_reference_id' => (string) $student->id,
+            'customer_email' => $student->email,
             /*
              | How long Stripe keeps this page open for the customer. Stripe
              | rejects anything outside 30 minutes to 24 hours, so the setting
@@ -117,10 +117,10 @@ class PurchaseService
             /*
              | Metadata is the bridge between Stripe and our database: it lets
              | the webhook (and the return trip) attach the payment to the
-             | right user and course without trusting the browser.
+             | right student and course without trusting the browser.
              */
             'metadata' => [
-                'user_id' => (string) $user->id,
+                'student_id' => (string) $student->id,
                 'course_id' => (string) $course->id,
                 'course_slug' => $course->slug,
             ],
@@ -132,13 +132,13 @@ class PurchaseService
                  | we want: somebody who has just paid a hundred pounds and
                  | heard nothing turns into a support call.
                  */
-                'receipt_email' => $user->email,
+                'receipt_email' => $student->email,
             ],
             'success_url' => route('checkout.success').'?session_id={CHECKOUT_SESSION_ID}',
             'cancel_url' => route('checkout.cancel'),
         ]);
 
-        $this->recordPendingPurchase($user, $course, $session->id, $termsAccepted);
+        $this->recordPendingPurchase($student, $course, $session->id, $termsAccepted);
 
         return $session;
     }
@@ -162,10 +162,10 @@ class PurchaseService
      *   - anything else (expired, complete but unpaid): fall through and open a
      *     new session.
      */
-    protected function reusableSession(User $user, Course $course): ?Session
+    protected function reusableSession(Student $student, Course $course): ?Session
     {
         $purchase = Purchase::query()
-            ->where('user_id', $user->id)
+            ->where('student_id', $student->id)
             ->forCourse($course)
             ->where('status', Purchase::STATUS_PENDING)
             ->whereNotNull('stripe_checkout_session_id')
@@ -222,18 +222,18 @@ class PurchaseService
     /**
      * The pending row that gives us a local trail before the webhook arrives.
      */
-    protected function recordPendingPurchase(User $user, Course $course, string $sessionId, bool $termsAccepted): void
+    protected function recordPendingPurchase(Student $student, Course $course, string $sessionId, bool $termsAccepted): void
     {
         try {
             Purchase::updateOrCreate(
                 ['stripe_checkout_session_id' => $sessionId],
                 [
-                    'user_id' => $user->id,
+                    'student_id' => $student->id,
                     'course_id' => $course->id,
                     'amount' => $course->price,
                     'currency' => $course->currency,
-                    'customer_email' => $user->email,
-                    'customer_name' => $user->name,
+                    'customer_email' => $student->email,
+                    'customer_name' => $student->name,
                     'status' => Purchase::STATUS_PENDING,
                     /*
                      | The consent is recorded the moment the tick box is
@@ -264,9 +264,9 @@ class PurchaseService
     /**
      * The lock key for one customer's attempt to buy one course.
      */
-    protected function checkoutLockKey(User $user, Course $course): string
+    protected function checkoutLockKey(Student $student, Course $course): string
     {
-        return "checkout:{$user->id}:{$course->id}";
+        return "checkout:{$student->id}:{$course->id}";
     }
 
     /**
@@ -315,13 +315,13 @@ class PurchaseService
      */
     public function recordCheckoutSession(Session $session, ?string $eventId = null): ?Purchase
     {
-        $user = $this->resolveUser($session);
+        $student = $this->resolveUser($session);
         $course = $this->resolveCourse($session);
 
-        if (! $user || ! $course) {
-            Log::error('Received a checkout session we cannot match to a user and course.', [
+        if (! $student || ! $course) {
+            Log::error('Received a checkout session we cannot match to a student and course.', [
                 'checkout_session_id' => $session->id,
-                'user_id' => $session->metadata['user_id'] ?? null,
+                'student_id' => $session->metadata['student_id'] ?? null,
                 'course_id' => $session->metadata['course_id'] ?? null,
             ]);
 
@@ -331,24 +331,24 @@ class PurchaseService
         $isPaid = ($session->payment_status ?? null) === 'paid';
         $intentId = $this->stringId($session->payment_intent);
 
-        return DB::transaction(function () use ($session, $eventId, $user, $course, $isPaid, $intentId) {
-            $purchase = $this->locatePurchase($user->id, $course->id, $session->id, $intentId);
+        return DB::transaction(function () use ($session, $eventId, $student, $course, $isPaid, $intentId) {
+            $purchase = $this->locatePurchase($student->id, $course->id, $session->id, $intentId);
 
             if (! $purchase) {
                 $purchase = new Purchase([
-                    'user_id' => $user->id,
+                    'student_id' => $student->id,
                     'course_id' => $course->id,
                 ]);
             }
 
             $purchase->fill([
-                'user_id' => $user->id,
+                'student_id' => $student->id,
                 'course_id' => $course->id,
                 'stripe_checkout_session_id' => $session->id,
                 'stripe_payment_intent_id' => $intentId,
                 'stripe_customer_id' => $this->stringId($session->customer),
                 'stripe_event_id' => $eventId ?? $purchase->stripe_event_id,
-                'customer_email' => $session->customer_details?->email ?? $user->email,
+                'customer_email' => $session->customer_details?->email ?? $student->email,
                 'customer_name' => $session->customer_details?->name,
                 'amount' => $session->amount_total ?? $course->price,
                 'currency' => strtolower((string) ($session->currency ?? $course->currency)),
@@ -377,21 +377,21 @@ class PurchaseService
     public function recordPaymentIntent(PaymentIntent $intent, ?string $eventId = null): ?Purchase
     {
         $metadata = $intent->metadata ?? [];
-        $user = isset($metadata['user_id']) ? User::find((int) $metadata['user_id']) : null;
+        $student = isset($metadata['student_id']) ? Student::find((int) $metadata['student_id']) : null;
         $course = isset($metadata['course_id']) ? Course::find((int) $metadata['course_id']) : null;
 
         $existing = Purchase::where('stripe_payment_intent_id', $intent->id)->first();
 
-        if (! $user || ! $course) {
+        if (! $student || ! $course) {
             // Without metadata we can still find the row the checkout already
             // opened; anything else is not ours to record.
             return $existing;
         }
 
-        $purchase = $existing ?: $this->locatePurchase($user->id, $course->id, null, $intent->id) ?: new Purchase;
+        $purchase = $existing ?: $this->locatePurchase($student->id, $course->id, null, $intent->id) ?: new Purchase;
 
         $purchase->fill([
-            'user_id' => $user->id,
+            'student_id' => $student->id,
             'course_id' => $course->id,
             'stripe_payment_intent_id' => $intent->id,
             'stripe_event_id' => $eventId ?? $purchase->stripe_event_id,
@@ -414,13 +414,13 @@ class PurchaseService
     public function recordFailedPaymentIntent(PaymentIntent $intent): void
     {
         $metadata = $intent->metadata ?? [];
-        $userId = isset($metadata['user_id']) ? (int) $metadata['user_id'] : null;
+        $studentId = isset($metadata['student_id']) ? (int) $metadata['student_id'] : null;
         $courseId = isset($metadata['course_id']) ? (int) $metadata['course_id'] : null;
 
         $purchase = Purchase::where('stripe_payment_intent_id', $intent->id)->first();
 
-        if (! $purchase && $userId && $courseId) {
-            $purchase = $this->locatePurchase($userId, $courseId, null, $intent->id);
+        if (! $purchase && $studentId && $courseId) {
+            $purchase = $this->locatePurchase($studentId, $courseId, null, $intent->id);
         }
 
         if (! $purchase) {
@@ -504,19 +504,19 @@ class PurchaseService
      | ----------------------------------------------------------------- */
 
     /**
-     * Has this user already paid for this course? Used to stop a second
+     * Has this student already paid for this course? Used to stop a second
      * checkout for something they own.
      */
-    public function alreadyPurchased(User $user, Course $course): bool
+    public function alreadyPurchased(Student $student, Course $course): bool
     {
-        return $user->hasPurchased($course);
+        return $student->hasPurchased($course);
     }
 
-    protected function resolveUser(Session $session): ?User
+    protected function resolveUser(Session $session): ?Student
     {
-        $id = $session->metadata['user_id'] ?? $session->client_reference_id ?? null;
+        $id = $session->metadata['student_id'] ?? $session->client_reference_id ?? null;
 
-        return $id ? User::find((int) $id) : null;
+        return $id ? Student::find((int) $id) : null;
     }
 
     protected function resolveCourse(Session $session): ?Course
@@ -576,7 +576,7 @@ class PurchaseService
             }
         }
 
-        $query = Purchase::where('user_id', $userId)
+        $query = Purchase::where('student_id', $userId)
             ->where('course_id', $courseId)
             ->whereNull('stripe_payment_intent_id')
             ->where('status', Purchase::STATUS_PENDING);

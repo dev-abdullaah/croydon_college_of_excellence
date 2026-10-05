@@ -7,7 +7,7 @@ use App\Content\Question;
 use App\Content\Quiz;
 use App\Models\Course;
 use App\Models\QuizAttempt;
-use App\Models\User;
+use App\Models\Student;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -36,18 +36,18 @@ class QuizAttemptService
      * and restarting it. This is the paper *screen*'s entry point: opening a
      * paper you have already finished is how you sit it again.
      */
-    public function resumeOrStart(User $user, Quiz $quiz): QuizAttempt
+    public function resumeOrStart(Student $student, Quiz $quiz): QuizAttempt
     {
-        return $this->inProgress($user, $quiz) ?? $this->start($user, $quiz);
+        return $this->inProgress($student, $quiz) ?? $this->start($student, $quiz);
     }
 
     /**
      * Begin a fresh sitting.
      */
-    public function start(User $user, Quiz $quiz): QuizAttempt
+    public function start(Student $student, Quiz $quiz): QuizAttempt
     {
         return QuizAttempt::create([
-            'user_id' => $user->id,
+            'student_id' => $student->id,
             'course_slug' => $quiz->course,
             'quiz_slug' => $quiz->slug,
             'status' => QuizAttempt::IN_PROGRESS,
@@ -60,10 +60,10 @@ class QuizAttemptService
     /**
      * The sitting that is currently open, or null if there is not one.
      */
-    public function inProgress(User $user, Quiz $quiz): ?QuizAttempt
+    public function inProgress(Student $student, Quiz $quiz): ?QuizAttempt
     {
         return QuizAttempt::query()
-            ->forPaper($user, $quiz->course, $quiz->slug)
+            ->forPaper($student, $quiz->course, $quiz->slug)
             ->inProgress()
             ->recentFirst()
             ->first();
@@ -119,16 +119,16 @@ class QuizAttemptService
      *
      * @param  array<int|string, mixed>  $answers
      */
-    public function submitWithAnswers(User $user, Quiz $quiz, array $answers): QuizAttempt
+    public function submitWithAnswers(Student $student, Quiz $quiz, array $answers): QuizAttempt
     {
-        $open = $this->inProgress($user, $quiz);
+        $open = $this->inProgress($student, $quiz);
 
         if ($open !== null) {
             return $this->recordAnswers($open, $answers);
         }
 
         $finished = QuizAttempt::query()
-            ->forPaper($user, $quiz->course, $quiz->slug)
+            ->forPaper($student, $quiz->course, $quiz->slug)
             ->submitted()
             ->recentFirst()
             ->first();
@@ -195,10 +195,10 @@ class QuizAttemptService
      *
      * @return Collection<int, QuizAttempt>
      */
-    public function history(User $user, Quiz $quiz): Collection
+    public function history(Student $student, Quiz $quiz): Collection
     {
         return QuizAttempt::query()
-            ->forPaper($user, $quiz->course, $quiz->slug)
+            ->forPaper($student, $quiz->course, $quiz->slug)
             ->submitted()
             ->recentFirst()
             ->get();
@@ -208,10 +208,10 @@ class QuizAttemptService
      * The learner's best finished score on a paper as a whole percentage, or
      * null if they have never finished it.
      */
-    public function bestPercentage(User $user, Quiz $quiz): ?float
+    public function bestPercentage(Student $student, Quiz $quiz): ?float
     {
         $best = QuizAttempt::query()
-            ->forPaper($user, $quiz->course, $quiz->slug)
+            ->forPaper($student, $quiz->course, $quiz->slug)
             ->submitted()
             ->max('percentage');
 
@@ -229,10 +229,10 @@ class QuizAttemptService
      *
      * @return Collection<string, QuizAttempt>
      */
-    public function bestScoresBySlug(User $user, string $courseSlug): Collection
+    public function bestScoresBySlug(Student $student, string $courseSlug): Collection
     {
         return QuizAttempt::query()
-            ->for($user)
+            ->for($student)
             ->where('course_slug', $courseSlug)
             ->submitted()
             ->selectRaw('quiz_slug, MAX(percentage) as best_percentage, COUNT(*) as times_sat')

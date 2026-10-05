@@ -202,10 +202,10 @@ class CheckoutController extends Controller
 
         $request->session()->forget('checkout.course');
 
-        // Only ever show a purchase that belongs to the signed-in user, so a
+        // Only ever show a purchase that belongs to the signed-in student, so a
         // session id pasted from someone else's browser reveals nothing.
         $purchase = Purchase::where('stripe_checkout_session_id', $sessionId)
-            ->where('user_id', $user->id)
+            ->where('student_id', $user->id)
             ->first();
 
         if (! $purchase || ! $purchase->isPaid()) {
@@ -213,7 +213,7 @@ class CheckoutController extends Controller
             // record the result if it has landed.
             $purchase = $this->purchases->reconcileCheckoutSession($sessionId);
 
-            if ($purchase && $purchase->user_id !== $user->id) {
+            if ($purchase && $purchase->student_id !== $user->id) {
                 $purchase = null;
             }
         }

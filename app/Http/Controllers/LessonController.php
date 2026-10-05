@@ -56,14 +56,14 @@ class LessonController extends Controller
      *
      * This is the learner's own note to themselves, not a gate: it does not
      * unlock anything, and re-reading a lesson does not need it cleared again.
-     * The unique (user, course, lesson) index is what stops a double-click
+     * The unique (student, course, lesson) index is what stops a double-click
      * creating two rows.
      */
     public function complete(Request $request, Course $course, Lesson $lesson): RedirectResponse
     {
         LessonProgress::firstOrCreate(
             [
-                'user_id' => $request->user()->id,
+                'student_id' => $request->user()->id,
                 'course_slug' => $course->slug,
                 'lesson_slug' => $lesson->slug,
             ],

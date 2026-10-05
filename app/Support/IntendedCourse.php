@@ -3,7 +3,7 @@
 namespace App\Support;
 
 use App\Models\Course;
-use App\Models\User;
+use App\Models\Student;
 use Illuminate\Support\Facades\Session;
 
 /**
@@ -106,14 +106,14 @@ class IntendedCourse
      * Does not consume the memory - the slug survives to keep the flow intact
      * if they back out of the review page.
      */
-    public static function resolveIfUnowned(?User $user): ?Course
+    public static function resolveIfUnowned(?Student $student): ?Course
     {
         $course = self::resolve();
 
-        if ($course === null || $user === null) {
+        if ($course === null || $student === null) {
             return $course;
         }
 
-        return $user->hasPurchased($course) ? null : $course;
+        return $student->hasPurchased($course) ? null : $course;
     }
 }

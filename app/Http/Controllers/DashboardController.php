@@ -7,7 +7,7 @@ use App\Models\Course;
 use App\Models\LessonProgress;
 use App\Models\LoginHistory;
 use App\Models\Purchase;
-use App\Models\User;
+use App\Models\Student;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -18,16 +18,16 @@ class DashboardController extends Controller
     public function __construct(private readonly CourseContent $content) {}
 
     /**
-     * "My account": everything the signed-in user owns, with a way into the
+     * "My account": everything the signed-in student owns, with a way into the
      * learning area for each course their purchase unlocks.
      */
     public function index(Request $request): View|RedirectResponse
     {
-        /** @var User $user */
-        $user = $request->user();
+        /** @var Student $student */
+        $student = $request->user();
 
         $purchases = Purchase::with('course')
-            ->where('user_id', $user->id)
+            ->where('student_id', $student->id)
             ->orderByDesc('created_at')
             ->get();
 
@@ -40,7 +40,7 @@ class DashboardController extends Controller
             ->filter(fn (?Course $course) => $course && $this->content->hasContent($course->slug))
             ->values();
 
-        $loginHistory = LoginHistory::forUser($user->id)
+        $loginHistory = LoginHistory::forStudent($student->id)
             ->latest('login_at')
             ->limit(10)
             ->get();
@@ -50,7 +50,7 @@ class DashboardController extends Controller
             'paidPurchases' => $paid,
             'pendingPurchases' => $purchases->reject(fn (Purchase $purchase) => $purchase->isPaid()),
             'learnableCourses' => $learnable,
-            'lessonProgress' => $this->lessonProgressFor($user, $learnable),
+            'lessonProgress' => $this->lessonProgressFor($student, $learnable),
             'highlightCourse' => $this->highlightCourse($request, $learnable),
             /*
              | Courses this account has started to buy but not finished. One
@@ -58,7 +58,7 @@ class DashboardController extends Controller
              | three times has one thing to do, not three, and showing three
              | rows reads as three separate problems.
              */
-            'unfinishedCourses' => $this->unfinishedCourses($user, $purchases),
+            'unfinishedCourses' => $this->unfinishedCourses($student, $purchases),
             'loginHistory' => $loginHistory,
         ]);
     }
@@ -99,13 +99,13 @@ class DashboardController extends Controller
      * @param  Collection<int, Purchase>  $purchases
      * @return Collection<int, Course>
      */
-    private function unfinishedCourses(User $user, Collection $purchases): Collection
+    private function unfinishedCourses(Student $student, Collection $purchases): Collection
     {
         return $purchases
             ->map(fn (Purchase $purchase) => $purchase->course)
             ->filter()
             ->unique('id')
-            ->reject(fn (Course $course) => $user->hasPurchased($course))
+            ->reject(fn (Course $course) => $student->hasPurchased($course))
             ->filter(fn (Course $course) => $course->is_active)
             ->values();
     }
@@ -121,13 +121,13 @@ class DashboardController extends Controller
      * @param  Collection<int, Course>  $courses
      * @return Collection<int, array{done: int, total: int}>
      */
-    private function lessonProgressFor(User $user, Collection $courses): Collection
+    private function lessonProgressFor(Student $student, Collection $courses): Collection
     {
         return $courses->mapWithKeys(fn (Course $course) => [
             // Keyed by slug rather than id, because that is what the content
             // files and the progress rows both use to name a course's lessons.
             $course->slug => [
-                'done' => LessonProgress::readSlugsFor($user, $course->slug)
+                'done' => LessonProgress::readSlugsFor($student, $course->slug)
                     ->intersect($this->content->lessons($course->slug)->pluck('slug'))
                     ->count(),
                 'total' => $this->content->lessons($course->slug)->count(),

@@ -10,14 +10,14 @@ class LogSuccessfulLogout
 {
     public function handle(Logout $event): void
     {
-        $user = $event->user;
+        $student = $event->user;
 
-        if (! $user) {
+        if (! $student) {
             return;
         }
 
         try {
-            $loginHistory = LoginHistory::where('user_id', $user->id)
+            $loginHistory = LoginHistory::where('student_id', $student->id)
                 ->whereNull('logout_at')
                 ->latest('login_at')
                 ->first();
@@ -27,7 +27,7 @@ class LogSuccessfulLogout
             }
         } catch (\Throwable $e) {
             Log::error('Failed to update logout time in login history', [
-                'user_id' => $user->id,
+                'student_id' => $student->id,
                 'error'   => $e->getMessage(),
             ]);
         }

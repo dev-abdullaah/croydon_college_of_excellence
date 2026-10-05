@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Models\Student;
 use App\Support\IntendedCourse;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\RedirectResponse;
@@ -84,7 +84,7 @@ class EmailVerificationController extends Controller
             return redirect()->route('verification.resend.form');
         }
 
-        $user = User::where('email', $email)->first();
+        $student = Student::where('email', $email)->first();
 
         /*
          | One answer for every failure: no such account, no code issued, no
@@ -96,42 +96,42 @@ class EmailVerificationController extends Controller
             'code' => 'That code is not right, or it has expired.',
         ]);
 
-        if (! $user instanceof User) {
+        if (! $student instanceof Student) {
             throw $invalid;
         }
 
         // Already verified: their own account, and the only case where the
         // answer can be different, because there is nothing left to prove.
-        if ($user->hasVerifiedEmail()) {
+        if ($student->hasVerifiedEmail()) {
             return redirect()->route('dashboard')
                 ->with('info', 'Your email address was already verified.');
         }
 
-        if ($user->verificationCodeLocked()) {
+        if ($student->verificationCodeLocked()) {
             throw $invalid;
         }
 
-        if ($user->verificationCodeExpired() || $user->verification_code_hash === null) {
+        if ($student->verificationCodeExpired() || $student->verification_code_hash === null) {
             throw $invalid;
         }
 
-        if (! $user->verificationCodeMatches($validated['code'])) {
+        if (! $student->verificationCodeMatches($validated['code'])) {
             // Counted against the allowance. Without this the code is only
             // rate limited, and a rate limit is per IP: a botnet walks
             // through a million guesses from a thousand addresses.
-            $user->recordFailedVerificationAttempt();
+            $student->recordFailedVerificationAttempt();
 
             throw $invalid;
         }
 
-        $user->markEmailAsVerified();
-        event(new Verified($user));
+        $student->markEmailAsVerified();
+        event(new Verified($student));
 
         // Spent. A code that has been forwarded into a shared inbox is no
         // longer a live credential once it has been redeemed.
-        $user->clearVerificationCode();
+        $student->clearVerificationCode();
 
-        Auth::login($user);
+        Auth::login($student);
         $request->session()->regenerate();
         $request->session()->forget('verification.email');
 
@@ -147,7 +147,7 @@ class EmailVerificationController extends Controller
          | were in their inbox, or one they bought on another device, falls
          | through to the dashboard rather than to a review page.
          */
-        if ($course = IntendedCourse::resolveIfUnowned($user)) {
+        if ($course = IntendedCourse::resolveIfUnowned($student)) {
             return redirect()->route('checkout.review', $course)
                 ->with('success', 'Your email address is verified. You are one step from starting '.$course->name.'.');
         }
@@ -180,7 +180,7 @@ class EmailVerificationController extends Controller
             'email' => ['required', 'string', 'email', 'max:255'],
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        $student = Student::where('email', $validated['email'])->first();
 
         /*
          | Deliberately identical wording whether or not an account exists, so
@@ -195,8 +195,8 @@ class EmailVerificationController extends Controller
          */
         $sent = false;
 
-        if ($user instanceof User && ! $user->hasVerifiedEmail() && ! $user->verificationCodeLocked()) {
-            $sent = $user->sendVerificationCodeIfDue();
+        if ($student instanceof Student && ! $student->hasVerifiedEmail() && ! $student->verificationCodeLocked()) {
+            $sent = $student->sendVerificationCodeIfDue();
         }
 
         // Remember it, so the code page that follows does not have to ask
@@ -219,7 +219,7 @@ class EmailVerificationController extends Controller
          | other address the neutral wording below is used unchanged, so the
          | two cannot be told apart by an outsider.
          */
-        if ($sent === false && $user instanceof User && ! $user->hasVerifiedEmail()) {
+        if ($sent === false && $student instanceof Student && ! $student->hasVerifiedEmail()) {
             return redirect()->route('verification.notice')
                 ->with('info', 'A code was sent a moment ago. Please check your inbox and spam folder, or try again in a minute.');
         }

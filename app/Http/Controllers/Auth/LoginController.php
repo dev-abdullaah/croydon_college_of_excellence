@@ -14,7 +14,7 @@ use Illuminate\View\View;
  * Minimal session based sign in.
  *
  * The project ships without any authentication UI, so this is the smallest
- * secure flow that lets a purchase be attached to a real user. It is built on
+ * secure flow that lets a purchase be attached to a real student. It is built on
  * Laravel's session guard - there is no token in a URL, and no access is
  * ever granted from a query string parameter.
  */
@@ -51,7 +51,7 @@ class LoginController extends Controller
          | likeliest reason somebody is here is that the original expired or
          | landed in spam.
          */
-        $user = Auth::user();
+        $student = Auth::user();
 
         /*
          | The course this person came to buy lives in the session, and the
@@ -59,7 +59,7 @@ class LoginController extends Controller
          */
         $intendedSlug = IntendedCourse::peek();
 
-        if ($user->hasVerifiedEmail() === false) {
+        if ($student->hasVerifiedEmail() === false) {
             Auth::guard('web')->logout();
 
             /*
@@ -73,13 +73,13 @@ class LoginController extends Controller
              */
             $request->session()->invalidate();
             $request->session()->regenerateToken();
-            $request->session()->put('verification.email', $user->email);
+            $request->session()->put('verification.email', $student->email);
 
             if ($intendedSlug !== null) {
                 IntendedCourse::remember($intendedSlug);
             }
 
-            $sent = $user->sendVerificationCodeIfDue();
+            $sent = $student->sendVerificationCodeIfDue();
 
             if (! $sent) {
                 return redirect()->route('verification.notice')
@@ -103,13 +103,13 @@ class LoginController extends Controller
          | for everyone else, including the case where Laravel remembered where
          | they were bounced from.
          */
-        if ($course = IntendedCourse::resolveIfUnowned($user)) {
+        if ($course = IntendedCourse::resolveIfUnowned($student)) {
             return redirect()->route('checkout.review', $course)
-                ->with('success', 'Welcome back, '.$user->name.'!');
+                ->with('success', 'Welcome back, '.$student->name.'!');
         }
 
         return redirect()->intended(route('dashboard'))
-            ->with('success', 'Welcome back, '.$user->name.'!');
+            ->with('success', 'Welcome back, '.$student->name.'!');
     }
 
     public function destroy(Request $request): RedirectResponse
