@@ -39,4 +39,4 @@ Artisan::command('inspire', function () {
 |
 */
 
-Schedule::command('users:prune-unverified')->daily();
+Schedule::command('students:prune-unverified')->daily();

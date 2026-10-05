@@ -3,8 +3,10 @@
 use App\Http\Controllers\AccountCenterController;
 use App\Http\Controllers\AssessmentMailController;
 use App\Http\Controllers\Auth\EmailVerificationController;
+use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\ContactMailController;
 use App\Http\Controllers\CourseCatalogController;
@@ -67,15 +69,15 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:10,1');
 
     // Password reset (forgot password)
-    Route::get('/forgot-password', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'create'])
+    Route::get('/forgot-password', [ForgotPasswordController::class, 'create'])
         ->name('password.request');
-    Route::post('/forgot-password', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'store'])
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'store'])
         ->middleware('throttle:2,1')
         ->name('password.email');
 
-    Route::get('/reset-password/{token}', [\App\Http\Controllers\Auth\ResetPasswordController::class, 'create'])
+    Route::get('/reset-password/{token}', [ResetPasswordController::class, 'create'])
         ->name('password.reset');
-    Route::post('/reset-password', [\App\Http\Controllers\Auth\ResetPasswordController::class, 'store'])
+    Route::post('/reset-password', [ResetPasswordController::class, 'store'])
         ->middleware('throttle:10,1')
         ->name('password.update');
 });
@@ -179,13 +181,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Email management
     Route::post('/my-account/emails', [AccountCenterController::class, 'addEmail'])->name('account.emails.add');
-    Route::post('/my-account/emails/{userEmail}/verify', [AccountCenterController::class, 'resendVerification'])
+    Route::post('/my-account/emails/{studentEmail}/verify', [AccountCenterController::class, 'resendVerification'])
         ->name('account.emails.resend');
     Route::get('/my-account/emails/verify/{token}', [AccountCenterController::class, 'verifyEmail'])
         ->name('account.emails.verify');
-    Route::put('/my-account/emails/{userEmail}/primary', [AccountCenterController::class, 'setPrimary'])
+    Route::put('/my-account/emails/{studentEmail}/primary', [AccountCenterController::class, 'setPrimary'])
         ->name('account.emails.primary');
-    Route::delete('/my-account/emails/{userEmail}', [AccountCenterController::class, 'removeEmail'])
+    Route::delete('/my-account/emails/{studentEmail}', [AccountCenterController::class, 'removeEmail'])
         ->name('account.emails.remove');
 
     /*
@@ -282,5 +284,5 @@ Route::redirect('/free-assesment', '/free-assessment');
 | preventing arbitrary view rendering.
 */
 Route::get('/{slug}', [StaticPageController::class, 'show'])
-    ->where('slug', implode('|', array_keys(\App\Http\Controllers\StaticPageController::PAGES)))
+    ->where('slug', implode('|', array_keys(StaticPageController::PAGES)))
     ->name('static');
