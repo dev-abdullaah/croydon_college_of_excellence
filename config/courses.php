@@ -38,11 +38,11 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Unverified User Pruning
+    | Unverified Student Pruning
     |--------------------------------------------------------------------------
     |
-    | Days after which an unverified user with no purchases is deleted.
-    | Run via the `users:prune-unverified` scheduled command.
+    | Days after which an unverified student with no purchases is deleted.
+    | Run via the `students:prune-unverified` scheduled command.
     |
     */
     'prune_unverified_days' => (int) env('COURSES_PRUNE_UNVERIFIED_DAYS', 7),

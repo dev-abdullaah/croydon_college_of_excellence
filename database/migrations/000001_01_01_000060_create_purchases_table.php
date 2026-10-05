@@ -20,7 +20,7 @@ return new class extends Migration
         Schema::create('purchases', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('student_id')->constrained()->cascadeOnDelete();
             $table->foreignId('course_id')->constrained()->restrictOnDelete();
 
             /*
@@ -61,7 +61,7 @@ return new class extends Migration
 
             $table->timestamps();
 
-            $table->index(['user_id', 'course_id']);
+            $table->index(['student_id', 'course_id']);
         });
     }
 

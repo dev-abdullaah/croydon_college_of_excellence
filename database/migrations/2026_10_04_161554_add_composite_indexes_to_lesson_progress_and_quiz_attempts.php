@@ -11,19 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // lesson_progress: user_id + course_slug for dashboard queries
+        // lesson_progress: student_id + course_slug for dashboard queries
         Schema::table('lesson_progress', function (Blueprint $table) {
-            $table->index(['user_id', 'course_slug'], 'lesson_progress_user_course_idx');
+            $table->index(['student_id', 'course_slug'], 'lesson_progress_student_course_idx');
         });
 
-        // quiz_attempts: user_id + course_slug for dashboard queries
+        // quiz_attempts: student_id + course_slug for dashboard queries
         Schema::table('quiz_attempts', function (Blueprint $table) {
-            $table->index(['user_id', 'course_slug'], 'quiz_attempts_user_course_idx');
+            $table->index(['student_id', 'course_slug'], 'quiz_attempts_student_course_idx');
         });
 
-        // login_history: user_id + login_at for recent activity queries
+        // login_history: student_id + login_at for recent activity queries
         Schema::table('login_history', function (Blueprint $table) {
-            $table->index(['user_id', 'login_at'], 'login_history_user_login_idx');
+            $table->index(['student_id', 'login_at'], 'login_history_student_login_idx');
         });
     }
 
@@ -33,15 +33,15 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('lesson_progress', function (Blueprint $table) {
-            $table->dropIndex('lesson_progress_user_course_idx');
+            $table->dropIndex('lesson_progress_student_course_idx');
         });
 
         Schema::table('quiz_attempts', function (Blueprint $table) {
-            $table->dropIndex('quiz_attempts_user_course_idx');
+            $table->dropIndex('quiz_attempts_student_course_idx');
         });
 
         Schema::table('login_history', function (Blueprint $table) {
-            $table->dropIndex('login_history_user_login_idx');
+            $table->dropIndex('login_history_student_login_idx');
         });
     }
 };

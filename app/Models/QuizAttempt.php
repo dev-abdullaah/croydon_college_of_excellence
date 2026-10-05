@@ -32,7 +32,7 @@ class QuizAttempt extends Model
     public const SUBMITTED = 'submitted';
 
     protected $fillable = [
-        'user_id',
+        'student_id',
         'course_slug',
         'quiz_slug',
         'status',
@@ -67,22 +67,22 @@ class QuizAttempt extends Model
         ];
     }
 
-    public function user(): BelongsTo
+    public function student(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Student::class);
     }
 
-    public function scopeFor(Builder $query, User|int $user): Builder
+    public function scopeFor(Builder $query, Student|int $student): Builder
     {
-        return $query->where('user_id', $user instanceof User ? $user->id : $user);
+        return $query->where('student_id', $student instanceof Student ? $student->id : $student);
     }
 
     /**
      * One learner's sittings of one paper, most recent first.
      */
-    public function scopeForPaper(Builder $query, User|int $user, string $courseSlug, string $quizSlug): Builder
+    public function scopeForPaper(Builder $query, Student|int $student, string $courseSlug, string $quizSlug): Builder
     {
-        return $query->for($user)
+        return $query->for($student)
             ->where('course_slug', $courseSlug)
             ->where('quiz_slug', $quizSlug);
     }

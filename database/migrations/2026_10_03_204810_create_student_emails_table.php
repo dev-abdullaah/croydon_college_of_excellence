@@ -11,9 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('user_emails', function (Blueprint $table) {
+        Schema::create('student_emails', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('student_id')->constrained('students')->cascadeOnDelete();
             $table->string('email')->unique();
             $table->boolean('is_primary')->default(false);
             $table->boolean('is_verified')->default(false);
@@ -22,7 +22,7 @@ return new class extends Migration
             $table->timestamp('verified_at')->nullable();
             $table->timestamps();
 
-            $table->index(['user_id', 'is_primary']);
+            $table->index(['student_id', 'is_primary']);
         });
     }
 
@@ -31,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('user_emails');
+        Schema::dropIfExists('student_emails');
     }
 };

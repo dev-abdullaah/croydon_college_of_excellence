@@ -22,7 +22,7 @@ return new class extends Migration
         Schema::create('lesson_progress', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('student_id')->constrained()->cascadeOnDelete();
 
             // Both slugs, because a slug is only unique within its course and
             // the two courses are sold separately.
@@ -32,8 +32,8 @@ return new class extends Migration
             $table->timestamp('completed_at');
             $table->timestamps();
 
-            $table->unique(['user_id', 'course_slug', 'lesson_slug'], 'lesson_progress_unique_read');
-            $table->index(['user_id', 'course_slug'], 'lesson_progress_by_course');
+            $table->unique(['student_id', 'course_slug', 'lesson_slug'], 'lesson_progress_unique_read');
+            $table->index(['student_id', 'course_slug'], 'lesson_progress_by_course');
         });
     }
 

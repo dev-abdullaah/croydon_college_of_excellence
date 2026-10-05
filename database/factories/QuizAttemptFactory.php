@@ -3,7 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\QuizAttempt;
-use App\Models\User;
+use App\Models\Student;
 use App\Models\Course;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -14,13 +14,15 @@ class QuizAttemptFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => User::factory(),
+            'student_id' => Student::factory(),
             'course_slug' => $this->faker->slug(2),
-            'paper_slug' => $this->faker->slug(2),
-            'paper_kind' => $this->faker->randomElement(['knowledge_check', 'classroom_mock', 'mock_test']),
-            'paper_number' => $this->faker->numberBetween(1, 10),
+            'quiz_slug' => $this->faker->slug(2),
+            'status' => 'in_progress',
+            'current_position' => 1,
             'answers' => [],
             'score' => null,
+            'total' => null,
+            'percentage' => null,
             'passed' => false,
             'started_at' => now(),
             'submitted_at' => null,
@@ -31,6 +33,7 @@ class QuizAttemptFactory extends Factory
     public function inProgress(): static
     {
         return $this->state(fn (array $attributes) => [
+            'status' => 'in_progress',
             'answers' => ['a', 'b', 'c', 'd'],
             'submitted_at' => null,
         ]);
@@ -39,8 +42,11 @@ class QuizAttemptFactory extends Factory
     public function completed(int $score = 80, bool $passed = true): static
     {
         return $this->state(fn (array $attributes) => [
+            'status' => 'submitted',
             'answers' => ['a', 'b', 'c', 'd'],
             'score' => $score,
+            'total' => 10,
+            'percentage' => $score * 10,
             'passed' => $passed,
             'submitted_at' => now(),
             'time_taken_seconds' => $this->faker->numberBetween(300, 1800),
@@ -50,21 +56,21 @@ class QuizAttemptFactory extends Factory
     public function knowledgeCheck(): static
     {
         return $this->state(fn (array $attributes) => [
-            'paper_kind' => 'knowledge_check',
+            'quiz_slug' => 'knowledge-check-' . $this->faker->numberBetween(1, 10),
         ]);
     }
 
     public function classroomMock(): static
     {
         return $this->state(fn (array $attributes) => [
-            'paper_kind' => 'classroom_mock',
+            'quiz_slug' => 'classroom-mock-' . $this->faker->numberBetween(1, 10),
         ]);
     }
 
     public function mockTest(): static
     {
         return $this->state(fn (array $attributes) => [
-            'paper_kind' => 'mock_test',
+            'quiz_slug' => 'mock-test-' . $this->faker->numberBetween(1, 24),
         ]);
     }
 }

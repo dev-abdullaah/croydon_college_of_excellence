@@ -6,12 +6,19 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class UserEmail extends Model
+class StudentEmail extends Model
 {
     use HasFactory;
 
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'student_emails';
+
     protected $fillable = [
-        'user_id',
+        'student_id',
         'email',
         'is_primary',
         'is_verified',
@@ -27,9 +34,9 @@ class UserEmail extends Model
         'verified_at' => 'datetime',
     ];
 
-    public function user(): BelongsTo
+    public function student(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Student::class);
     }
 
     public function scopePrimary($query)
@@ -84,7 +91,7 @@ class UserEmail extends Model
         $token = $this->generateVerificationToken();
         $expiresInMinutes = (int) config('auth.email_verification.expire', 60);
 
-        $this->user->notify(new \App\Notifications\UserEmailVerification(
+        $this->student->notify(new \App\Notifications\UserEmailVerification(
             $token,
             $this->email,
             $expiresInMinutes,

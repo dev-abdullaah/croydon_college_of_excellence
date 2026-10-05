@@ -5,10 +5,10 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * The users table.
+ * The students table.
  *
  * This baseline is edited as columns are added, rather than accumulating a
- * separate `add_..._to_users` migration for each one. The mailed verification
+ * separate `add_..._to_students` migration for each one. The mailed verification
  * code and the pending email change each used to arrive that way; their
  * columns are declared inline here instead, because folding a change into the
  * table it belongs to is only safe while there is no data anywhere that
@@ -26,7 +26,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
+        Schema::create('students', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
@@ -80,6 +80,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('users');
+        Schema::dropIfExists('students');
     }
 };

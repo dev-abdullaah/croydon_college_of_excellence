@@ -125,14 +125,14 @@ class Course extends Model
     }
 
     /**
-     * Whether this user may read the material.
+     * Whether this student may read the material.
      *
      * A completed Stripe payment is the only thing that grants it, so this is
-     * deliberately the same question User::hasPurchased() answers. There is no
+     * deliberately the same question Student::hasPurchased() answers. There is no
      * setting that relaxes it.
      */
-    public function hasAccessFor(?User $user): bool
+    public function hasAccessFor(?Student $student): bool
     {
-        return $user?->hasPurchased($this) ?? false;
+        return $student?->hasPurchased($this) ?? false;
     }
 }

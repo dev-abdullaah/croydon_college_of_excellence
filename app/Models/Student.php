@@ -13,7 +13,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Collection;
 
 /**
- * A learner.
+ * A learner (student).
  *
  * Implements MustVerifyEmail, so `email_verified_at` decides what the account
  * is allowed to reach - see routes/web.php.
@@ -25,9 +25,16 @@ use Illuminate\Support\Collection;
  * instead of the trait. The result is not a readable error: the process dies
  * the moment a row is hydrated from the database.
  */
-class User extends Authenticatable implements MustVerifyEmail
+class Student extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, MustVerifyEmailTrait, Notifiable;
+
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'students';
 
     /**
      * The attributes that are mass assignable.
@@ -96,7 +103,7 @@ class User extends Authenticatable implements MustVerifyEmail
      *
      * Any code issued earlier is replaced, not kept alongside. Two valid codes
      * at once would mean the second one is still a live credential sitting in
-     * an inbox long after the first was superseded, and the user has no way to
+     * an inbox long after the first was superseded, and the student has no way to
      * know which is current.
      *
      * `random_int` is the CSPRNG, not `rand`. A predictable code is not a code.
@@ -139,7 +146,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * The stored form of a verification code: an HMAC of the account id and
      * the code, keyed with the application key.
      *
-     * The user's primary key is inside the message as well as the key, so two
+     * The student's primary key is inside the message as well as the key, so two
      * accounts that happen to be sent the same six digits end up with
      * completely different stored values. That stops one account's code from
      * being validated against another's row.
@@ -166,7 +173,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Whether the outstanding code has passed its expiry.
      *
-     * A user who has never been sent a code is not expired, they simply have
+     * A student who has never been sent a code is not expired, they simply have
      * nothing to redeem - which is a different case and must not read as an
      * expired code to the controller.
      */
@@ -242,7 +249,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * considers dirty. Setting `verification_code_attempts` back to 0 on an
      * instance that already held 0 in memory is not dirty, so the reset would
      * silently not happen - and a counter that refuses to clear turns the
-     * lockout into something the user cannot escape by requesting a new code.
+     * lockout into something the student cannot escape by requesting a new code.
      *
      * Writing by primary key also keeps a stale instance from resurrecting
      * values another request has since changed.
@@ -318,7 +325,7 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Every login history record for this user.
+     * Every login history record for this student.
      */
     public function loginHistories(): HasMany
     {
@@ -326,23 +333,23 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * All email addresses associated with this user.
+     * All email addresses associated with this student.
      */
     public function emails(): HasMany
     {
-        return $this->hasMany(UserEmail::class);
+        return $this->hasMany(StudentEmail::class);
     }
 
     /**
-     * Get the user's primary email.
+     * Get the student's primary email.
      */
-    public function primaryEmail(): ?UserEmail
+    public function primaryEmail(): ?StudentEmail
     {
         return $this->emails()->primary()->first();
     }
 
     /**
-     * Get the user's primary email address string.
+     * Get the student's primary email address string.
      */
     public function getPrimaryEmailAttribute(): ?string
     {
@@ -350,7 +357,7 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Get the user's verified emails.
+     * Get the student's verified emails.
      */
     public function verifiedEmails()
     {
@@ -358,7 +365,7 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Every purchase this user has made, in any status.
+     * Every purchase this student has made, in any status.
      */
     public function purchases(): HasMany
     {
@@ -366,7 +373,7 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Every lesson this user has marked as finished.
+     * Every lesson this student has marked as finished.
      */
     public function lessonProgress(): HasMany
     {
@@ -405,7 +412,7 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * The active courses this user is allowed to open, in catalogue order.
+     * The active courses this student is allowed to open, in catalogue order.
      *
      * @return Collection<int, Course>
      */

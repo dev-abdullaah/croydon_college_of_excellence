@@ -3,7 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Purchase;
-use App\Models\User;
+use App\Models\Student;
 use App\Models\Course;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -14,7 +14,7 @@ class PurchaseFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => User::factory(),
+            'student_id' => Student::factory(),
             'course_id' => Course::factory(),
             'stripe_checkout_session_id' => 'cs_test_' . $this->faker->unique()->lexify('????????????????????????'),
             'stripe_payment_intent_id' => 'pi_' . $this->faker->unique()->lexify('????????????????????????'),

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Schema;
  * The table is singular: `login_history`. App\Models\LoginHistory therefore
  * sets `protected $table`, because the default would be the plural
  * `login_histories`.
+ *
  */
 return new class extends Migration
 {
@@ -24,7 +25,7 @@ return new class extends Migration
     {
         Schema::create('login_history', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('student_id')->nullable()->constrained('students')->nullOnDelete();
             $table->string('email');
             $table->string('ip_address', 45)->nullable();
             $table->string('device_type')->nullable();

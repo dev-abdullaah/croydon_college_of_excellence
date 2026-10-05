@@ -24,7 +24,7 @@ return new class extends Migration
         Schema::create('quiz_attempts', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('student_id')->constrained()->cascadeOnDelete();
 
             $table->string('course_slug', 255);
             $table->string('quiz_slug', 255);
@@ -44,8 +44,8 @@ return new class extends Migration
             $table->timestamp('submitted_at')->nullable();
             $table->timestamps();
 
-            $table->index(['user_id', 'course_slug', 'quiz_slug'], 'quiz_attempts_by_paper');
-            $table->index(['user_id', 'status'], 'quiz_attempts_by_status');
+            $table->index(['student_id', 'course_slug', 'quiz_slug'], 'quiz_attempts_by_paper');
+            $table->index(['student_id', 'status'], 'quiz_attempts_by_status');
         });
     }
 

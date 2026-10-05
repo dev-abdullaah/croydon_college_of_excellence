@@ -30,7 +30,7 @@ class Purchase extends Model
     public const STATUS_REFUNDED = 'refunded';
 
     protected $fillable = [
-        'user_id',
+        'student_id',
         'course_id',
         'stripe_checkout_session_id',
         'stripe_payment_intent_id',
@@ -69,9 +69,9 @@ class Purchase extends Model
         ];
     }
 
-    public function user(): BelongsTo
+    public function student(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Student::class);
     }
 
     public function course(): BelongsTo

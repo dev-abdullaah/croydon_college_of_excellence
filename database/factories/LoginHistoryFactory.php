@@ -3,7 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\LoginHistory;
-use App\Models\User;
+use App\Models\Student;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class LoginHistoryFactory extends Factory
@@ -13,7 +13,7 @@ class LoginHistoryFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => User::factory(),
+            'student_id' => Student::factory(),
             'email' => $this->faker->safeEmail(),
             'ip_address' => $this->faker->ipv4(),
             'device_type' => $this->faker->randomElement(['desktop', 'mobile', 'tablet']),

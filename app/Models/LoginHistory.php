@@ -18,7 +18,7 @@ class LoginHistory extends Model
     protected $table = 'login_history';
 
     protected $fillable = [
-        'user_id',
+        'student_id',
         'email',
         'ip_address',
         'device_type',
@@ -36,9 +36,9 @@ class LoginHistory extends Model
         'logout_at' => 'datetime',
     ];
 
-    public function user(): BelongsTo
+    public function student(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Student::class);
     }
 
     public function scopeSuccess($query)
@@ -51,8 +51,8 @@ class LoginHistory extends Model
         return $query->where('status', 'failed');
     }
 
-    public function scopeForUser($query, int $userId)
+    public function scopeForStudent($query, int $studentId)
     {
-        return $query->where('user_id', $userId);
+        return $query->where('student_id', $studentId);
     }
 }

@@ -24,7 +24,7 @@ class LessonProgress extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
+        'student_id',
         'course_slug',
         'lesson_slug',
         'completed_at',
@@ -42,14 +42,14 @@ class LessonProgress extends Model
         ];
     }
 
-    public function user(): BelongsTo
+    public function student(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Student::class);
     }
 
-    public function scopeFor(Builder $query, User|int $user): Builder
+    public function scopeFor(Builder $query, Student|int $student): Builder
     {
-        return $query->where('user_id', $user instanceof User ? $user->id : $user);
+        return $query->where('student_id', $student instanceof Student ? $student->id : $student);
     }
 
     /**
@@ -61,9 +61,9 @@ class LessonProgress extends Model
      *
      * @return Collection<int, string>
      */
-    public static function readSlugsFor(User|int $user, string $courseSlug): Collection
+    public static function readSlugsFor(Student|int $student, string $courseSlug): Collection
     {
-        $id = $user instanceof User ? $user->id : $user;
+        $id = $student instanceof Student ? $student->id : $student;
 
         return static::query()
             ->for($id)
