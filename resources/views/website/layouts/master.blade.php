@@ -46,6 +46,9 @@
     <link rel="stylesheet" href="{{ asset('assets/css/plugins/bootstrap-select.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/plugins/jquery-ui.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/plugins/magnigy-popup.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/plugins/plyr.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/plugins/jodit.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/styles.css?v=' . filemtime(public_path('assets/css/styles.css'))) }}">
 </head>
 
 <body class="rbt-header-sticky">
@@ -135,6 +138,15 @@
     <script src="{{ asset('assets/js/vendor/paralax-scroll.js') }}" defer></script>
     <script src="{{ asset('assets/js/vendor/paralax.min.js') }}" defer></script>
     <script src="{{ asset('assets/js/vendor/countdown.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/plyr.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/jodit.min.js') }}" defer></script>
+    <script src="{{ asset('assets/js/vendor/Sortable.min.js') }}" defer></script>
+
+    <!-- Main JS -->
+    <script src="{{ asset('assets/js/main.js') }}" defer></script>
+
+    <!-- Custom JS -->
+    <script src="{{ asset('assets/js/custom.js') }}" defer></script>
 
     @vite('resources/js/app.js')
 

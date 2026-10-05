@@ -11,14 +11,14 @@
                     <ul class="top-header-list">
                         <li>
                             <a href="mailto:info@croydoncollegeofexcellence.co.uk" class="top_header_font">
-                                <i class="fa-solid fa-envelope"></i>
+                                <i class="fas fa-envelope"></i>
                                 <span>info@croydoncollegeofexcellence.co.uk</span>
                             </a>
                         </li>
                         <li class="top-header-divider" aria-hidden="true"></li>
                         <li>
                             <a href="tel:+447405073764" class="top_header_font">
-                                <i class="fa-solid fa-phone"></i>
+                                <i class="fas fa-phone"></i>
                                 <span>+44 7405 073764</span>
                             </a>
                         </li>
@@ -29,7 +29,7 @@
                 <!-- Center Section: Address Start -->
                 <div class="top-header-center">
                     <span class="top-header-address top_header_font">
-                        <i class="fa-solid fa-location-dot"></i>
+                        <i class="fas fa-map-marker-alt"></i>
                         <span>Interchange Building, 1st Floor, 81 - 85 Station Road, Croydon, London South, CR0 2RD</span>
                     </span>
                 </div>
