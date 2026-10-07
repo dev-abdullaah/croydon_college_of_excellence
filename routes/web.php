@@ -19,6 +19,20 @@ use App\Http\Controllers\QuizController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\TutorMailController;
+use App\Http\Controllers\CertificateVerificationController;
+use App\Http\Controllers\Backend\AdminAdmissionController;
+use App\Http\Controllers\Backend\AdminAnalyticsController;
+use App\Http\Controllers\Backend\AdminAuditLogController;
+use App\Http\Controllers\Backend\AdminCertificateController;
+use App\Http\Controllers\Backend\AdminCouponController;
+use App\Http\Controllers\Backend\AdminCurriculumController;
+use App\Http\Controllers\Backend\AdminCourseController;
+use App\Http\Controllers\Backend\AdminDashboardController;
+use App\Http\Controllers\Backend\AdminPurchaseController;
+use App\Http\Controllers\Backend\AdminStudentController;
+use App\Http\Controllers\Backend\AdminSubmissionController;
+use App\Http\Controllers\Backend\AdminUserController;
+use App\Http\Controllers\Backend\Auth\AdminLoginController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/enroll/send', [EnrollMailController::class, 'sendMail'])
@@ -276,6 +290,104 @@ Route::get('/', [HomeController::class, 'index'])->name('home');
 | Avoids 404s from old bookmarks or cached search results.
 */
 Route::redirect('/free-assesment', '/free-assessment');
+
+/*
+|--------------------------------------------------------------------------
+| Backend / Admin Panel Routes (Isolated with "admin" guard and "users" table)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('admin')->name('admin.')->group(function () {
+    // Guest Admin Routes
+    Route::middleware('guest:admin')->group(function () {
+        Route::get('/login', [AdminLoginController::class, 'create'])->name('login');
+        Route::post('/login', [AdminLoginController::class, 'store'])->name('login.store');
+    });
+
+    // Authenticated Admin Routes
+    Route::middleware('auth:admin')->group(function () {
+        Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');
+
+        Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard', [AdminDashboardController::class, 'index']);
+
+        // Students Management
+        Route::get('/students/export', [AdminStudentController::class, 'export'])->name('students.export');
+        Route::get('/students', [AdminStudentController::class, 'index'])->name('students.index');
+        Route::get('/students/{student}', [AdminStudentController::class, 'show'])->name('students.show');
+        Route::match(['post', 'patch'], '/students/{student}/toggle-status', [AdminStudentController::class, 'toggleStatus'])->name('students.toggle-status');
+        Route::match(['post', 'put'], '/students/{student}/reset-password', [AdminStudentController::class, 'resetPassword'])->name('students.reset-password');
+        Route::post('/students/{student}/enroll', [AdminStudentController::class, 'enroll'])->name('students.enroll');
+        Route::get('/students/{student}/impersonate', [AdminStudentController::class, 'impersonate'])->name('students.impersonate');
+
+        // Course Catalog Management
+        Route::get('/courses', [AdminCourseController::class, 'index'])->name('courses.index');
+        Route::get('/courses/{course}/edit', [AdminCourseController::class, 'edit'])->name('courses.edit');
+        Route::match(['put', 'patch', 'post'], '/courses/{course}', [AdminCourseController::class, 'update'])->name('courses.update');
+        Route::match(['post', 'patch'], '/courses/{course}/toggle', [AdminCourseController::class, 'toggleStatus'])->name('courses.toggle');
+
+        // Static Curriculum & Question Bank Inspector
+        Route::get('/curriculum', [AdminCurriculumController::class, 'index'])->name('curriculum.index');
+        Route::get('/curriculum/{courseSlug}/lessons', [AdminCurriculumController::class, 'lessons'])->name('curriculum.lessons');
+        Route::get('/curriculum/{courseSlug}/quizzes', [AdminCurriculumController::class, 'quizzes'])->name('curriculum.quizzes');
+
+        // Course Admissions & Learner Access
+        Route::get('/admissions/export', [AdminAdmissionController::class, 'export'])->name('admissions.export');
+        Route::get('/admissions', [AdminAdmissionController::class, 'index'])->name('admissions.index');
+        Route::post('/admissions/manual-admit', [AdminAdmissionController::class, 'manualAdmit'])->name('admissions.manual-admit');
+        Route::get('/admissions/{admission}', [AdminAdmissionController::class, 'show'])->name('admissions.show');
+        Route::post('/admissions/{admission}/approve', [AdminAdmissionController::class, 'approve'])->name('admissions.approve');
+        Route::post('/admissions/{admission}/revoke', [AdminAdmissionController::class, 'revoke'])->name('admissions.revoke');
+        Route::post('/admissions/{admission}/reject', [AdminAdmissionController::class, 'reject'])->name('admissions.reject');
+        Route::patch('/admissions/{admission}/notes', [AdminAdmissionController::class, 'updateNotes'])->name('admissions.notes');
+
+        // Certificate & Credential Management
+        Route::get('/certificates/export', [AdminCertificateController::class, 'export'])->name('certificates.export');
+        Route::get('/certificates', [AdminCertificateController::class, 'index'])->name('certificates.index');
+        Route::post('/certificates', [AdminCertificateController::class, 'store'])->name('certificates.store');
+        Route::post('/certificates/{certificate}/revoke', [AdminCertificateController::class, 'revoke'])->name('certificates.revoke');
+        Route::post('/certificates/{certificate}/restore', [AdminCertificateController::class, 'restore'])->name('certificates.restore');
+
+        // Legacy Purchases
+        Route::get('/purchases/export', [AdminPurchaseController::class, 'export'])->name('purchases.export');
+        Route::get('/purchases', [AdminPurchaseController::class, 'index'])->name('purchases.index');
+        Route::get('/purchases/{purchase}', [AdminPurchaseController::class, 'show'])->name('purchases.show');
+        Route::match(['post', 'patch'], '/purchases/{purchase}/status', [AdminPurchaseController::class, 'updateStatus'])->name('purchases.status');
+
+        // Promotional Coupons & Vouchers
+        Route::resource('coupons', AdminCouponController::class)->except(['show']);
+        Route::post('/coupons/{coupon}/toggle', [AdminCouponController::class, 'toggleStatus'])->name('coupons.toggle');
+
+        // Inquiries & Contact Submissions
+        Route::get('/submissions/export', [AdminSubmissionController::class, 'export'])->name('submissions.export');
+        Route::get('/submissions', [AdminSubmissionController::class, 'index'])->name('submissions.index');
+        Route::get('/submissions/{submission}', [AdminSubmissionController::class, 'show'])->name('submissions.show');
+        Route::match(['post', 'patch'], '/submissions/{submission}/read', [AdminSubmissionController::class, 'toggleRead'])->name('submissions.read');
+        Route::match(['post', 'put', 'patch'], '/submissions/{submission}/notes', [AdminSubmissionController::class, 'updateNotes'])->name('submissions.notes');
+        Route::delete('/submissions/{submission}', [AdminSubmissionController::class, 'destroy'])->name('submissions.destroy');
+
+        // Analytics & Reports
+        Route::get('/analytics', [AdminAnalyticsController::class, 'index'])->name('analytics.index');
+
+        // Audit Trail
+        Route::get('/audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs.index');
+
+        // System Users Management
+        Route::resource('users', AdminUserController::class)->except(['show']);
+    });
+});
+
+Route::get('/stop-impersonating', [AdminStudentController::class, 'stopImpersonating'])->name('stop-impersonating');
+
+/*
+|--------------------------------------------------------------------------
+| Public Certificate Verification Registry
+|--------------------------------------------------------------------------
+*/
+Route::get('/verify', [CertificateVerificationController::class, 'show'])->name('certificates.lookup');
+Route::get('/verify/{certificate_number}', [CertificateVerificationController::class, 'show'])->name('certificates.verify');
+
+Route::get('/id-card', [StaticPageController::class, 'show'])->defaults('slug', 'id-card')->name('id-card');
+Route::post('/id-card', [StaticPageController::class, 'verifyIdCardPassword'])->name('id-card.verify');
 
 /*
 | Static pages - consolidated into a single parameterized route.

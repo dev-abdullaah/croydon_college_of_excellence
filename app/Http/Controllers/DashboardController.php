@@ -59,7 +59,8 @@ class DashboardController extends Controller
              | rows reads as three separate problems.
              */
             'unfinishedCourses' => $this->unfinishedCourses($student, $purchases),
-            'loginHistory' => $loginHistory,
+            'certificates'      => $student->certificates()->with('course')->active()->latest('issued_at')->get(),
+            'loginHistory'      => $loginHistory,
         ]);
     }
 

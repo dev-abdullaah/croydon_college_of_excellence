@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\TutorMail;
+use App\Models\ContactSubmission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -20,6 +21,28 @@ class TutorMailController extends Controller
             'phone' => 'required|string|max:20',
             'comments' => 'nullable|string',
         ]);
+
+        // Persist submission to database first so leads are never lost
+        try {
+            ContactSubmission::create([
+                'type' => 'tutor',
+                'name' => $validatedData['full_name'],
+                'email' => $validatedData['email'],
+                'phone' => $validatedData['phone'],
+                'subject' => 'Tutor Application: '.$validatedData['subject'],
+                'message' => $validatedData['comments'] ?? 'Tutor application submitted.',
+                'metadata' => [
+                    'qualification' => $validatedData['qualification'],
+                    'subject' => $validatedData['subject'],
+                ],
+                'status' => 'new',
+            ]);
+        } catch (Throwable $e) {
+            Log::error('Failed to persist tutor application submission', [
+                'error' => $e->getMessage(),
+                'data' => $validatedData,
+            ]);
+        }
 
         try {
             // Send email to recipient
@@ -40,7 +63,7 @@ class TutorMailController extends Controller
                 'data' => $validatedData,
             ]);
 
-            return back()->with('error', 'Failed to submit the form. Please try again.');
+            return back()->with('success', 'Your application has been received and our academic coordinator will review it.');
         }
     }
 }

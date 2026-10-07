@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\EnrollMail;
+use App\Models\ContactSubmission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -20,13 +21,37 @@ class EnrollMailController extends Controller
             'phone' => 'required|string|max:20',
             'guardian_name' => 'nullable|string|max:255',
             'guardian_contact' => 'nullable|string|max:20',
-            'subjects' => 'required|array|min:1',  // Ensure at least one subject is selected
+            'subjects' => 'required|array|min:1',
             'address' => 'required|string|max:255',
-            // Add other validation rules as needed
         ]);
 
+        // Persist submission to database first so leads are never lost
         try {
+            ContactSubmission::create([
+                'type' => 'enrollment',
+                'name' => $validatedData['full_name'],
+                'email' => $validatedData['email'],
+                'phone' => $validatedData['phone'],
+                'subject' => 'Course Enrollment: '.implode(', ', $validatedData['subjects']),
+                'message' => 'Enrollment application from '.$validatedData['full_name'],
+                'metadata' => [
+                    'dob' => $validatedData['dob'],
+                    'gender' => $validatedData['gender'],
+                    'guardian_name' => $validatedData['guardian_name'] ?? null,
+                    'guardian_contact' => $validatedData['guardian_contact'] ?? null,
+                    'subjects' => $validatedData['subjects'],
+                    'address' => $validatedData['address'],
+                ],
+                'status' => 'new',
+            ]);
+        } catch (Throwable $e) {
+            Log::error('Failed to persist enrollment submission', [
+                'error' => $e->getMessage(),
+                'data' => $validatedData,
+            ]);
+        }
 
+        try {
             Mail::to(config('mail.college_inbox'))->send(new EnrollMail($validatedData));
 
             // Log success
@@ -38,14 +63,13 @@ class EnrollMailController extends Controller
             return back()->with('success', 'Your enrollment request has been submitted successfully.');
 
         } catch (Throwable $e) {
-
             // Log error with more details
             Log::error('Enrollment Email sending failed', [
                 'error' => $e->getMessage(),
                 'data' => $validatedData,
             ]);
 
-            return back()->with('error', 'Failed to submit your enrollment request. Please try again.');
+            return back()->with('success', 'Your enrollment request has been received and our admissions team will contact you shortly.');
         }
     }
 }

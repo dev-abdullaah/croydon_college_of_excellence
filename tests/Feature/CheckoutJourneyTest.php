@@ -145,9 +145,17 @@ class CheckoutJourneyTest extends TestCase
             ->assertSee('What happens next')
             ->assertSee('Terms and Refund Policy');
 
-        // 7. Consent given, Stripe opens.
-        $this->post(route('checkout.store', $course), ['consent' => '1'])
-            ->assertRedirect('https://checkout.stripe.com/c/pay/cs_test_life-in-the-uk-course');
+        // 7. Application submitted, redirect to dashboard with pending admission notice.
+        $this->post(route('checkout.store', $course), [
+            'consent'        => '1',
+            'phone'          => '07405123456',
+            'payment_method' => 'bank_transfer',
+        ])->assertRedirect(route('dashboard'));
+
+        $this->assertDatabaseHas('purchases', [
+            'course_id' => $course->id,
+            'status'    => 'pending',
+        ]);
     }
 
     /* -----------------------------------------------------------------

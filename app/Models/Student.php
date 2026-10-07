@@ -44,10 +44,12 @@ class Student extends Authenticatable implements MustVerifyEmail
     protected $fillable = [
         'name',
         'email',
+        'phone',
         'password',
         'new_email',
         'email_change_token',
         'email_change_token_expires_at',
+        'is_active',
     ];
 
     /**
@@ -80,7 +82,13 @@ class Student extends Authenticatable implements MustVerifyEmail
             // never a credential by itself, only a counter beside one.
             'verification_code_attempts' => 'integer',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
+    }
+
+    public function isActive(): bool
+    {
+        return (bool) ($this->is_active ?? true);
     }
 
     /**
@@ -365,11 +373,27 @@ class Student extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Every purchase this student has made, in any status.
+     * Every purchase/admission this student has made, in any status.
      */
     public function purchases(): HasMany
     {
         return $this->hasMany(Purchase::class);
+    }
+
+    /**
+     * Course admissions for this student.
+     */
+    public function admissions(): HasMany
+    {
+        return $this->hasMany(Admission::class);
+    }
+
+    /**
+     * Verifiable certificates issued to this student.
+     */
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(Certificate::class);
     }
 
     /**

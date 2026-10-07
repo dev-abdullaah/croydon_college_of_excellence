@@ -4,6 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\AlreadyPurchasedException;
 use App\Exceptions\PaymentException;
+use App\Mail\AdmissionRequestedMail;
+use App\Mail\ContactMail;
+use App\Models\AdminAuditLog;
+use App\Models\Admission;
 use App\Models\Course;
 use App\Models\Purchase;
 use App\Services\PurchaseService;
@@ -11,6 +15,7 @@ use App\Support\IntendedCourse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Throwable;
@@ -85,8 +90,7 @@ class CheckoutController extends Controller
     }
 
     /**
-     * Review page: shows the course, price, features, consent tick box,
-     * and a Pay button that POSTs to checkout.store.
+     * Admission application page: shows course details, fee, and admissions contact form.
      */
     public function review(Request $request, Course $course): View|RedirectResponse
     {
@@ -94,22 +98,26 @@ class CheckoutController extends Controller
 
         if ($request->user()->hasPurchased($course)) {
             return redirect()->route('dashboard')
-                ->with('info', 'You already own '.$course->name.'.');
+                ->with('info', 'You already have active access to ' . $course->name . '.');
         }
 
+        $existingPending = Admission::where('student_id', $request->user()->id)
+            ->where('course_id', $course->id)
+            ->where('status', Admission::STATUS_PENDING)
+            ->first();
+
         return view('website.pages.checkout.review', [
-            'course' => $course,
-            'consentText' => config('courses.consent_text'),
+            'course'          => $course,
+            'existingPending' => $existingPending,
+            'consentText'     => config('courses.consent_text'),
         ]);
     }
 
     /**
-     * Start a Stripe Checkout Session.
+     * Submit an Admission Application.
      *
-     * The course arrives through route model binding, so the slug comes
-     * from the URL and everything else (price, Stripe Price id) is read from
-     * the database on the server. Nothing about the amount is read from the
-     * request body.
+     * Creates a pending admission request so the college administrator can contact
+     * the learner, collect manual payment, and approve access.
      */
     public function store(Request $request, Course $course): RedirectResponse
     {
@@ -119,65 +127,58 @@ class CheckoutController extends Controller
 
         if ($user->hasPurchased($course)) {
             return redirect()->route('dashboard')
-                ->with('info', 'You already own '.$course->name.'.');
+                ->with('info', 'You already have active access to ' . $course->name . '.');
         }
 
-        /*
-         | The tick box is what the customer is agreeing to, and it is required
-         | rather than advisory: a session created without it would record an
-         | acceptance that never happened, on a purchase of digital content
-         | that cannot be returned.
-         |
-         | A failure is sent back to the review page explicitly. Left to itself
-         | Laravel redirects a failed POST to wherever the browser was last,
-         | which for somebody who arrived at the review page and pressed Pay is
-         | usually nothing at all - they would land on the front page with an
-         | error message they never see, having lost the course they were
-         | buying. Naming the destination keeps them on the one page that has
-         | the box to tick.
-         */
-        try {
-            $request->validate([
-                'consent' => ['required', 'accepted'],
-            ], [
-                'consent.accepted' => 'Please tick the box to agree to the terms before paying.',
-            ]);
-        } catch (ValidationException $e) {
-            throw (ValidationException::withMessages($e->errors()))
-                ->redirectTo(route('checkout.review', $course));
+        $validated = $request->validate([
+            'phone'          => ['required', 'string', 'max:30'],
+            'payment_method' => ['required', 'string', 'in:bank_transfer,cash,phone_card,other'],
+            'learner_notes'  => ['nullable', 'string', 'max:1000'],
+            'consent'        => ['required', 'accepted'],
+        ], [
+            'phone.required'   => 'Please provide your contact phone number so our admissions team can reach you.',
+            'consent.accepted' => 'Please tick the box to confirm your admission application.',
+        ]);
+
+        if (! $user->phone && ! empty($validated['phone'])) {
+            $user->update(['phone' => $validated['phone']]);
         }
 
-        try {
-            $session = $this->purchases->beginCheckout($user, $course, termsAccepted: true);
-        } catch (AlreadyPurchasedException $e) {
-            // The pending session turned out to have been paid on another
-            // page, so there is nothing left to charge for. Take them to the
-            // course they now own rather than to an error.
-            return redirect()->route('dashboard')
-                ->with('success', 'Payment received. '.$course->name.' is ready below.');
-        } catch (PaymentException $e) {
-            Log::error('Checkout could not be started.', [
-                'course_slug' => $course->slug,
-                'reason' => $e->getMessage(),
-            ]);
+        $admission = Admission::updateOrCreate(
+            [
+                'student_id' => $user->id,
+                'course_id'  => $course->id,
+                'status'     => Admission::STATUS_PENDING,
+            ],
+            [
+                'amount'            => $course->price,
+                'currency'          => strtolower($course->currency ?? 'gbp'),
+                'payment_method'    => $validated['payment_method'],
+                'contact_phone'     => $validated['phone'],
+                'learner_notes'     => $validated['learner_notes'] ?? null,
+                'customer_name'     => $user->name,
+                'customer_email'    => $user->email,
+                'requested_at'      => now(),
+                'terms_accepted_at' => now(),
+                'terms_version'     => config('courses.terms_version', 'v1'),
+            ]
+        );
 
-            return redirect()->route('checkout.review', $course)
-                ->with('error', 'Online payments are temporarily unavailable. Please contact us on 07405 073764.');
+        AdminAuditLog::record(
+            action: 'admission_requested',
+            auditable: $admission,
+            notes: "Learner {$user->name} ({$user->email}) submitted admission request for '{$course->name}'. Contact phone: {$validated['phone']}, payment method: " . ucfirst(str_replace('_', ' ', $validated['payment_method'])) . "."
+        );
+
+        // Send confirmation email to the applicant
+        try {
+            Mail::to($user->email)->send(new AdmissionRequestedMail($admission));
         } catch (Throwable $e) {
-            Log::error('Stripe checkout session creation failed.', [
-                'course_slug' => $course->slug,
-                'exception' => $e->getMessage(),
-            ]);
-
-            return redirect()->route('checkout.review', $course)
-                ->with('error', 'We could not open the payment page. Please try again in a moment.');
+            Log::error('Admission learner confirmation email failed', ['error' => $e->getMessage()]);
         }
 
-        // Remembered only so the "payment cancelled" page can offer a retry
-        // for the right course. Never used to decide anything.
-        $request->session()->put('checkout.course', $course->slug);
-
-        return redirect()->away($session->url);
+        return redirect()->route('dashboard')
+            ->with('success', "🎉 Your admission application for {$course->name} has been received! The college administrator will contact you on {$validated['phone']} to arrange fee payment and activate your learning materials.");
     }
 
     /**

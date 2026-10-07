@@ -23,6 +23,9 @@ class DatabaseSeeder extends Seeder
         // Tests package). Required before the checkout buttons will work.
         $this->call(CourseSeeder::class);
 
+        // Seed the primary super administrator for the isolated backend panel.
+        $this->call(AdminUserSeeder::class);
+
         // The lessons and papers are not seeded: they are the JSON files in
         // `database/data/`, read straight from the repository at request time.
         // There is nothing to import and nothing to drift out of step.

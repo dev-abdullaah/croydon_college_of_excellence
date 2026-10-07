@@ -55,6 +55,11 @@ class Course extends Model
         return $this->hasMany(Purchase::class);
     }
 
+    public function admissions(): HasMany
+    {
+        return $this->hasMany(Admission::class);
+    }
+
     /**
      * Whether this course has anything to read or sit.
      *
@@ -134,5 +139,13 @@ class Course extends Model
     public function hasAccessFor(?Student $student): bool
     {
         return $student?->hasPurchased($this) ?? false;
+    }
+
+    /**
+     * Verifiable certificates issued for this course.
+     */
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(Certificate::class);
     }
 }

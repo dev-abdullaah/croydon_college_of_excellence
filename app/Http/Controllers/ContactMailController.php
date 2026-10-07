@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\ContactMail;
+use App\Models\ContactSubmission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -20,6 +21,24 @@ class ContactMailController extends Controller
             'subject' => 'required|string|max:255',
             'message' => 'required|string',
         ]);
+
+        // Persist submission to database first so leads are never lost
+        try {
+            ContactSubmission::create([
+                'type' => 'contact',
+                'name' => $validatedData['name'],
+                'email' => $validatedData['email'],
+                'phone' => $validatedData['phone'],
+                'subject' => $validatedData['subject'],
+                'message' => $validatedData['message'],
+                'status' => 'new',
+            ]);
+        } catch (Throwable $e) {
+            Log::error('Failed to persist contact submission', [
+                'error' => $e->getMessage(),
+                'data' => $validatedData,
+            ]);
+        }
 
         try {
             // Send email to recipient
@@ -40,7 +59,7 @@ class ContactMailController extends Controller
                 'data' => $validatedData,
             ]);
 
-            return back()->with('error', 'Failed to send your message. Please try again.');
+            return back()->with('success', 'Your message has been received and our team will get in touch shortly.');
         }
     }
 }

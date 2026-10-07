@@ -79,7 +79,7 @@ class RegisterController extends Controller
              | continues straight to it.
              */
             return redirect()->route('login')
-                ->with('info', 'An account with this email already exists and is verified. Please sign in at the login page. If you forgot your password, use "Forgot password" on the login page.');
+                ->with('info', 'You already have an account with this email. Please log in.');
         }
 
         if ($existing) {

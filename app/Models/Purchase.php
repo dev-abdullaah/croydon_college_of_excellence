@@ -29,19 +29,35 @@ class Purchase extends Model
     /** The payment was refunded, which revokes access. */
     public const STATUS_REFUNDED = 'refunded';
 
+    /** Learner admitted manually by admin. */
+    public const STATUS_ADMITTED = 'admitted';
+
+    /** Access revoked by admin. */
+    public const STATUS_REVOKED = 'revoked';
+
     protected $fillable = [
         'student_id',
         'course_id',
+        'coupon_id',
         'stripe_checkout_session_id',
         'stripe_payment_intent_id',
         'stripe_customer_id',
         'stripe_event_id',
         'customer_email',
         'customer_name',
+        'contact_phone',
         'amount',
+        'discount_amount',
         'currency',
+        'payment_method',
         'status',
         'metadata',
+        'learner_notes',
+        'admin_notes',
+        'requested_at',
+        'admitted_at',
+        'revoked_at',
+        'admitted_by',
         'paid_at',
         'refunded_at',
         'failure_reason',
@@ -58,7 +74,11 @@ class Purchase extends Model
     {
         return [
             'amount' => 'integer',
+            'discount_amount' => 'integer',
             'metadata' => 'array',
+            'requested_at' => 'datetime',
+            'admitted_at' => 'datetime',
+            'revoked_at' => 'datetime',
             'paid_at' => 'datetime',
             'refunded_at' => 'datetime',
             // When the customer agreed to the terms, and which version of them
@@ -79,13 +99,23 @@ class Purchase extends Model
         return $this->belongsTo(Course::class);
     }
 
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
+    }
+
+    public function admittedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'admitted_by');
+    }
+
     /**
-     * Only a `paid` purchase unlocks content. `refunded` deliberately does
-     * not, so revoking access is a matter of changing one status.
+     * Only an `admitted` or `paid` purchase unlocks content. `revoked` / `refunded`
+     * deliberately does not, so revoking access is a matter of changing one status.
      */
     public function scopePaid(Builder $query): Builder
     {
-        return $query->where('status', self::STATUS_PAID);
+        return $query->whereIn('status', [self::STATUS_PAID, self::STATUS_ADMITTED]);
     }
 
     public function scopeForCourse(Builder $query, Course|int $course): Builder
@@ -95,7 +125,7 @@ class Purchase extends Model
 
     public function isPaid(): bool
     {
-        return $this->status === self::STATUS_PAID;
+        return in_array($this->status, [self::STATUS_PAID, self::STATUS_ADMITTED], true);
     }
 
     /**

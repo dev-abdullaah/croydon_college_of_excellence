@@ -50,8 +50,8 @@ return Application::configure(basePath: dirname(__DIR__))
          | afterwards; an already signed-in visitor who reaches /login or
          | /register is sent to their account instead.
          */
-        $middleware->redirectGuestsTo(fn () => route('login'));
-        $middleware->redirectUsersTo('/my-account');
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('admin*') ? route('admin.login') : route('login'));
+        $middleware->redirectUsersTo(fn (Request $request) => $request->is('admin*') ? route('admin.dashboard') : '/my-account');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
