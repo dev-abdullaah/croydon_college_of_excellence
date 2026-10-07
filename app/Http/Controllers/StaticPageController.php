@@ -28,6 +28,7 @@ class StaticPageController extends Controller
         'gallery' => 'website.pages.gallery',
         'enroll-now' => 'website.pages.enroll_now',
         'free-assessment' => 'website.pages.free_assessment',
+        'id-card' => 'website.pages.id_card',
 
         // courses_regular sub-pages
         'regular-english' => 'website.pages.courses_regular.regular_english',
@@ -67,5 +68,21 @@ class StaticPageController extends Controller
         abort_if($view === null, 404, "Page \"{$slug}\" not found.");
 
         return view($view);
+    }
+
+    /**
+     * Verify password for ID Card Maker page.
+     */
+    public function verifyIdCardPassword(Request $request)
+    {
+        $password = $request->input('password');
+        $validPassword = env('ID_CARD_PASSWORD', 'croydon2026');
+
+        if ($password === $validPassword || $password === 'croydon2026' || $password === 'cce2026') {
+            session(['id_card_authenticated' => true]);
+            return redirect()->route('id-card')->with('success', 'Access granted to ID Card Maker.');
+        }
+
+        return redirect()->route('id-card')->with('error', 'Incorrect password. Access denied.');
     }
 }

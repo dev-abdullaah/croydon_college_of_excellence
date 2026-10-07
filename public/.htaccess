@@ -1,20 +1,71 @@
-<IfModule mod_rewrite.c>
-    <IfModule mod_negotiation.c>
-        Options -MultiViews -Indexes
-    </IfModule>
+# ==============================================================================
+# Hardened & Secure .htaccess for Croydon College of Excellence
+# ==============================================================================
 
+# ------------------------------------------------------------------------------
+# 1. SECURITY & DIRECTORY PRIVACY
+# ------------------------------------------------------------------------------
+<IfModule mod_negotiation.c>
+    Options -MultiViews -Indexes
+</IfModule>
+
+# Block access to hidden files and sensitive dotfiles (.env, .git, .htaccess, etc.)
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Block direct web access to sensitive file extensions (.log, .sh, .sql, .env, .json, .md)
+<FilesMatch "\.(log|sh|sql|env|json|md|bak|config)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# ------------------------------------------------------------------------------
+# 2. SECURITY HEADERS (Clickjacking, MIME Sniffing, XSS, Referrer)
+# ------------------------------------------------------------------------------
+<IfModule mod_headers.c>
+    # Prevent clickjacking by restricting framing to same origin
+    Header set X-Frame-Options "SAMEORIGIN"
+
+    # Prevent MIME-type sniffing
+    Header set X-Content-Type-Options "nosniff"
+
+    # Enable browser XSS protection
+    Header set X-XSS-Protection "1; mode=block"
+
+    # Strict Referrer Policy
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# ------------------------------------------------------------------------------
+# 3. REWRITE ENGINE & URL HANDLING
+# ------------------------------------------------------------------------------
+<IfModule mod_rewrite.c>
     RewriteEngine On
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+    # --------------------------------------------------------------------------
+    # 4. ANTI-HOTLINKING / BANDWIDTH THEFT PROTECTION
+    # Prevents third-party sites from embedding your images, PDFs & assets
+    # --------------------------------------------------------------------------
+    RewriteCond %{HTTP_REFERER} !^$
+    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?croydoncollegeofexcellence\.co\.uk [NC]
+    RewriteCond %{HTTP_REFERER} !^https?://localhost [NC]
+    RewriteCond %{HTTP_REFERER} !^https?://127\.0\.0\.1 [NC]
+    RewriteRule \.(png|jpe?g|gif|webp|svg|pdf|ico|bmp)$ - [F,NC]
+
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
-    # Send Requests To Front Controller...
+    # --------------------------------------------------------------------------
+    # 5. FRONT CONTROLLER (Route clean URLs to index.php)
+    # --------------------------------------------------------------------------
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
