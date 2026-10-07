@@ -8,7 +8,7 @@
 
     {{-- ── Top nav ─────────────────────────────────────────────────────────── --}}
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb--20">
-        <a href="{{ route('learn.index', $course) }}" class="btn btn-outline-secondary">
+        <a href="{{ route('learn.index', $course) }}" class="btn btn-lg btn-outline-secondary">
             &larr; All lessons
         </a>
         <span class="small text-muted">

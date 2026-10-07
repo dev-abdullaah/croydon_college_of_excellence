@@ -8,13 +8,13 @@
 
     {{-- ── Top nav ─────────────────────────────────────────────────────────── --}}
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb--20">
-        <a href="{{ route('learn.index', $course) }}" class="btn btn-outline-secondary">
+        <a href="{{ route('learn.index', $course) }}" class="btn btn-lg btn-outline-secondary">
             &larr; Back to the course
         </a>
 
         @if ($history->isNotEmpty())
             <a href="{{ route('learn.quizzes.result', [$course, $quiz->slug, $history->first()->id]) }}"
-                class="btn btn-outline-secondary">
+                class="btn btn-lg btn-outline-secondary">
                 <i class="feather-clock me-1"></i> Your last result
             </a>
         @endif

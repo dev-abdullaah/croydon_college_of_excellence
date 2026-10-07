@@ -11,7 +11,7 @@
         {{-- Score circle --}}
         <div class="lz-result-circle">
             <div class="lz-result-pct">{{ (int) round((float) $attempt->percentage) }}<span style="font-size:1.4rem;">%</span></div>
-            <div class="lz-result-label">{{ $attempt->passed ? 'Pass' : 'Fail' }}</div>
+            <div class="lz-result-label">{{ $attempt->passed ? 'Pass' : 'Not passed yet' }}</div>
         </div>
 
         {{-- Narrative --}}
@@ -24,16 +24,14 @@
                 @endif
             </h3>
             <p class="mb-1" style="font-size:1.5rem;">
-                You scored <strong>{{ $attempt->score }}/{{ $attempt->total }}</strong>
-                ({{ (int) round((float) $attempt->percentage) }}%).
+                You scored <strong>{{ (int) round((float) $attempt->percentage) }}%</strong>
+                ({{ $attempt->score }}/{{ $attempt->total }}).
                 The pass mark is {{ $quiz->pass_mark_percent }}%
                 ({{ $quiz->passMarkCount() }} out of {{ $attempt->total }}).
             </p>
             @if (!$attempt->passed)
                 <p class="mb-1" style="font-size:1.45rem; color: var(--lz-fail);">
-                    You need
-                    {{ max(0, $quiz->passMarkCount() - (int) $attempt->score) }}
-                    more correct
+                    You need {{ max(0, $quiz->passMarkCount() - (int) $attempt->score) }} more correct
                     {{ max(0, $quiz->passMarkCount() - (int) $attempt->score) === 1 ? 'answer' : 'answers' }}
                     to pass. Review the lesson material and sit it again.
                 </p>
@@ -56,18 +54,18 @@
 
     {{-- ── Action buttons ──────────────────────────────────────────────────── --}}
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb--30">
-        <a href="{{ route('learn.index', $course) }}" class="btn btn-outline-secondary">
+        <a href="{{ route('learn.index', $course) }}" class="btn btn-lg btn-outline-secondary">
             &larr; Back to the course
         </a>
 
         <div class="d-flex flex-wrap gap-2">
             @if ($lesson)
                 <a href="{{ route('learn.lessons.show', [$course, $lesson->slug]) }}"
-                    class="btn btn-outline-secondary">
+                    class="btn btn-lg btn-outline-secondary">
                     <i class="feather-book-open me-1"></i> Back to the lesson
                 </a>
             @endif
-            <a href="{{ route('learn.quizzes.play', [$course, $quiz->slug]) }}" class="btn btn-primary">
+            <a href="{{ route('learn.quizzes.play', [$course, $quiz->slug]) }}" class="btn btn-lg btn-primary">
                 <i class="feather-refresh-cw me-1"></i> Sit this paper again
             </a>
         </div>
@@ -106,7 +104,7 @@
                                     </span>
                                 @elseif ($isPicked)
                                     <span class="lz-mark lz-mark-no small">
-                                        <i class="feather-x"></i> Your answer
+                                        <i class="feather-x"></i> You chose this
                                     </span>
                                 @endif
                             </div>

@@ -39463,4 +39463,61 @@ a.lz-card:hover .lz-num {
   color: var(--color-white-dark) !important;
 }
 
+/* ==========================================================================
+   Native Bootstrap Select Field Normalization (Matching Backend Select Design)
+   ========================================================================== */
+select.form-select,
+.form-select {
+  display: block !important;
+  width: 100% !important;
+  height: 50px !important;
+  line-height: 28px !important;
+  padding: 10px 40px 10px 15px !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  color: var(--color-body) !important;
+  background-color: var(--color-white) !important;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 15px center !important;
+  background-size: 16px 12px !important;
+  border: var(--border-width) solid var(--color-border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow-10) !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  cursor: pointer !important;
+}
+
+select.form-select option {
+  font-size: 15px !important;
+  padding: 10px !important;
+  background-color: #ffffff !important;
+  color: #212529 !important;
+}
+
+select.form-select:focus,
+.form-select:focus {
+  border-color: var(--color-primary) !important;
+  outline: 0 !important;
+  box-shadow: var(--shadow-10) !important;
+}
+
+.active-dark-mode select.form-select,
+.active-dark-mode .form-select {
+  background-color: var(--color-darker) !important;
+  color: var(--color-white) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+}
+
+.active-dark-mode select.form-select option {
+  background-color: var(--color-darker) !important;
+  color: var(--color-white) !important;
+}
+
+
+
+
 

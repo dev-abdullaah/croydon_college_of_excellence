@@ -1091,7 +1091,8 @@
     },
 
     selectPicker: function () {
-      $("select").selectpicker();
+      // Disabled to preserve native Bootstrap form-select dropdowns
+      // $("select").selectpicker();
     },
 
     filterClickButton: function () {

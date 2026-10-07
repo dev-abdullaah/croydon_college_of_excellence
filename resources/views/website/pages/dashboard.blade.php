@@ -34,19 +34,13 @@
                     narrow phone. See `.account-bar`.
                 --}}
                 <div class="account-bar mb--40">
-                    <h3 class="title">Your purchased materials</h3>
+                    <h3 class="title">Your Enrolled Courses &amp; Admissions</h3>
                     <div class="d-flex gap-2 flex-wrap align-items-center">
                         <a href="{{ route('account.center') }}" class="btn btn-lg btn-outline-primary">
                             <i class="feather-shield me-2"></i> Account Center
                         </a>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
-                            {{--
-                                Red, and full size. Signing out is the one thing
-                                on this page that undoes something, so it should
-                                not look like the neutral "Course details" link
-                                sitting four inches below it.
-                            --}}
                             <button type="submit" class="btn btn-lg btn-danger">Sign Out</button>
                         </form>
                     </div>
@@ -59,31 +53,21 @@
                         @foreach ($learnableCourses as $course)
                             @php
                                 $p = $lessonProgress[$course->slug] ?? ['done' => 0, 'total' => 0];
-                                // Only the course the success page named can carry
-                                // the badge, and the controller has already matched
-                                // that slug against the paid purchases this account
-                                // owns, so it cannot mark a course they do not have.
                                 $isNew = $highlightCourse && $highlightCourse->id === $course->id;
                             @endphp
                             <div class="col-lg-6 col-12">
-                                {{-- The whole card is the link, and it turns into
-                                     a visible ring while the badge is showing so
-                                     the eye is drawn to the thing that just
-                                     arrived rather than having to read a label to
-                                     work out which one is new. --}}
                                 <a href="{{ route('learn.index', $course) }}"
                                     class="rbt-service rbt-service-2 radius-10 h-100 d-block text-decoration-none text-reset {{ $isNew ? 'dashboard-course--new' : '' }}">
                                     <div class="d-flex align-items-center mb-1 flex-wrap gap-2">
                                         <h4 class="title mb-0">{{ $course->name }}</h4>
                                         @if ($isNew)
-                                            <span class="badge bg-primary">New</span>
+                                            <span class="badge bg-warning ms-auto">New</span>
+                                        @else
+                                            <span class="badge bg-success ms-auto">Admitted (Active)</span>
                                         @endif
                                     </div>
                                     @if ($isNew)
-                                        <p class="small mb-2">
-                                            <i class="feather-check-circle me-1"></i>
-                                            Payment received. This is yours.
-                                        </p>
+                                        <p class="mb-2 small text-success fw-bold">Payment received. This is yours.</p>
                                     @endif
                                     @if ($p['total'] > 0)
                                         @php $pct = (int) round($p['done'] / $p['total'] * 100); @endphp
@@ -99,10 +83,10 @@
                                             <div class="progress-bar" style="width: {{ $pct }}%"></div>
                                         </div>
                                     @else
-                                        <p class="mb-2 small">Go to your papers and start practising.</p>
+                                        <p class="mb-2 small">Go to your lessons and mock papers to start learning.</p>
                                     @endif
                                     <span class="btn btn-lg btn-primary mt--20">
-                                        <span>{{ $isNew ? 'Start learning' : 'Open the course' }}</span>
+                                        <span>Start learning</span>
                                     </span>
                                 </a>
                             </div>
@@ -110,136 +94,101 @@
                     </div>
                 @endif
 
-                @forelse ($paidPurchases as $purchase)
-                    <div class="rbt-service rbt-service-2 radius-10 mb--30">
-                        <div class="row align-items-center g-3">
-                            <div class="col-lg-8">
-                                <div class="d-flex align-items-center mb-2">
-                                    <h4 class="title mb-0 me-3">{{ $purchase->course->name }}</h4>
-                                    <span class="{{ $purchase->statusBadgeClass() }}">{{ $purchase->statusLabel() }}</span>
+                {{-- Unfinished Applications / Incomplete purchases --}}
+                @if ($unfinishedCourses->isNotEmpty())
+                    <div class="rbt-service rbt-service-2 radius-10 border border-primary bg-light mb--30 p-4">
+                        <h4 class="title mb-3 fs-5">Complete your purchase</h4>
+                        <div class="list-group">
+                            @foreach ($unfinishedCourses as $course)
+                                <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2 py-3">
+                                    <div>
+                                        <h5 class="mb-1 fs-6">{{ $course->name }}</h5>
+                                        <span class="text-muted small">Tuition Fee: {{ $course->formattedPrice() }}</span>
+                                    </div>
+                                    <a href="{{ route('checkout.start', $course) }}" class="btn btn-sm btn-primary">
+                                        Continue
+                                    </a>
                                 </div>
-                                <p class="mb-0">
-                                    Paid {{ $purchase->paid_at?->format('j M Y, H:i') }}
-                                    &middot; {{ number_format($purchase->amount / 100, 2) }}
-                                    {{ strtoupper($purchase->currency) }}
-                                </p>
-                            </div>
-                            <div class="col-lg-4">
-                                <a href="{{ route('courses.show', $purchase->course) }}"
-                                    class="btn btn-lg btn-outline-secondary w-100">Course details</a>
-                            </div>
+                            @endforeach
                         </div>
-
-                        <hr class="my-4">
-
-                        <h5 class="title">Your material</h5>
-                        @if ($purchase->course->hasLearningContent())
-                            <p class="mb-3">
-                                This course is read and tested on the website. Nothing is downloaded.
-                            </p>
-                            <a href="{{ route('learn.index', $purchase->course) }}"
-                                class="btn btn-lg btn-primary">
-                                <span>Open the course</span>
-                            </a>
-                        @else
-                            <p class="mb-0">Everything in this course is on the website. Please
-                                contact us on 07405 073764 if you cannot find it.</p>
-                        @endif
                     </div>
-                @empty
-                    {{-- Only when there is nothing half-finished either. Telling
-                         somebody who is midway through a purchase that they
-                         "have not purchased anything yet", and then listing
-                         their purchase underneath, reads as a contradiction. --}}
-                    @if ($unfinishedCourses->isEmpty())
-                    <div class="rbt-service rbt-service-2 radius-10">
-                        <h4 class="title">You have not purchased anything yet</h4>
-                        <p>
-                            Choose the Life in the UK Course or the 24 Mock Tests package and your course will
-                            appear here the moment Stripe confirms your payment.
-                        </p>
-                        {{-- Centred, and sized to its own label.
+                @endif
 
-                             .rbt-btn is display:flex, which fills whatever block
-                             box it is put in. The card is 875px wide, so left
-                             alone this renders as a full-width bar with a
-                             caption on it rather than as a button.
-                             d-inline-flex is the one class that overrides it,
-                             shrinking the button to the label; the wrapper
-                             around it then does the centring. --}}
+                {{-- Pending Admissions Notice --}}
+                @if ($pendingPurchases->isNotEmpty())
+                    <div class="rbt-service rbt-service-2 radius-10 border border-warning bg-light-warning mb--30 p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="badge bg-warning text-dark fs-6 me-2">⏳ Pending Admissions</span>
+                            <h4 class="title mb-0 fs-5">Awaiting Fee Payment &amp; Office Approval</h4>
+                        </div>
+                        <p class="text-muted small mb-3">
+                            Our admissions team has received your application for the following course(s). An administrator will contact you shortly to confirm your place and guide manual fee payment.
+                        </p>
+                        <div class="list-group">
+                            @foreach ($pendingPurchases as $pending)
+                                <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2 bg-white rounded mb-2 border">
+                                    <div>
+                                        <strong class="d-block">{{ $pending->course->name }}</strong>
+                                        <span class="text-muted small">
+                                            Fee: {{ number_format($pending->amount / 100, 2) }} {{ strtoupper($pending->currency) }}
+                                            &middot; Applied: {{ $pending->requested_at?->format('j M Y, H:i') ?? $pending->created_at->format('j M Y, H:i') }}
+                                            @if($pending->contact_phone)
+                                                &middot; Contact Phone: {{ $pending->contact_phone }}
+                                            @endif
+                                        </span>
+                                    </div>
+                                    <span class="badge bg-warning text-dark">Under Review</span>
+                                </div>
+                            @endforeach
+                        </div>
+                        <div class="mt-3 small text-muted">
+                            Need faster activation? Call admissions directly at <a href="tel:+447405073764" class="fw-bold">+44 7405 073764</a>.
+                        </div>
+                    </div>
+                @endif
+
+                @if ($paidPurchases->isEmpty() && $pendingPurchases->isEmpty())
+                    <div class="rbt-service rbt-service-2 radius-10 text-center py-5">
+                        <h4 class="title">You are not currently enrolled in any courses</h4>
+                        <p class="text-muted">
+                            Browse our course catalogue and apply for admission. Our admissions office will arrange payment with you and unlock your access.
+                        </p>
                         <div class="text-center mt--20">
                             <a href="{{ route('courses.index') }}"
-                                class="rbt-btn hover-icon-reverse btn-border-gradient radius-round d-inline-flex">
-                                <div class="icon-reverse-wrapper">
-                                    <span class="btn-text">Browse the courses</span>
-                                    {{-- Two icons: the first shows, the second slides
-                                         in on hover and the first slides away. --}}
-                                    <span class="btn-icon">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round"
-                                            class="feather feather-arrow-right">
-                                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                                            <polyline points="12 5 19 12 12 19"></polyline>
-                                        </svg>
-                                    </span>
-                                    <span class="btn-icon">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round"
-                                            class="feather feather-arrow-right">
-                                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                                            <polyline points="12 5 19 12 12 19"></polyline>
-                                        </svg>
-                                    </span>
-                                </div>
+                                class="rbt-btn btn-gradient radius-round d-inline-flex">
+                                <span class="btn-text">Browse Courses</span>
                             </a>
                         </div>
                     </div>
-                    @endif
-                @endforelse
+                @endif
 
-                {{--
-                    "Complete your purchase", not "Recent checkout attempts".
-
-                    The old heading described the database rows behind it. That
-                    is the wrong way round: a customer did not make an
-                    "attempt", they started buying a course and did not finish,
-                    and a list of internal statuses beside each name reads as
-                    several separate things going wrong. So this is one entry
-                    per course they have started and not finished, with a single
-                    button, and no statuses at all.
-
-                    The button goes to checkout.start rather than to the
-                    payment form or the course page, because start is the only
-                    place that knows what this person still needs. It is a GET
-                    that changes nothing but the session, so it is safe to be
-                    sitting here waiting to be clicked, and safe to arrive at
-                    from a bookmark.
-
-                    One row per course, not per purchase: three clicks on the
-                    pay button is one thing left to do, and listing it three
-                    times would make it look like three.
-                --}}
-                @if ($unfinishedCourses->isNotEmpty())
-                    <div class="rbt-service rbt-service-2 radius-10 mt--30">
-                        <h4 class="title">Complete your purchase</h4>
-                        <p>
-                            You started buying {{ $unfinishedCourses->count() === 1 ? 'this course' : 'these courses' }}
-                            but have not finished. Nothing has been charged &mdash; pick up where you left off.
-                        </p>
-                        <ul class="list-unstyled mb-0">
-                            @foreach ($unfinishedCourses as $course)
-                                <li class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2">
-                                    <span>
-                                        <strong>{{ $course->name }}</strong>
-                                        <small class="ms-2">{{ $course->formattedPrice() }}</small>
-                                    </span>
-                                    <a href="{{ route('checkout.start', $course) }}"
-                                        class="btn btn-lg btn-primary">Continue</a>
-                                </li>
+                {{-- Earned Certificates & Verifiable Credentials --}}
+                @if (isset($certificates) && $certificates->isNotEmpty())
+                    <div class="rbt-service rbt-service-2 radius-10 border border-success bg-light mb--30 p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="badge bg-success fs-6 me-2">📜 Official Credentials</span>
+                            <h4 class="title mb-0 fs-5">Your Course Completion Certificates</h4>
+                        </div>
+                        <div class="list-group">
+                            @foreach ($certificates as $cert)
+                                <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2 py-3">
+                                    <div>
+                                        <h5 class="mb-1 fs-6">{{ $cert->course->name }}</h5>
+                                        <span class="text-muted small">
+                                            Serial: <code>{{ $cert->certificate_number }}</code> &middot; Awarded {{ $cert->issued_at->format('d M Y') }}
+                                            @if($cert->grade)
+                                                &middot; Grade: <strong>{{ $cert->grade }}</strong>
+                                            @endif
+                                        </span>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <a href="{{ $cert->verificationUrl() }}" target="_blank" class="btn btn-sm btn-outline-success">
+                                            <i class="feather-external-link me-1"></i> View / Print Certificate
+                                        </a>
+                                    </div>
+                                </div>
                             @endforeach
-                        </ul>
+                        </div>
                     </div>
                 @endif
 

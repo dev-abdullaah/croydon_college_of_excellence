@@ -194,12 +194,6 @@
     </div>
     <!-- End Banner Area  -->
 
-    <br>
-
-    <!-- Start Paid Courses Promotional Area -->
-    @include('website.partials.paid_courses')
-    <!-- End Paid Courses Promotional Area -->
-
     <!-- Start Top Subject Area -->
     <div class="rbt-categories-area bg-color-white rbt-section-gapBottom mt--60">
         <div class="container">

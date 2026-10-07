@@ -96,7 +96,7 @@
                                              still need. See partials/paid_courses. --}}
                                         <a href="{{ route('checkout.start', $course) }}"
                                             class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center">
-                                            <span>Buy {{ $course->name }} &mdash; {{ $course->formattedPrice() }}</span>
+                                            <span>Apply for Admission &mdash; {{ $course->formattedPrice() }}</span>
                                         </a>
                                     @endif
                                 </div>

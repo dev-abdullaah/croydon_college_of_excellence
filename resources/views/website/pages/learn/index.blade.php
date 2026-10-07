@@ -53,10 +53,10 @@
 
             <div class="col-md-5">
                 <div class="d-flex flex-wrap gap-2 justify-content-md-end">
-                    <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary">
+                    <a href="{{ route('dashboard') }}" class="btn btn-lg btn-outline-secondary">
                         <i class="feather-user me-1"></i> My account
                     </a>
-                    <a href="{{ route('courses.show', $course) }}" class="btn btn-outline-secondary">
+                    <a href="{{ route('courses.show', $course) }}" class="btn btn-lg btn-outline-secondary">
                         <i class="feather-info me-1"></i> Course details
                     </a>
                 </div>
@@ -96,7 +96,7 @@
                                         <p class="mb-0 small text-muted">{{ $lesson->title }}</p>
                                     </div>
                                     <span class="badge flex-shrink-0 {{ $isRead ? 'bg-success' : 'bg-light text-dark' }}">
-                                        {{ $isRead ? '✓ Read' : $lesson->itemCount() . ' cards' }}
+                                        {{ $isRead ? '✓ Read' : $lesson->itemCount() . ' study cards' }}
                                     </span>
                                 </div>
                             </div>

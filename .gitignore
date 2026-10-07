@@ -29,3 +29,7 @@ yarn-error.log
 # Left behind only if a test run is killed mid-way. The real copy of the course
 # content is database/data/course-content.json — never commit this.
 database/data/*.test-backup
+
+# Scratch and temporary zip archives
+scratch/
+*.zip

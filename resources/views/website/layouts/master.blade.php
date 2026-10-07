@@ -33,7 +33,6 @@
     <link rel="shortcut icon" type="image/x-icon" href="{{ asset('assets/images/favicon.png') }}">
 
     <!-- CSS================================= -->
-    @vite('resources/css/app.css')
     <link rel="stylesheet" href="{{ asset('assets/css/vendor/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/vendor/slick.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/vendor/slick-theme.css') }}">
@@ -48,7 +47,7 @@
     <link rel="stylesheet" href="{{ asset('assets/css/plugins/magnigy-popup.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/plugins/plyr.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/plugins/jodit.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/css/styles.css?v=' . filemtime(public_path('assets/css/styles.css'))) }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/styles.css?v=' . (file_exists(public_path('assets/css/styles.css')) ? @filemtime(public_path('assets/css/styles.css')) : '1.0')) }}">
 </head>
 
 <body class="rbt-header-sticky">
@@ -147,8 +146,6 @@
 
     <!-- Custom JS -->
     <script src="{{ asset('assets/js/custom.js') }}" defer></script>
-
-    @vite('resources/js/app.js')
 
     @stack('scripts')
 

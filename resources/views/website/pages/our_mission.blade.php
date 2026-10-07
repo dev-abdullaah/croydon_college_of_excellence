@@ -95,7 +95,7 @@
 
                 </div>
                 <p class="mt--20">
-                    Our <span class="txt-highlight">dedicated staff</span> is here to help you navigate your
+                    Our <span class="txt-highlight">dedicated team</span> is here to help you navigate your
                     educational journey, providing personalized support, encouragement, and expertise every step
                     of the way.
                 </p>

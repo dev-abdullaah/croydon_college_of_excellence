@@ -40,7 +40,7 @@
      */
     $siteAutoClose = ['success' => 6000, 'info' => 9000];
 
-    $hasValidationErrors = $errors->any();
+    $hasValidationErrors = isset($errors) && $errors->any();
 @endphp
 
 @if ($siteNotices || $hasValidationErrors)

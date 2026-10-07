@@ -54,26 +54,26 @@
 
                 <div class="offset-lg-1 col-lg-2 col-md-6 col-sm-6 col-12 mt--30">
                     <div class="footer-widget">
-                        <h5 class="ft-title">Life in the UK Prep</h5>
+                        <h5 class="ft-title">Student Portal</h5>
                         <ul class="ft-link">
-                            <li>
-                                <a href="{{ route('courses.show', 'life-in-the-uk-course') }}">Life in the UK Course (£99)</a>
-                            </li>
-                            <li>
-                                <a href="{{ route('courses.show', '24-mock-tests') }}">24 Mock Tests Pack (£49)</a>
-                            </li>
-                            <li>
-                                <a href="{{ route('courses.index') }}">All Online Courses</a>
-                            </li>
                             @auth
                                 <li>
                                     <a href="{{ route('dashboard') }}" class="fw-bold text-primary">My Learning Account</a>
                                 </li>
                             @else
                                 <li>
-                                    <a href="{{ route('login') }}" class="fw-bold text-primary">Sign In To Your Account</a>
+                                    <a href="{{ route('login') }}" class="fw-bold text-primary">Student Sign In</a>
+                                </li>
+                                <li>
+                                    <a href="{{ route('register') }}">Create Account</a>
                                 </li>
                             @endauth
+                            <li>
+                                <a href="{{ route('courses.index') }}">Online Courses</a>
+                            </li>
+                            <li>
+                                <a href="{{ url('/free-assessment') }}">Free Assessment</a>
+                            </li>
                         </ul>
                     </div>
                 </div>

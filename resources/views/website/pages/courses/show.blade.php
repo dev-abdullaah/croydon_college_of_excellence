@@ -121,19 +121,19 @@
                             <div class="col-lg-6">
                                 <div class="rbt-btn-wrapper">
                                     <a href="{{ route('checkout.start', $course) }}"
-                                        class="rbt-btn btn-border-gradient radius-round btn-sm w-100 justify-content-center text-center">
-                                        <span>Buy Now &mdash; {{ $course->formattedPrice() }}</span>
+                                        class="rbt-btn btn-gradient radius-round btn-sm w-100 justify-content-center text-center">
+                                        <span>Apply for Admission &mdash; {{ $course->formattedPrice() }}</span>
                                     </a>
                                 </div>
                             </div>
                             <div class="col-lg-6">
-                                <p class="mb-0">
-                                    <i class="feather-lock me-2"></i>
-                                    You will be taken to Stripe's secure checkout to pay by card.
+                                <p class="mb-0 small">
+                                    <i class="feather-phone-call me-2 text-primary"></i>
+                                    Submit your application. Our admissions team will contact you to confirm payment and activate your course.
                                     @guest
                                         <br>
-                                        Already have an account?
-                                        <a href="{{ route('login') }}">Log in</a>.
+                                        Already registered?
+                                        <a href="{{ route('login') }}">Log in to your account</a>.
                                     @endguest
                                 </p>
                             </div>
