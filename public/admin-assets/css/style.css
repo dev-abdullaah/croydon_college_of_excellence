@@ -1,0 +1,252 @@
+/* Modern Status Badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border-radius: 50px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    gap: 0.5rem;
+    letter-spacing: 0.3px;
+}
+
+.status-badge .badge-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 20px;
+    padding: 0 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 30px;
+    background-color: rgba(0, 0, 0, 0.08);
+    color: inherit;
+    transition: all 0.2s ease;
+}
+
+.status-badge.active .badge-count {
+    background-color: rgba(255, 255, 255, 0.25);
+    color: white;
+}
+
+/* All status */
+.status-badge.all {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+}
+
+.status-badge.all:hover {
+    background-color: #e9ecef;
+    border-color: #ced4da;
+    transform: translateY(-1px);
+}
+
+.status-badge.active.all {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+/* Pending */
+.status-badge.pending {
+    background-color: #fff3e0;
+    color: #f39c12;
+    border: 1px solid #ffe4b3;
+}
+
+.status-badge.pending:hover {
+    background-color: #ffe4b3;
+    transform: translateY(-1px);
+}
+
+.status-badge.active.pending {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 2px 8px rgba(243, 156, 18, 0.3);
+}
+
+/* Confirmed */
+.status-badge.confirmed {
+    background-color: #e3f2fd;
+    color: #3498db;
+    border: 1px solid #bbdef5;
+}
+
+.status-badge.confirmed:hover {
+    background-color: #bbdef5;
+    transform: translateY(-1px);
+}
+
+.status-badge.active.confirmed {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+}
+
+/* Delivered */
+.status-badge.delivered {
+    background-color: #e8f8f5;
+    color: #27ae60;
+    border: 1px solid #d0f0e5;
+}
+
+.status-badge.delivered:hover {
+    background-color: #d0f0e5;
+    transform: translateY(-1px);
+}
+
+.status-badge.active.delivered {
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+}
+
+/* Cancelled */
+.status-badge.cancelled {
+    background-color: #fdecea;
+    color: #e74c3c;
+    border: 1px solid #fadbd8;
+}
+
+.status-badge.cancelled:hover {
+    background-color: #fadbd8;
+    transform: translateY(-1px);
+}
+
+.status-badge.active.cancelled {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .status-badge {
+        padding: 0.3rem 0.8rem;
+        font-size: 0.75rem;
+    }
+
+    .status-badge i {
+        display: none;
+    }
+
+    .status-badge .badge-count {
+        min-width: 20px;
+        height: 18px;
+        font-size: 0.65rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .status-badge {
+        padding: 0.25rem 0.6rem;
+        font-size: 0.7rem;
+    }
+}
+
+/******************** Custom slim scrollbar *********************/
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #b3b3b3;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #b3b3b3;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+/******************** Custom slim scrollbar *********************/
+
+/* Custom Contrast Enhancement for Light Theme Buttons */
+.btn-light-primary {
+    color: #0077c5 !important;
+    background-color: #dbeeff !important;
+    border: 1px solid #a8d5ff !important;
+}
+.btn-light-primary:hover, .btn-light-primary:active, .btn-light-primary:focus {
+    color: #ffffff !important;
+    background-color: #009ef7 !important;
+    border-color: #009ef7 !important;
+}
+
+.btn-light-secondary, .btn-light {
+    color: #3f4254 !important;
+    background-color: #e9ecef !important;
+    border: 1px solid #ced4da !important;
+}
+.btn-light-secondary:hover, .btn-light-secondary:active, .btn-light-secondary:focus,
+.btn-light:hover, .btn-light:active, .btn-light:focus {
+    color: #181c32 !important;
+    background-color: #d8dbe0 !important;
+    border-color: #b5b9bf !important;
+}
+
+.btn-light-dark {
+    color: #1e2125 !important;
+    background-color: #e2e3e5 !important;
+    border: 1px solid #c4c8cb !important;
+}
+.btn-light-dark:hover, .btn-light-dark:active, .btn-light-dark:focus {
+    color: #ffffff !important;
+    background-color: #212529 !important;
+    border-color: #212529 !important;
+}
+
+.btn-light-success {
+    color: #1b8450 !important;
+    background-color: #d6f7e4 !important;
+    border: 1px solid #a2e8c2 !important;
+}
+.btn-light-success:hover, .btn-light-success:active, .btn-light-success:focus {
+    color: #ffffff !important;
+    background-color: #50cd89 !important;
+    border-color: #50cd89 !important;
+}
+
+.btn-light-info {
+    color: #5925c7 !important;
+    background-color: #ede5ff !important;
+    border: 1px solid #cfbaff !important;
+}
+.btn-light-info:hover, .btn-light-info:active, .btn-light-info:focus {
+    color: #ffffff !important;
+    background-color: #7239ea !important;
+    border-color: #7239ea !important;
+}
+
+.btn-light-warning {
+    color: #b07500 !important;
+    background-color: #fff3c4 !important;
+    border: 1px solid #ffe380 !important;
+}
+.btn-light-warning:hover, .btn-light-warning:active, .btn-light-warning:focus {
+    color: #ffffff !important;
+    background-color: #ffc700 !important;
+    border-color: #ffc700 !important;
+}
+
+.btn-light-danger {
+    color: #d9214e !important;
+    background-color: #ffe3eb !important;
+    border: 1px solid #ffa3b8 !important;
+}
+.btn-light-danger:hover, .btn-light-danger:active, .btn-light-danger:focus {
+    color: #ffffff !important;
+    background-color: #f1416c !important;
+    border-color: #f1416c !important;
+}
