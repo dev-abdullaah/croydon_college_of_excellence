@@ -432,6 +432,8 @@ class AdmissionsAndCertificationTest extends TestCase
         $response->assertSee('ID Card Maker');
         $response->assertSee('Sharon Ann Joseph');
         $response->assertSee('Outreach Primary Tutor');
+        $response->assertSee('teacher_id');
+        $response->assertSee('Teacher ID');
         $response->assertSee('front');
         $response->assertSee('back');
     }

@@ -206,6 +206,9 @@
         <label for="title">Designation</label>
         <input type="text" id="title" value="Outreach Primary Tutor">
         <div class="hint">Just the job title – no “Position:” label.</div>
+        <label for="teacher_id">Teacher ID</label>
+        <input type="text" id="teacher_id" value="CCE-T001">
+        <div class="hint">Shown as “Teacher ID : [ID]” under the photo.</div>
         <label for="photo">Photo</label>
         <input type="file" id="photo" accept="image/*">
         <div class="hint">Best: a front-facing portrait on a plain white or light background.</div>
@@ -360,6 +363,14 @@ document.addEventListener('DOMContentLoaded', function() {
       ctext(ctx, $('name').value.trim(), 660, 940, 'bold', 138, '#fff', 1180);
       ctx.fillStyle = GOLD; ctx.fillRect(360, 1042, 600, 6);
       ctext(ctx, $('title').value.trim(), 660, 1150, 'normal', 96, '#fff', 1180);
+
+      const rawId = $('teacher_id') ? $('teacher_id').value.trim() : '';
+      if (rawId) {
+        const idText = /^teacher\s*id\s*:/i.test(rawId)
+          ? rawId.replace(/^teacher\s*id\s*:\s*/i, 'Teacher ID : ')
+          : (/^id\s*:/i.test(rawId) ? rawId.replace(/^id\s*:\s*/i, 'Teacher ID : ') : 'Teacher ID : ' + rawId);
+        ctext(ctx, idText, 1652, 1104, 'bold', 76, '#fff', 600);
+      }
     }
 
     function drawBack() {
